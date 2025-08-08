@@ -4,7 +4,7 @@ import { auth } from "@/firebase/firebase_setup";
 import { getIdToken } from "firebase/auth";
 
 const rawBaseQuery = fetchBaseQuery({
-  baseUrl: "http://localhost:9000/api/v1", // or use process.env.REACT_APP_BASE_URL
+  baseUrl: "https://f7m0fdvs-9000.inc1.devtunnels.ms/api/v1", // or use process.env.REACT_APP_BASE_URL
   prepareHeaders: async (headers) => {
     const user = auth.currentUser;
     if (user) {
@@ -17,11 +17,7 @@ const rawBaseQuery = fetchBaseQuery({
   },
 });
 
-export const baseQueryWithReauth: BaseQueryFn<any, unknown, unknown> = async (
-  args,
-  api,
-  extraOptions
-) => {
+export const baseQueryWithReauth: BaseQueryFn<any, unknown, unknown> = async (args, api, extraOptions) => {
   let result = await rawBaseQuery(args, api, extraOptions);
 
   if (result?.error && result.error.status === 401) {

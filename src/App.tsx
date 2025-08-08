@@ -9,31 +9,36 @@ import ProtectedLayout from "./routes/protected_layout";
 import HomePage from "./screens/home/home_page";
 import Documents from "./screens/documents/documents";
 import AddDocuments from "./screens/documents/add_documents";
+import { QRCodeHandler } from "./components/qr-code-handler";
+import Connections from "./pages/Connections";
 
 const App = () => {
   return (
     <Router>
-      <Routes>
-        <Route path="/signup" element={<Signup />} />
+      <QRCodeHandler>
+        <Routes>
+          <Route path="/signup" element={<Signup />} />
 
-        <Route
-          element={
-            <ProtectedRoute>
-              <ProtectedLayout />
-            </ProtectedRoute>
-          }
-        >
-          <Route path="/home" element={<HomePage />} />
-          <Route path="/user-data" element={<UserData />} />
-          <Route path="/documents" element={<Documents />} />
-          <Route path="/add-documents" element={<AddDocuments />} />
-          <Route path="/connections" element={<ConnectionsRouter />} />
-          {/* <Route path="/connections/add" element={<AddConnection />} /> */}
-          <Route path="/connections/:id" element={<ConnectionDetails />} />
-        </Route>
+          <Route
+            element={
+              <ProtectedRoute>
+                <ProtectedLayout />
+              </ProtectedRoute>
+            }
+          >
+            <Route path="/home" element={<HomePage />} />
+            <Route path="/user-data" element={<UserData />} />
+            <Route path="/documents" element={<Documents />} />
+            <Route path="/add-documents" element={<AddDocuments />} />
+            <Route path="/connections" element={<Connections />} />
+            <Route path="/connections/:code" element={<Connections />} />
+            {/* <Route path="/connections/add" element={<AddConnection />} /> */}
+            <Route path="/connections/:id" element={<ConnectionDetails />} />
+          </Route>
 
-        <Route path="*" element={<Signup />} />
-      </Routes>
+          <Route path="*" element={<Signup />} />
+        </Routes>
+      </QRCodeHandler>
     </Router>
   );
 };

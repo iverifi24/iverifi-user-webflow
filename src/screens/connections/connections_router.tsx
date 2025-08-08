@@ -1,9 +1,11 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useGetConnectionsQuery } from "@/redux/api";
+import { useGetConnectionsQuery, useAddConnectionMutation } from "@/redux/api";
 import { format } from "date-fns";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { useEffect } from "react";
+import { determineConnectionType, isValidQRCode } from "@/utils/qr-code-utils";
 import AddConnectionModal from "./add_connection";
 
 const formatDocType = (type: string): string => {
@@ -16,11 +18,41 @@ const formatDocType = (type: string): string => {
 
 const ConnectionsRouter = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [addConnection] = useAddConnectionMutation();
 
-  const { data: connectionData, isLoading: isLoadingConnections } =
-    useGetConnectionsQuery();
+  const { data: connectionData, isLoading: isLoadingConnections } = useGetConnectionsQuery();
 
   const connections = connectionData?.data?.requests || [];
+
+  // Handle QR code flow
+  useEffect(() => {
+    const code = searchParams.get("code");
+
+    if (isValidQRCode(code)) {
+      const handleQRCodeConnection = async () => {
+        try {
+          const type = determineConnectionType(code!);
+
+          await addConnection({
+            document_id: code!,
+            type,
+          }).unwrap();
+
+          // Navigate to the connection details page with the code as path parameter
+          navigate(`/connections/${code}`);
+        } catch (error) {
+          console.error("Error adding connection from QR code:", error);
+          // Remove the code parameter on error to prevent infinite retries
+          const newSearchParams = new URLSearchParams(searchParams);
+          newSearchParams.delete("code");
+          setSearchParams(newSearchParams);
+        }
+      };
+
+      handleQRCodeConnection();
+    }
+  }, [searchParams, addConnection, navigate, setSearchParams]);
 
   // const getExpiryInfo = (expiry: string) => {
   //   if (!expiry) return { status: "Unknown", label: "No expiry date" };
@@ -71,7 +103,7 @@ const ConnectionsRouter = () => {
         </div>
       ) : connections.length === 0 ? (
         <p className="text-muted-foreground text-sm border p-4 rounded-md bg-muted/50">
-          You don’t have any active connections.
+          You don't have any active connections.
         </p>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">

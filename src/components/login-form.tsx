@@ -1,42 +1,25 @@
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { loginWithEmail, loginWithGoogle } from "@/firebase_auth_service";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useState } from "react";
-import { getRecipientIdFromStorage } from "@/utils/connectionFlow";
-import { useAddConnectionMutation } from "@/redux/api";
 
-export function LoginForm({
-  className,
-  ...props
-}: React.ComponentProps<"div">) {
+export function LoginForm({ className, ...props }: React.ComponentProps<"div">) {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [addConnection] = useAddConnectionMutation();
 
   const postLoginCheck = async () => {
-    const pendingId = getRecipientIdFromStorage();
-    if (pendingId) {
-      try {
-        await addConnection({
-          document_id: pendingId,
-          type: "Company",
-        }).unwrap();
-        navigate(`/connections/${pendingId}`);
-      } catch (err) {
-        console.error("Failed to add connection after login", err);
-        navigate("/home");
-      }
+    // Check for code parameter from QR code URL
+    const code = searchParams.get("code");
+
+    if (code) {
+      // Redirect to connections page with code parameter
+      navigate(`/connections?code=${code}`);
     } else {
       navigate("/home");
     }
@@ -66,9 +49,7 @@ export function LoginForm({
       <Card>
         <CardHeader className="text-center">
           <CardTitle className="text-xl">Welcome back</CardTitle>
-          <CardDescription>
-            Login with your Apple or Google account
-          </CardDescription>
+          <CardDescription>Login with your Apple or Google account</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleEmailLogin}>
@@ -78,18 +59,12 @@ export function LoginForm({
                   {/* Apple login placeholder */}
                   Login with Apple
                 </Button>
-                <Button
-                  variant="outline"
-                  className="w-full"
-                  onClick={handleGoogleLogin}
-                >
+                <Button variant="outline" className="w-full" onClick={handleGoogleLogin}>
                   Login with Google
                 </Button>
               </div>
               <div className="after:border-border relative text-center text-sm after:absolute after:inset-0 after:top-1/2 after:z-0 after:flex after:items-center after:border-t">
-                <span className="bg-card text-muted-foreground relative z-10 px-2">
-                  Or continue with
-                </span>
+                <span className="bg-card text-muted-foreground relative z-10 px-2">Or continue with</span>
               </div>
               <div className="grid gap-6">
                 <div className="grid gap-3">
@@ -124,8 +99,7 @@ export function LoginForm({
         </CardContent>
       </Card>
       <div className="text-muted-foreground text-center text-xs">
-        By clicking continue, you agree to our Terms of Service and Privacy
-        Policy.
+        By clicking continue, you agree to our Terms of Service and Privacy Policy.
       </div>
     </div>
   );
