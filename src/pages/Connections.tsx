@@ -1,26 +1,30 @@
-import { useEffect, useState, useMemo } from "react";
-import { useNavigate, useSearchParams, useParams } from "react-router-dom";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "../components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { toast } from "sonner";
-import { format, addDays } from "date-fns";
-import { Share2, CheckCircle, FileText, ExternalLink } from "lucide-react";
+import { auth, db } from "@/firebase/firebase_setup";
 import {
+  useAddConnectionMutation,
   useGetCredentialsQuery,
   useGetRecipientCredentialsQuery,
   useUpdateCredentialsRequestMutation,
 } from "@/redux/api";
-import { auth, db } from "@/firebase/firebase_setup";
+import { determineConnectionType, isValidQRCode } from "@/utils/qr-code-utils";
+import { addDays, format } from "date-fns";
 import { collection, getDocs, query, where } from "firebase/firestore";
+import { CheckCircle, ExternalLink, FileText, Share2, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { toast } from "sonner";
+import { Badge } from "../components/ui/badge";
 
-// Document types that should be displayed
-const DOCUMENT_TYPES = ["DRIVING_LICENSE", "AADHAR_CARD", "PAN_CARD", "PASSPORT"] as const;
-
+const DOCUMENT_TYPES = [
+  "DRIVING_LICENSE",
+  "AADHAR_CARD",
+  "PAN_CARD",
+  "PASSPORT",
+] as const;
 type DocumentType = (typeof DOCUMENT_TYPES)[number];
 
-// Product code mapping for verification URLs
 const PRODUCT_CODE_MAP: Record<DocumentType, string> = {
   AADHAR_CARD: "KYC",
   PASSPORT: "PP",
@@ -33,100 +37,164 @@ interface Credential {
   credential_id?: string;
   credentialId?: string;
   document_type: string;
-  details?: {
-    document_type: string;
-  };
+  details?: { document_type: string };
 }
-
 interface RecipientRequest {
   id: string;
 }
 
+const IVERIFI_ORIGIN = "https://iverifi.app.getkwikid.com";
+
 const Connections = () => {
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const params = useParams();
 
-  // State for URL normalization
-  const [isNormalizing, setIsNormalizing] = useState(false);
+  // iframe overlay
+  const [iframeUrl, setIframeUrl] = useState<string | null>(null);
+  const [verifyingDocType, setVerifyingDocType] = useState<DocumentType | null>(
+    null
+  );
 
-  // Get code from URL (prefer query param over path param)
-  const codeFromQuery = searchParams.get("code");
-  const codeFromPath = params.code;
-  const code = codeFromQuery || codeFromPath;
+  // track the just-created connection id (to avoid waiting on recipientData)
+  const [activeConnectionId, setActiveConnectionId] = useState<string | null>(
+    null
+  );
 
-  // URL normalization: convert path param to query param
+  // run-once guard for adding connection by code
+  const processedCodeRef = useRef<string | null>(null);
+
+  // code from query OR path (no normalization)
+  const codeFromQuery = searchParams.get("code") || null;
+  const codeFromPath = (params.code as string) || null;
+  const code = codeFromQuery || codeFromPath || null;
+
+  // api
+  const {
+    data: credentialsData,
+    isLoading: isCredentialsLoading,
+    refetch: refetchCredentials,
+  } = useGetCredentialsQuery();
+
+  const {
+    data: recipientData,
+    isLoading: isRecipientLoading,
+    refetch: refetchRecipient,
+  } = useGetRecipientCredentialsQuery(code || "", { skip: !code });
+
+  const [updateCredentials, { isLoading: isUpdating }] =
+    useUpdateCredentialsRequestMutation();
+  const [addConnection] = useAddConnectionMutation();
+
+  // helper to robustly pick connection id from addConnection response
+  const pickConnectionId = (res: any): string | null => {
+    return (
+      res?.data?.request_id ??
+      res?.data?.id ??
+      res?.request_id ??
+      res?.id ??
+      res?.data?.request?.id ??
+      null
+    );
+  };
+
+  // Add connection once on first load if we have a valid code, and capture its ID
   useEffect(() => {
-    if (codeFromPath && !codeFromQuery && !isNormalizing) {
-      setIsNormalizing(true);
-      const newSearchParams = new URLSearchParams(searchParams);
-      newSearchParams.set("code", codeFromPath);
-      setSearchParams(newSearchParams);
-      // Navigate to clean URL without path param
-      navigate(`/connections?${newSearchParams.toString()}`, { replace: true });
-      setIsNormalizing(false);
-    }
-  }, [codeFromPath, codeFromQuery, searchParams, setSearchParams, navigate, isNormalizing]);
+    if (!isValidQRCode(code)) return;
+    if (processedCodeRef.current === code) return;
+    processedCodeRef.current = code!;
 
-  // API calls
-  const { data: credentialsData, isLoading: isCredentialsLoading } = useGetCredentialsQuery();
-  const { data: recipientData, isLoading: isRecipientLoading } = useGetRecipientCredentialsQuery(code || "", {
-    skip: !code,
-  });
-  const [updateCredentials, { isLoading: isUpdating }] = useUpdateCredentialsRequestMutation();
+    (async () => {
+      try {
+        const type = determineConnectionType(code!);
+        const res = await addConnection({ document_id: code!, type }).unwrap();
 
-  // Create lookup map for verified credentials
+        const newId = pickConnectionId(res);
+        if (newId) {
+          setActiveConnectionId(newId);
+        } else {
+          // fallback: try refetching recipient requests so we can derive the id below
+          await refetchRecipient();
+        }
+      } catch (err) {
+        console.error("Error adding connection on load:", err);
+        // keep URL as-is; show UI
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [code, addConnection]);
+
+  // Build a map for verified credentials
   const verifiedCredentialsMap = useMemo(() => {
     if (!credentialsData?.data?.credential) return {};
-
     const map: Record<string, Credential> = {};
     credentialsData.data.credential.forEach((cred: Credential) => {
       const docType = cred.document_type || cred.details?.document_type;
-      if (docType) {
-        map[docType] = cred;
-      }
+      if (docType) map[docType] = cred;
     });
     return map;
   }, [credentialsData]);
 
-  // Find connection ID from recipient data
-  const connectionId = useMemo(() => {
+  // Derive a connectionId (prefer the one we captured from addConnection)
+  const derivedConnectionId = useMemo(() => {
+    if (activeConnectionId) return activeConnectionId;
+
     if (!recipientData?.data?.requests?.length) return null;
+    const requests = recipientData.data.requests as RecipientRequest[];
 
-    const requests = recipientData.data.requests;
-
-    // If we have a code, find request that contains it
     if (code) {
-      const matchingRequest = requests.find((request: RecipientRequest) => request.id.includes(code));
-      if (matchingRequest) return matchingRequest.id;
+      const byCode = requests.find((r) => r.id.includes(code));
+      if (byCode) return byCode.id;
     }
-
-    // Fallback to first request
     return requests[0]?.id || null;
-  }, [recipientData, code]);
+  }, [activeConnectionId, recipientData, code]);
 
-  // Handle share credentials
+  // postMessage listener to close iframe and refresh
+  useEffect(() => {
+    const onMessage = async (event: MessageEvent) => {
+      if (
+        typeof event.origin !== "string" ||
+        !event.origin.startsWith(IVERIFI_ORIGIN)
+      )
+        return;
+      const data = event.data;
+      if (
+        data &&
+        typeof data === "object" &&
+        data.type === "iverifi" &&
+        data.status === "completed"
+      ) {
+        toast.success("Verification completed.");
+        setIframeUrl(null);
+        setVerifyingDocType(null);
+        await refetchCredentials();
+        if (code) await refetchRecipient();
+      }
+    };
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, [refetchCredentials, refetchRecipient, code]);
+
+  // share credentials (use the derivedConnectionId)
   const handleShareCredentials = async (documentType: DocumentType) => {
-    if (!connectionId) {
-      toast.error("No connection found");
+    if (!derivedConnectionId) {
+      toast.error(
+        "No connection found yet. Please wait a moment and try again."
+      );
+      // optionally force a refetch to speed things up
+      await refetchRecipient();
       return;
     }
-
     const credential = verifiedCredentialsMap[documentType];
-    if (!credential) {
-      toast.error("Credential not found");
-      return;
-    }
+    if (!credential) return toast.error("Credential not found");
 
     try {
-      const credentialId = credential.credential_id || credential.id || credential.credentialId;
-      if (!credentialId) {
-        toast.error("Invalid credential ID");
-        return;
-      }
+      const credentialId =
+        credential.credential_id || credential.id || credential.credentialId;
+      if (!credentialId) return toast.error("Invalid credential ID");
 
       await updateCredentials({
-        credential_request_id: connectionId,
+        credential_request_id: derivedConnectionId,
         credentials: [
           {
             credential_id: credentialId,
@@ -137,60 +205,53 @@ const Connections = () => {
         ],
       }).unwrap();
 
-      toast.success("Your verified credential was shared successfully with this connection.");
-    } catch (error: unknown) {
-      const errorMessage =
-        error &&
-        typeof error === "object" &&
-        "data" in error &&
-        error.data &&
-        typeof error.data === "object" &&
-        "message" in error.data
+      toast.success(
+        "Your verified credential was shared successfully with this connection."
+      );
+    } catch (error: any) {
+      toast.error(
+        error?.data?.message
           ? String(error.data.message)
-          : "Failed to share credentials";
-      toast.error(errorMessage);
+          : "Failed to share credentials"
+      );
     }
   };
 
-  // Handle verify document
+  // verify document → open iframe overlay (no popup)
   const handleVerifyDocument = async (documentType: DocumentType) => {
     const currentUser = auth.currentUser;
-    if (!currentUser?.email) {
-      toast.error("User not authenticated");
-      return;
-    }
+    if (!currentUser?.email) return toast.error("User not authenticated");
 
     try {
-      // Query Firestore to get the applicant data
-      const q = query(collection(db, "applicants"), where("email", "==", currentUser.email));
-
+      const q = query(
+        collection(db, "applicants"),
+        where("email", "==", currentUser.email)
+      );
       const querySnapshot = await getDocs(q);
-      if (querySnapshot.empty) {
-        toast.error("User data not found");
-        return;
-      }
+      if (querySnapshot.empty) return toast.error("User data not found");
 
-      const doc = querySnapshot.docs[0];
-      const userId = doc.id; // Use the document ID as the user ID
-
+      const userId = querySnapshot.docs[0].id;
       const productCode = PRODUCT_CODE_MAP[documentType];
-      const verificationUrl = `https://iverifi.app.getkwikid.com/user/home?client_id=iverifi&api_key=iverifi&process=U&productCode=${productCode}&user_id=${userId}`;
+      const origin = window.location.origin;
 
-      // Open verification URL in new tab
-      window.open(verificationUrl, "_blank", "noopener,noreferrer");
+      const verificationUrl =
+        `${IVERIFI_ORIGIN}/user/home?client_id=iverifi&api_key=iverifi&process=U` +
+        `&productCode=${encodeURIComponent(productCode)}` +
+        `&user_id=${encodeURIComponent(userId)}` +
+        `&redirect_origin=${encodeURIComponent(origin)}`;
+
+      setVerifyingDocType(documentType);
+      setIframeUrl(verificationUrl);
     } catch (error) {
       console.error("Error fetching user data:", error);
       toast.error("Failed to get user data");
     }
   };
 
-  // Helper to navigate to clean URL
-  const navigateToCleanConnections = () => {
+  const navigateToCleanConnections = () =>
     navigate("/connections", { replace: true });
-  };
 
-  // Loading state
-  if (isCredentialsLoading || isRecipientLoading || isNormalizing) {
+  if (isCredentialsLoading || isRecipientLoading) {
     return (
       <div className="p-4 space-y-4">
         <div className="flex items-center justify-between">
@@ -222,7 +283,11 @@ const Connections = () => {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Connections</h1>
         {code && (
-          <Button variant="outline" size="sm" onClick={navigateToCleanConnections}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={navigateToCleanConnections}
+          >
             Clear Code
           </Button>
         )}
@@ -244,15 +309,21 @@ const Connections = () => {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {DOCUMENT_TYPES.map((docType) => {
           const isVerified = !!verifiedCredentialsMap[docType];
-          const isShareDisabled = !isVerified || isUpdating;
+          const isShareDisabled =
+            !isVerified || isUpdating || !derivedConnectionId;
 
           return (
             <Card key={docType} className="transition-all hover:shadow-md">
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg capitalize">{docType.replace(/_/g, " ").toLowerCase()}</CardTitle>
+                  <CardTitle className="text-lg capitalize">
+                    {docType.replace(/_/g, " ").toLowerCase()}
+                  </CardTitle>
                   {isVerified && (
-                    <Badge variant="secondary" className="bg-green-100 text-green-800">
+                    <Badge
+                      variant="secondary"
+                      className="bg-green-100 text-green-800"
+                    >
                       <CheckCircle className="h-3 w-3 mr-1" />
                       Verified
                     </Badge>
@@ -261,12 +332,22 @@ const Connections = () => {
               </CardHeader>
               <CardContent>
                 {isVerified ? (
-                  <Button className="w-full" disabled={isShareDisabled} onClick={() => handleShareCredentials(docType)}>
+                  <Button
+                    className="w-full"
+                    disabled={isShareDisabled}
+                    onClick={() => handleShareCredentials(docType)}
+                  >
                     <Share2 className="h-4 w-4 mr-2" />
-                    Share credentials
+                    {derivedConnectionId
+                      ? "Share credentials"
+                      : "Preparing connection…"}
                   </Button>
                 ) : (
-                  <Button className="w-full" variant="outline" onClick={() => handleVerifyDocument(docType)}>
+                  <Button
+                    className="w-full"
+                    variant="outline"
+                    onClick={() => handleVerifyDocument(docType)}
+                  >
                     <ExternalLink className="h-4 w-4 mr-2" />
                     Verify Document
                   </Button>
@@ -277,15 +358,31 @@ const Connections = () => {
         })}
       </div>
 
-      {/* Empty State */}
-      {!code && (
-        <Card className="bg-gray-50">
-          <CardContent className="p-8 text-center">
-            <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-gray-600 mb-2">No QR Code Detected</h3>
-            <p className="text-gray-500">Scan a QR code to share credentials with a connection.</p>
-          </CardContent>
-        </Card>
+      {/* Iframe Overlay */}
+      {iframeUrl && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-2">
+          <div className="relative bg-white w-full max-w-3xl h-[88vh] rounded-2xl shadow-xl overflow-hidden">
+            <button
+              aria-label="Close"
+              className="absolute top-3 right-3 inline-flex items-center gap-2 rounded-full border px-3 py-1 text-sm hover:bg-gray-50"
+              onClick={async () => {
+                setIframeUrl(null);
+                setVerifyingDocType(null);
+                await refetchCredentials();
+                if (code) await refetchRecipient();
+              }}
+            >
+              <X className="h-4 w-4" />
+              Close
+            </button>
+            <iframe
+              src={iframeUrl}
+              title="Document Verification"
+              className="w-full h-full"
+              allow="camera; microphone; clipboard-read; clipboard-write"
+            />
+          </div>
+        </div>
       )}
     </div>
   );

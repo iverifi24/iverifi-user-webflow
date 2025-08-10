@@ -1,16 +1,14 @@
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import ProtectedRoute from "./routes/protected_routes";
-import AddConnection from "./screens/connections/add_connection";
-import ConnectionDetails from "./screens/connections/connection_details";
-import ConnectionsRouter from "./screens/connections/connections_router";
-import Signup from "./screens/login_screen";
-import UserData from "./screens/user_data";
-import ProtectedLayout from "./routes/protected_layout";
-import HomePage from "./screens/home/home_page";
-import Documents from "./screens/documents/documents";
-import AddDocuments from "./screens/documents/add_documents";
+import { Route, BrowserRouter as Router, Routes } from "react-router-dom";
 import { QRCodeHandler } from "./components/qr-code-handler";
 import Connections from "./pages/Connections";
+import ProtectedLayout from "./routes/protected_layout";
+import ProtectedRoute from "./routes/protected_routes";
+import ConnectionDetails from "./screens/connections/connection_details";
+import AddDocuments from "./screens/documents/add_documents";
+import Documents from "./screens/documents/documents";
+import HomePage from "./screens/home/home_page";
+import Signup from "./screens/login_screen";
+import UserData from "./screens/user_data";
 
 const App = () => {
   return (
