@@ -10,9 +10,12 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { loginWithEmail, loginWithGoogle } from "@/firebase_auth_service";
-import { useNavigate } from "react-router-dom";
-import { useState } from "react";
-import { getRecipientIdFromStorage } from "@/utils/connectionFlow";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { useEffect, useState } from "react";
+import {
+  getRecipientIdFromStorage,
+  saveRecipientIdForLater,
+} from "@/utils/connectionFlow";
 import { useAddConnectionMutation } from "@/redux/api";
 
 export function LoginForm({
@@ -20,12 +23,28 @@ export function LoginForm({
   ...props
 }: React.ComponentProps<"div">) {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams(); // ✅ top-level
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [addConnection] = useAddConnectionMutation();
 
+  // ✅ capture ?recipientId=... from URL on mount and persist for post-login
+  useEffect(() => {
+    const fromUrl = searchParams.get("recipientId");
+    if (fromUrl) {
+      try {
+        saveRecipientIdForLater(fromUrl);
+        console.log("Saved recipientId from URL:", fromUrl);
+      } catch (e) {
+        console.error("Failed to persist recipientId:", e);
+      }
+    }
+  }, [searchParams]);
+
   const postLoginCheck = async () => {
-    const pendingId = getRecipientIdFromStorage();
+    const pendingId = getRecipientIdFromStorage(); // reads & clears
+    console.log("Pending ID from storage:", pendingId);
+
     if (pendingId) {
       try {
         await addConnection({
