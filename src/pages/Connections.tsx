@@ -52,9 +52,9 @@ const Connections = () => {
 
   // iframe overlay
   const [iframeUrl, setIframeUrl] = useState<string | null>(null);
-  const [verifyingDocType, setVerifyingDocType] = useState<DocumentType | null>(
-    null
-  );
+  // const [verifyingDocType, setVerifyingDocType] = useState<DocumentType | null>(
+  //   null
+  // );
 
   // track the just-created connection id (to avoid waiting on recipientData)
   const [activeConnectionId, setActiveConnectionId] = useState<string | null>(
@@ -166,7 +166,7 @@ const Connections = () => {
       ) {
         toast.success("Verification completed.");
         setIframeUrl(null);
-        setVerifyingDocType(null);
+        // setVerifyingDocType(null);
         await refetchCredentials();
         if (code) await refetchRecipient();
       }
@@ -240,7 +240,7 @@ const Connections = () => {
         `&user_id=${encodeURIComponent(userId)}` +
         `&redirect_origin=${encodeURIComponent(origin)}`;
 
-      setVerifyingDocType(documentType);
+      // setVerifyingDocType(documentType);
       setIframeUrl(verificationUrl);
     } catch (error) {
       console.error("Error fetching user data:", error);
@@ -367,7 +367,7 @@ const Connections = () => {
               className="absolute top-3 right-3 inline-flex items-center gap-2 rounded-full border px-3 py-1 text-sm hover:bg-gray-50"
               onClick={async () => {
                 setIframeUrl(null);
-                setVerifyingDocType(null);
+                // setVerifyingDocType(null);
                 await refetchCredentials();
                 if (code) await refetchRecipient();
               }}
