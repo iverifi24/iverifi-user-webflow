@@ -4,7 +4,8 @@ import { auth } from "@/firebase/firebase_setup";
 import { getIdToken } from "firebase/auth";
 
 const rawBaseQuery = fetchBaseQuery({
-  baseUrl: process.env.VITE_BASE_URL, // or use process.env.REACT_APP_BASE_URL
+  baseUrl:
+    "https://7uqtt7lf90.execute-api.ap-south-1.amazonaws.com/prod/api/v1", // or use process.env.REACT_APP_BASE_URL
   prepareHeaders: async (headers) => {
     const user = auth.currentUser;
     if (user) {
