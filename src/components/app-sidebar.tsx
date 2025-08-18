@@ -1,22 +1,16 @@
 import * as React from "react";
 
 import { SearchForm } from "@/components/search-form";
-import { VersionSwitcher } from "@/components/version-switcher";
 import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarHeader,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
   SidebarRail,
 } from "@/components/ui/sidebar";
-import { NavUser } from "./nav-user";
+import { VersionSwitcher } from "@/components/version-switcher";
 import { auth } from "@/firebase/firebase_setup";
+import { NavUser } from "./nav-user";
 
 // This is sample data.
 const data = {
