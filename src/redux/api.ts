@@ -60,6 +60,18 @@ export const api = createApi({
       }),
       invalidatesTags: ["connections"],
     }),
+    updateCheckInStatus: builder.mutation({
+      query: ({ credential_request_id, credentials, status }) => ({
+        url: "/users/updateCheckInStatus",
+        method: "POST",
+        body: {
+          credential_request_id,
+          credentials,
+          status,
+        },
+      }),
+      invalidatesTags: ["connections"],
+    }),
     login: builder.mutation({
       query: (data) => ({ url: "/admin/login", method: "POST", body: data }),
     }),
@@ -267,6 +279,7 @@ export const {
   useGetConnectionsQuery,
   useGetRecipientCredentialsQuery,
   useUpdateCredentialsRequestMutation,
+  useUpdateCheckInStatusMutation,
   useAddConnectionMutation,
   useLoginMutation,
   useSignupMutation,
