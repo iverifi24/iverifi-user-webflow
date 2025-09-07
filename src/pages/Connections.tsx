@@ -37,6 +37,8 @@ interface Credential {
 }
 interface RecipientRequest {
   id: string;
+  check_in_time?: string;
+  check_out_time?: string;
 }
 
 const IVERIFI_ORIGIN = "https://iverifi.app.getkwikid.com";
@@ -136,6 +138,27 @@ const Connections = () => {
     return requests[0]?.id || null;
   }, [activeConnectionId, recipientData, code]);
 
+  // Get current connection data to check check-in/check-out status
+  const currentConnection = useMemo(() => {
+    if (!recipientData?.data?.requests?.length) return null;
+    const requests = recipientData.data.requests as RecipientRequest[];
+
+    if (code) {
+      const byCode = requests.find((r) => r.id.includes(code));
+      if (byCode) return byCode;
+    }
+    return requests[0] || null;
+  }, [recipientData, code]);
+
+  // Determine button states based on check-in/check-out times
+  const isCheckInDisabled = useMemo(() => {
+    return !derivedConnectionId || isCheckInUpdating || !!currentConnection?.check_in_time;
+  }, [derivedConnectionId, isCheckInUpdating, currentConnection?.check_in_time]);
+
+  const isCheckOutDisabled = useMemo(() => {
+    return !derivedConnectionId || isCheckInUpdating || !!currentConnection?.check_out_time;
+  }, [derivedConnectionId, isCheckInUpdating, currentConnection?.check_out_time]);
+
   // postMessage listener to close iframe and refresh
   useEffect(() => {
     const onMessage = async (event: MessageEvent) => {
@@ -232,6 +255,9 @@ const Connections = () => {
       }).unwrap();
 
       toast.success(`Successfully ${status === "checkin" ? "checked in" : "checked out"}.`);
+
+      // Refresh recipient data to get updated check-in/check-out status
+      await refetchRecipient();
     } catch (error: any) {
       toast.error(
         error?.data?.message
@@ -295,20 +321,28 @@ const Connections = () => {
       {code && (
         <div className="flex gap-4">
           <Button
-            className="flex-1 bg-green-600 hover:bg-green-700"
+            className="flex-1 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
             onClick={() => handleCheckInOut("checkin")}
-            disabled={isCheckInUpdating || !derivedConnectionId}
+            disabled={isCheckInDisabled}
           >
             <CheckCircle className="h-4 w-4 mr-2" />
-            {isCheckInUpdating ? "Checking In..." : "Check In"}
+            {isCheckInUpdating
+              ? "Checking In..."
+              : currentConnection?.check_in_time
+              ? "Already Checked In"
+              : "Check In"}
           </Button>
           <Button
-            className="flex-1 bg-red-600 hover:bg-red-700"
+            className="flex-1 bg-red-600 hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
             onClick={() => handleCheckInOut("checkout")}
-            disabled={isCheckInUpdating || !derivedConnectionId}
+            disabled={isCheckOutDisabled}
           >
             <X className="h-4 w-4 mr-2" />
-            {isCheckInUpdating ? "Checking Out..." : "Check Out"}
+            {isCheckInUpdating
+              ? "Checking Out..."
+              : currentConnection?.check_out_time
+              ? "Already Checked Out"
+              : "Check Out"}
           </Button>
         </div>
       )}
