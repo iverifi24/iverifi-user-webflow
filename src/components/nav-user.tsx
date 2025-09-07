@@ -9,12 +9,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  useSidebar,
-} from "@/components/ui/sidebar";
+import { SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar } from "@/components/ui/sidebar";
 import { signOut } from "firebase/auth";
 import { auth } from "@/firebase/firebase_setup";
 import { useNavigate } from "react-router-dom";
@@ -35,7 +30,7 @@ export function NavUser({
     try {
       await signOut(auth);
       localStorage.clear(); // Optional: clear any app data
-      navigate("/signup"); // or "/login" depending on your route
+      navigate("/login");
     } catch (error) {
       console.error("Logout failed:", error);
     }

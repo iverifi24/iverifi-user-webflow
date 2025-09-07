@@ -7,7 +7,8 @@ import ConnectionDetails from "./screens/connections/connection_details";
 import AddDocuments from "./screens/documents/add_documents";
 import Documents from "./screens/documents/documents";
 import HomePage from "./screens/home/home_page";
-import Signup from "./screens/login_screen";
+import Login from "./screens/login_screen";
+import Signup from "./screens/signup_screen";
 import UserData from "./screens/user_data";
 
 const App = () => {
@@ -15,6 +16,7 @@ const App = () => {
     <Router>
       <QRCodeHandler>
         <Routes>
+          <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
 
           <Route
@@ -34,7 +36,7 @@ const App = () => {
             <Route path="/connections/:id" element={<ConnectionDetails />} />
           </Route>
 
-          <Route path="*" element={<Signup />} />
+          <Route path="*" element={<Login />} />
         </Routes>
       </QRCodeHandler>
     </Router>
