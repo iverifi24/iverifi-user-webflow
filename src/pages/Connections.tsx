@@ -105,8 +105,14 @@ const Connections = () => {
           // fallback: try refetching recipient requests so we can derive the id below
           await refetchRecipient();
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error("Error adding connection on load:", err);
+
+        // If connection already exists, that's fine - just refetch to get the data
+        if (err?.data?.message?.includes("already exists") || err?.status === 409) {
+          console.log("Connection already exists, refetching recipient data");
+          await refetchRecipient();
+        }
         // keep URL as-is; show UI
       }
     })();
