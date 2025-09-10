@@ -1,19 +1,19 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { LoginForm } from "@/components/login-form";
 import { SignupForm } from "@/components/signup-form";
 
 interface AuthTabsProps {
   className?: string;
-  defaultTab?: "login" | "signup";
 }
 
-export function AuthTabs({ className, defaultTab = "login" }: AuthTabsProps) {
-  const [activeTab, setActiveTab] = useState<"login" | "signup">(defaultTab);
+export function AuthTabs({ className }: AuthTabsProps) {
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Determine active tab based on current route
+  const activeTab: "login" | "signup" = location.pathname === "/signup" ? "signup" : "login";
 
   return (
     <div className={cn("flex flex-col gap-6", className)}>
@@ -32,7 +32,7 @@ export function AuthTabs({ className, defaultTab = "login" }: AuthTabsProps) {
           <div className="flex bg-muted rounded-lg p-1">
             <button
               type="button"
-              onClick={() => setActiveTab("login")}
+              onClick={() => navigate(`/login${location.search}`)}
               className={cn(
                 "flex-1 py-2 px-4 text-sm font-medium rounded-md transition-all duration-200",
                 activeTab === "login"
@@ -44,7 +44,7 @@ export function AuthTabs({ className, defaultTab = "login" }: AuthTabsProps) {
             </button>
             <button
               type="button"
-              onClick={() => setActiveTab("signup")}
+              onClick={() => navigate(`/signup${location.search}`)}
               className={cn(
                 "flex-1 py-2 px-4 text-sm font-medium rounded-md transition-all duration-200",
                 activeTab === "signup"

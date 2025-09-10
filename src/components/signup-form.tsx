@@ -7,8 +7,8 @@ import { auth } from "@/firebase/firebase_setup";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { getRecipientIdFromStorage, saveRecipientIdForLater } from "@/utils/connectionFlow";
+import { useAddConnectionMutation } from "@/redux/api";
 import { saveUserDetailsToFirestore } from "@/utils/userRegistration";
-import { toast } from "sonner";
 
 export function SignupForm({
   className,
@@ -21,8 +21,7 @@ export function SignupForm({
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [isEmailLoading, setIsEmailLoading] = useState(false);
-  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const [addConnection] = useAddConnectionMutation();
 
   // Capture ?recipientId=... from URL on mount and persist for post-signup
   useEffect(() => {
@@ -42,16 +41,16 @@ export function SignupForm({
     console.log("Pending ID from storage:", pendingId);
 
     if (pendingId) {
-      // Store the pendingId locally since getRecipientIdFromStorage clears it
-      const originalCode = pendingId;
-
-      // Add a small delay to ensure Firestore document is fully created and available
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      // Navigate to the connection page with the original code (recipientId)
-      // The Connections component will handle adding the connection
-      console.log("Navigating to connection page with code:", originalCode);
-      nav(`/connections/${originalCode}`);
+      try {
+        await addConnection({
+          document_id: pendingId,
+          type: "Company",
+        }).unwrap();
+        nav(`/connections/${pendingId}`);
+      } catch (err) {
+        console.error("Failed to add connection after signup", err);
+        nav("/home");
+      }
     } else {
       nav("/home");
     }
@@ -61,71 +60,47 @@ export function SignupForm({
     e.preventDefault();
 
     if (password !== confirmPassword) {
-      toast.error("Passwords do not match");
+      alert("Passwords do not match");
       return;
     }
 
     if (password.length < 6) {
-      toast.error("Password must be at least 6 characters long");
+      alert("Password must be at least 6 characters long");
       return;
     }
 
-    setIsEmailLoading(true);
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
 
       // Save user details to Firestore before proceeding
       await saveUserDetailsToFirestore(userCredential.user);
 
-      // Wait a bit more to ensure the document is fully created and available
-      await new Promise((resolve) => setTimeout(resolve, 500));
-
       await postSignupCheck();
     } catch (err: unknown) {
       console.error("Signup failed:", err);
       const error = err as { code?: string };
       if (error.code === "auth/email-already-in-use") {
-        toast.error("This email is already registered. Please try logging in instead.");
+        alert("This email is already registered. Please try logging in instead.");
       } else if (error.code === "auth/weak-password") {
-        toast.error("Password is too weak. Please choose a stronger password.");
+        alert("Password is too weak. Please choose a stronger password.");
       } else if (error.code === "auth/invalid-email") {
-        toast.error("Please enter a valid email address.");
-      } else if (error.code === "auth/operation-not-allowed") {
-        toast.error("Email/password accounts are not enabled. Please contact support.");
+        alert("Please enter a valid email address.");
       } else {
-        toast.error("Signup failed. Please try again.");
+        alert("Signup failed. Please try again.");
       }
-    } finally {
-      setIsEmailLoading(false);
     }
   };
 
   const handleGoogleSignup = async () => {
-    setIsGoogleLoading(true);
     try {
       const userCredential = await loginWithGoogle();
 
       // Save user details to Firestore before proceeding
       await saveUserDetailsToFirestore(userCredential.user);
 
-      // Wait a bit more to ensure the document is fully created and available
-      await new Promise((resolve) => setTimeout(resolve, 500));
-
       await postSignupCheck();
-    } catch (err: unknown) {
+    } catch (err) {
       console.error("Google signup failed:", err);
-      const error = err as { code?: string };
-      if (error.code === "auth/popup-closed-by-user") {
-        toast.error("Google signup was cancelled");
-      } else if (error.code === "auth/popup-blocked") {
-        toast.error("Popup was blocked. Please allow popups and try again");
-      } else if (error.code === "auth/account-exists-with-different-credential") {
-        toast.error("An account already exists with this email using a different sign-in method");
-      } else {
-        toast.error("Google signup failed. Please try again");
-      }
-    } finally {
-      setIsGoogleLoading(false);
     }
   };
 
@@ -134,13 +109,12 @@ export function SignupForm({
       <form onSubmit={handleEmailSignup}>
         <div className="grid gap-6">
           <div className="flex flex-col gap-4">
-            <Button
-              variant="outline"
-              className="w-full"
-              onClick={handleGoogleSignup}
-              disabled={isGoogleLoading || isEmailLoading}
-            >
-              {isGoogleLoading ? "Creating account..." : "Sign up with Google"}
+            <Button variant="outline" className="w-full">
+              {/* Apple signup placeholder */}
+              Sign up with Apple
+            </Button>
+            <Button variant="outline" className="w-full" onClick={handleGoogleSignup}>
+              Sign up with Google
             </Button>
           </div>
           <div className="after:border-border relative text-center text-sm after:absolute after:inset-0 after:top-1/2 after:z-0 after:flex after:items-center after:border-t">
@@ -184,8 +158,8 @@ export function SignupForm({
                 required
               />
             </div>
-            <Button type="submit" className="w-full" disabled={isEmailLoading || isGoogleLoading}>
-              {isEmailLoading ? "Creating account..." : "Create Account"}
+            <Button type="submit" className="w-full">
+              Create Account
             </Button>
           </div>
         </div>

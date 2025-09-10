@@ -1,6 +1,5 @@
 import { GalleryVerticalEnd } from "lucide-react";
 import { AuthTabs } from "@/components/auth-tabs";
-import { Toaster } from "@/components/ui/sonner";
 
 export default function SignupPage() {
   return (
@@ -12,9 +11,8 @@ export default function SignupPage() {
           </div>
           Iverifi Ltd
         </a>
-        <AuthTabs defaultTab="signup" />
+        <AuthTabs />
       </div>
-      <Toaster />
     </div>
   );
 }

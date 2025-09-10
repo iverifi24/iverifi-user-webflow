@@ -19,22 +19,18 @@ export function QRCodeHandler({ children }: QRCodeHandlerProps) {
     if (loading) return;
 
     const code = searchParams.get("code");
-    const currentPath = window.location.pathname;
 
     // Only proceed if there's a valid code parameter
     if (!isValidQRCode(code)) return;
-
-    // Don't interfere if we're already on the connections page with a code in the path
-    if (currentPath.startsWith("/connections/") && currentPath.split("/").length > 2) {
-      return;
-    }
 
     const handleQRCodeFlow = async () => {
       try {
         // Case 1: User not logged in - redirect to login with code
         if (!isAuthenticated) {
-          // Only redirect if we're not already on the login page
-          if (currentPath !== "/login") {
+          const currentPath = window.location.pathname;
+
+          // Only redirect if we're not already on the login or signup page
+          if (currentPath !== "/login" && currentPath !== "/signup") {
             navigate(`/login?code=${code}`, { replace: true });
           }
           return;
