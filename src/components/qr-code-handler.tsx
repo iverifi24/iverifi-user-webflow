@@ -29,9 +29,9 @@ export function QRCodeHandler({ children }: QRCodeHandlerProps) {
         if (!isAuthenticated) {
           const currentPath = window.location.pathname;
 
-          // Only redirect if we're not already on the login page
-          if (currentPath !== "/signup") {
-            navigate(`/signup?code=${code}`, { replace: true });
+          // Only redirect if we're not already on the login or signup page
+          if (currentPath !== "/login" && currentPath !== "/signup") {
+            navigate(`/login?code=${code}`, { replace: true });
           }
           return;
         }
