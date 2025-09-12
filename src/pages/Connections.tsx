@@ -18,12 +18,7 @@ import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { Badge } from "../components/ui/badge";
 
-const DOCUMENT_TYPES = [
-  "DRIVING_LICENSE",
-  "AADHAAR_CARD",
-  "PAN_CARD",
-  "PASSPORT",
-] as const;
+const DOCUMENT_TYPES = ["DRIVING_LICENSE", "AADHAAR_CARD", "PAN_CARD", "PASSPORT"] as const;
 type DocumentType = (typeof DOCUMENT_TYPES)[number];
 
 const PRODUCT_CODE_MAP: Record<DocumentType, string> = {
@@ -60,9 +55,7 @@ const Connections = () => {
   // );
 
   // track the just-created connection id (to avoid waiting on recipientData)
-  const [activeConnectionId, setActiveConnectionId] = useState<string | null>(
-    null
-  );
+  const [activeConnectionId, setActiveConnectionId] = useState<string | null>(null);
 
   // run-once guard for adding connection by code
   const processedCodeRef = useRef<string | null>(null);
@@ -85,22 +78,13 @@ const Connections = () => {
     refetch: refetchRecipient,
   } = useGetRecipientCredentialsQuery(code || "", { skip: !code });
 
-  const [updateCredentials, { isLoading: isUpdating }] =
-    useUpdateCredentialsRequestMutation();
-  const [updateCheckInStatus, { isLoading: isCheckInUpdating }] =
-    useUpdateCheckInStatusMutation();
+  const [updateCredentials, { isLoading: isUpdating }] = useUpdateCredentialsRequestMutation();
+  const [updateCheckInStatus, { isLoading: isCheckInUpdating }] = useUpdateCheckInStatusMutation();
   const [addConnection] = useAddConnectionMutation();
 
   // helper to robustly pick connection id from addConnection response
   const pickConnectionId = (res: any): string | null => {
-    return (
-      res?.data?.request_id ??
-      res?.data?.id ??
-      res?.request_id ??
-      res?.id ??
-      res?.data?.request?.id ??
-      null
-    );
+    return res?.data?.request_id ?? res?.data?.id ?? res?.request_id ?? res?.id ?? res?.data?.request?.id ?? null;
   };
 
   // Add connection once on first load if we have a valid code, and capture its ID
@@ -168,44 +152,19 @@ const Connections = () => {
 
   // Determine button states based on check-in/check-out times
   const isCheckInDisabled = useMemo(() => {
-    return (
-      !derivedConnectionId ||
-      isCheckInUpdating ||
-      !!currentConnection?.check_in_time
-    );
-  }, [
-    derivedConnectionId,
-    isCheckInUpdating,
-    currentConnection?.check_in_time,
-  ]);
+    return !derivedConnectionId || isCheckInUpdating || !!currentConnection?.check_in_time;
+  }, [derivedConnectionId, isCheckInUpdating, currentConnection?.check_in_time]);
 
   const isCheckOutDisabled = useMemo(() => {
-    return (
-      !derivedConnectionId ||
-      isCheckInUpdating ||
-      !!currentConnection?.check_out_time
-    );
-  }, [
-    derivedConnectionId,
-    isCheckInUpdating,
-    currentConnection?.check_out_time,
-  ]);
+    return !derivedConnectionId || isCheckInUpdating || !!currentConnection?.check_out_time;
+  }, [derivedConnectionId, isCheckInUpdating, currentConnection?.check_out_time]);
 
   // postMessage listener to close iframe and refresh
   useEffect(() => {
     const onMessage = async (event: MessageEvent) => {
-      if (
-        typeof event.origin !== "string" ||
-        !event.origin.startsWith(IVERIFI_ORIGIN)
-      )
-        return;
+      if (typeof event.origin !== "string" || !event.origin.startsWith(IVERIFI_ORIGIN)) return;
       const data = event.data;
-      if (
-        data &&
-        typeof data === "object" &&
-        data.type === "iverifi" &&
-        data.status === "completed"
-      ) {
+      if (data && typeof data === "object" && data.type === "iverifi" && data.status === "completed") {
         toast.success("Verification completed.");
         setIframeUrl(null);
         // setVerifyingDocType(null);
@@ -220,9 +179,7 @@ const Connections = () => {
   // share credentials (use the derivedConnectionId)
   const handleShareCredentials = async (documentType: DocumentType) => {
     if (!derivedConnectionId) {
-      toast.error(
-        "No connection found yet. Please wait a moment and try again."
-      );
+      toast.error("No connection found yet. Please wait a moment and try again.");
       // optionally force a refetch to speed things up
       await refetchRecipient();
       return;
@@ -231,8 +188,7 @@ const Connections = () => {
     if (!credential) return toast.error("Credential not found");
 
     try {
-      const credentialId =
-        credential.credential_id || credential.id || credential.credentialId;
+      const credentialId = credential.credential_id || credential.id || credential.credentialId;
       if (!credentialId) return toast.error("Invalid credential ID");
 
       await updateCredentials({
@@ -247,15 +203,9 @@ const Connections = () => {
         ],
       }).unwrap();
 
-      toast.success(
-        "Your verified credential was shared successfully with this connection."
-      );
+      toast.success("Your verified credential was shared successfully with this connection.");
     } catch (error: any) {
-      toast.error(
-        error?.data?.message
-          ? String(error.data.message)
-          : "Failed to share credentials"
-      );
+      toast.error(error?.data?.message ? String(error.data.message) : "Failed to share credentials");
     }
   };
 
@@ -265,10 +215,7 @@ const Connections = () => {
     if (!currentUser?.email) return toast.error("User not authenticated");
 
     try {
-      const q = query(
-        collection(db, "applicants"),
-        where("email", "==", currentUser.email)
-      );
+      const q = query(collection(db, "applicants"), where("email", "==", currentUser.email));
       const querySnapshot = await getDocs(q);
       if (querySnapshot.empty) return toast.error("User data not found");
 
@@ -292,15 +239,12 @@ const Connections = () => {
     }
   };
 
-  const navigateToCleanConnections = () =>
-    navigate("/connections", { replace: true });
+  const navigateToCleanConnections = () => navigate("/connections", { replace: true });
 
   // Handle Check In/Out actions
   const handleCheckInOut = async (status: "checkin" | "checkout") => {
     if (!derivedConnectionId) {
-      toast.error(
-        "No connection found yet. Please wait a moment and try again."
-      );
+      toast.error("No connection found yet. Please wait a moment and try again.");
       await refetchRecipient();
       return;
     }
@@ -312,9 +256,7 @@ const Connections = () => {
         status,
       }).unwrap();
 
-      toast.success(
-        `Successfully ${status === "checkin" ? "checked in" : "checked out"}.`
-      );
+      toast.success(`Successfully ${status === "checkin" ? "checked in" : "checked out"}.`);
 
       // Refresh recipient data to get updated check-in/check-out status
       await refetchRecipient();
@@ -359,11 +301,7 @@ const Connections = () => {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Connections</h1>
         {code && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={navigateToCleanConnections}
-          >
+          <Button variant="outline" size="sm" onClick={navigateToCleanConnections}>
             Clear Code
           </Button>
         )}
@@ -375,7 +313,11 @@ const Connections = () => {
           <CardContent className="p-4">
             <div className="flex items-center space-x-2">
               <FileText className="h-4 w-4 text-blue-600" />
-              <span className="text-sm text-blue-800">QR Code: {code}</span>
+              <span className="text-sm text-blue-800">
+                {recipientData?.data?.requests?.[0]?.recipients?.name ||
+                  recipientData?.data?.requests?.[0]?.recipients?.firstName ||
+                  "Connection"}
+              </span>
             </div>
           </CardContent>
         </Card>
@@ -415,21 +357,15 @@ const Connections = () => {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {DOCUMENT_TYPES.map((docType) => {
           const isVerified = !!verifiedCredentialsMap[docType];
-          const isShareDisabled =
-            !isVerified || isUpdating || !derivedConnectionId;
+          const isShareDisabled = !isVerified || isUpdating || !derivedConnectionId;
 
           return (
             <Card key={docType} className="transition-all hover:shadow-md">
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg capitalize">
-                    {docType.replace(/_/g, " ").toLowerCase()}
-                  </CardTitle>
+                  <CardTitle className="text-lg capitalize">{docType.replace(/_/g, " ").toLowerCase()}</CardTitle>
                   {isVerified && (
-                    <Badge
-                      variant="secondary"
-                      className="bg-green-100 text-green-800"
-                    >
+                    <Badge variant="secondary" className="bg-green-100 text-green-800">
                       <CheckCircle className="h-3 w-3 mr-1" />
                       Verified
                     </Badge>
@@ -438,22 +374,12 @@ const Connections = () => {
               </CardHeader>
               <CardContent>
                 {isVerified ? (
-                  <Button
-                    className="w-full"
-                    disabled={isShareDisabled}
-                    onClick={() => handleShareCredentials(docType)}
-                  >
+                  <Button className="w-full" disabled={isShareDisabled} onClick={() => handleShareCredentials(docType)}>
                     <Share2 className="h-4 w-4 mr-2" />
-                    {derivedConnectionId
-                      ? "Share credentials"
-                      : "Preparing connection…"}
+                    {derivedConnectionId ? "Share credentials" : "Preparing connection…"}
                   </Button>
                 ) : (
-                  <Button
-                    className="w-full"
-                    variant="outline"
-                    onClick={() => handleVerifyDocument(docType)}
-                  >
+                  <Button className="w-full" variant="outline" onClick={() => handleVerifyDocument(docType)}>
                     <ExternalLink className="h-4 w-4 mr-2" />
                     Verify Document
                   </Button>
