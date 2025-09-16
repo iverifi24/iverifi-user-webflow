@@ -5,8 +5,14 @@ import { Label } from "@/components/ui/label";
 import { loginWithEmail, loginWithGoogle } from "@/firebase_auth_service";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
-import { getRecipientIdFromStorage, saveRecipientIdForLater } from "@/utils/connectionFlow";
+import {
+  getRecipientIdFromStorage,
+  saveRecipientIdForLater,
+} from "@/utils/connectionFlow";
 import { useAddConnectionMutation } from "@/redux/api";
+import type { User } from "firebase/auth";
+import { doc, getDoc } from "firebase/firestore";
+import { auth, db } from "@/firebase/firebase_setup";
 
 export function LoginForm({
   className,
@@ -53,6 +59,20 @@ export function LoginForm({
     }
   };
 
+  const checkIfUserExists = async (user: User) => {
+    const userDocRef = doc(db, "applicants", user.uid);
+    const userDoc = await getDoc(userDocRef);
+
+    if (!userDoc.exists()) {
+      await auth.signOut?.();
+      console.log(
+        "User already exists in applicants collection, skipping registration"
+      );
+      return;
+    }
+    throw new Error("User doesn't exist. Please sign up.");
+  };
+
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -66,7 +86,8 @@ export function LoginForm({
 
   const handleGoogleLogin = async () => {
     try {
-      await loginWithGoogle();
+      const userCredential = await loginWithGoogle();
+      await checkIfUserExists(userCredential.user);
       await postLoginCheck();
     } catch (err) {
       console.error("Google login failed:", err);
@@ -78,16 +99,21 @@ export function LoginForm({
       <form onSubmit={handleEmailLogin}>
         <div className="grid gap-6">
           <div className="flex flex-col gap-4">
-            <Button variant="outline" className="w-full">
-              {/* Apple login placeholder */}
+            {/* <Button variant="outline" className="w-full">
               Login with Apple
-            </Button>
-            <Button variant="outline" className="w-full" onClick={handleGoogleLogin}>
+            </Button> */}
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={handleGoogleLogin}
+            >
               Login with Google
             </Button>
           </div>
           <div className="after:border-border relative text-center text-sm after:absolute after:inset-0 after:top-1/2 after:z-0 after:flex after:items-center after:border-t">
-            <span className="bg-card text-muted-foreground relative z-10 px-2">Or continue with</span>
+            <span className="bg-card text-muted-foreground relative z-10 px-2">
+              Or continue with
+            </span>
           </div>
           <div className="grid gap-6">
             <div className="grid gap-3">

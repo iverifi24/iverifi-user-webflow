@@ -2,11 +2,17 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { createUserWithEmailAndPassword, loginWithGoogle } from "@/firebase_auth_service";
+import {
+  createUserWithEmailAndPassword,
+  loginWithGoogle,
+} from "@/firebase_auth_service";
 import { auth } from "@/firebase/firebase_setup";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
-import { getRecipientIdFromStorage, saveRecipientIdForLater } from "@/utils/connectionFlow";
+import {
+  getRecipientIdFromStorage,
+  saveRecipientIdForLater,
+} from "@/utils/connectionFlow";
 import { useAddConnectionMutation } from "@/redux/api";
 import { saveUserDetailsToFirestore } from "@/utils/userRegistration";
 
@@ -70,7 +76,11 @@ export function SignupForm({
     }
 
     try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const userCredential = await createUserWithEmailAndPassword(
+        auth,
+        email,
+        password
+      );
 
       // Save user details to Firestore before proceeding
       await saveUserDetailsToFirestore(userCredential.user);
@@ -80,7 +90,9 @@ export function SignupForm({
       console.error("Signup failed:", err);
       const error = err as { code?: string };
       if (error.code === "auth/email-already-in-use") {
-        alert("This email is already registered. Please try logging in instead.");
+        alert(
+          "This email is already registered. Please try logging in instead."
+        );
       } else if (error.code === "auth/weak-password") {
         alert("Password is too weak. Please choose a stronger password.");
       } else if (error.code === "auth/invalid-email") {
@@ -109,16 +121,21 @@ export function SignupForm({
       <form onSubmit={handleEmailSignup}>
         <div className="grid gap-6">
           <div className="flex flex-col gap-4">
-            <Button variant="outline" className="w-full">
-              {/* Apple signup placeholder */}
+            {/* <Button variant="outline" className="w-full">
               Sign up with Apple
-            </Button>
-            <Button variant="outline" className="w-full" onClick={handleGoogleSignup}>
+            </Button> */}
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={handleGoogleSignup}
+            >
               Sign up with Google
             </Button>
           </div>
           <div className="after:border-border relative text-center text-sm after:absolute after:inset-0 after:top-1/2 after:z-0 after:flex after:items-center after:border-t">
-            <span className="bg-card text-muted-foreground relative z-10 px-2">Or continue with</span>
+            <span className="bg-card text-muted-foreground relative z-10 px-2">
+              Or continue with
+            </span>
           </div>
           <div className="grid gap-6">
             <div className="grid gap-3">
