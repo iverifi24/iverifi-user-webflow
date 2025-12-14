@@ -30,7 +30,8 @@ export function LoginForm({
 
   // ✅ capture ?code=... or ?recipientId=... from URL on mount and persist for post-login
   useEffect(() => {
-    const codeFromUrl = searchParams.get("code") || searchParams.get("recipientId");
+    const codeFromUrl =
+      searchParams.get("code") || searchParams.get("recipientId");
     if (codeFromUrl) {
       try {
         saveRecipientIdForLater(codeFromUrl);
@@ -88,7 +89,6 @@ export function LoginForm({
       console.error("Error message:", err?.message);
 
       const errorCode = err?.code || "";
-      const errorMessage = err?.message || "";
 
       // Always show a toast to confirm it's working
       if (
@@ -129,7 +129,10 @@ export function LoginForm({
       const errorMessage = err?.message || "";
       const errorCode = err?.code || "";
 
-      if (errorMessage.includes("doesn't exist") || errorMessage.includes("sign up")) {
+      if (
+        errorMessage.includes("doesn't exist") ||
+        errorMessage.includes("sign up")
+      ) {
         toast.error("User doesn't exist. Please sign up first");
       } else if (errorCode.includes("popup-closed-by-user")) {
         toast.error("Login cancelled");
@@ -138,7 +141,9 @@ export function LoginForm({
       } else if (errorCode.includes("network-request-failed")) {
         toast.error("Network error. Please check your connection");
       } else {
-        toast.error(`Google login failed: ${errorMessage || "Please try again"}`);
+        toast.error(
+          `Google login failed: ${errorMessage || "Please try again"}`
+        );
       }
       setIsLoading(false);
     }
