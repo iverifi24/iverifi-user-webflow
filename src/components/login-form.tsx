@@ -13,6 +13,7 @@ import { useAddConnectionMutation } from "@/redux/api";
 import type { User } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import { auth, db } from "@/firebase/firebase_setup";
+import { toast } from "sonner";
 
 export function LoginForm({
   className,
@@ -24,17 +25,18 @@ export function LoginForm({
   const [searchParams] = useSearchParams(); // ✅ top-level
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const [addConnection] = useAddConnectionMutation();
 
-  // ✅ capture ?recipientId=... from URL on mount and persist for post-login
+  // ✅ capture ?code=... or ?recipientId=... from URL on mount and persist for post-login
   useEffect(() => {
-    const fromUrl = searchParams.get("recipientId");
-    if (fromUrl) {
+    const codeFromUrl = searchParams.get("code") || searchParams.get("recipientId");
+    if (codeFromUrl) {
       try {
-        saveRecipientIdForLater(fromUrl);
-        console.log("Saved recipientId from URL:", fromUrl);
+        saveRecipientIdForLater(codeFromUrl);
+        console.log("Saved code from URL:", codeFromUrl);
       } catch (e) {
-        console.error("Failed to persist recipientId:", e);
+        console.error("Failed to persist code:", e);
       }
     }
   }, [searchParams]);
@@ -49,7 +51,7 @@ export function LoginForm({
           document_id: pendingId,
           type: "Company",
         }).unwrap();
-        nav(`/connections/${pendingId}`);
+        nav(`/connections?code=${pendingId}`);
       } catch (err) {
         console.error("Failed to add connection after login", err);
         nav("/home");
@@ -75,22 +77,70 @@ export function LoginForm({
 
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsLoading(true);
     try {
       await loginWithEmail(email, password);
-
+      toast.success("Login successful!");
       await postLoginCheck();
-    } catch (err) {
+    } catch (err: any) {
       console.error("Login failed:", err);
+      console.error("Error code:", err?.code);
+      console.error("Error message:", err?.message);
+
+      const errorCode = err?.code || "";
+      const errorMessage = err?.message || "";
+
+      // Always show a toast to confirm it's working
+      if (
+        errorCode.includes("wrong-password") ||
+        errorCode.includes("user-not-found") ||
+        errorCode.includes("invalid-credential")
+      ) {
+        toast.error("Invalid email or password");
+      } else if (errorCode.includes("invalid-email")) {
+        toast.error("Please enter a valid email address");
+      } else if (errorCode.includes("too-many-requests")) {
+        toast.error("Too many failed attempts. Please try again later");
+      } else if (errorCode.includes("network-request-failed")) {
+        toast.error("Network error. Please check your connection");
+      } else if (errorCode) {
+        // Show the error code if we have one
+        toast.error(`Login failed: ${errorCode}`);
+      } else {
+        // Fallback
+        toast.error("Login failed. Please try again");
+      }
+      setIsLoading(false);
     }
   };
 
   const handleGoogleLogin = async () => {
+    setIsLoading(true);
     try {
       const userCredential = await loginWithGoogle();
       await checkIfUserExists(userCredential.user);
+      toast.success("Login successful!");
       await postLoginCheck();
-    } catch (err) {
+    } catch (err: any) {
       console.error("Google login failed:", err);
+      console.error("Error code:", err?.code);
+      console.error("Error message:", err?.message);
+
+      const errorMessage = err?.message || "";
+      const errorCode = err?.code || "";
+
+      if (errorMessage.includes("doesn't exist") || errorMessage.includes("sign up")) {
+        toast.error("User doesn't exist. Please sign up first");
+      } else if (errorCode.includes("popup-closed-by-user")) {
+        toast.error("Login cancelled");
+      } else if (errorCode.includes("popup-blocked")) {
+        toast.error("Popup was blocked. Please allow popups for this site");
+      } else if (errorCode.includes("network-request-failed")) {
+        toast.error("Network error. Please check your connection");
+      } else {
+        toast.error(`Google login failed: ${errorMessage || "Please try again"}`);
+      }
+      setIsLoading(false);
     }
   };
 
@@ -106,8 +156,9 @@ export function LoginForm({
               variant="outline"
               className="w-full"
               onClick={handleGoogleLogin}
+              disabled={isLoading}
             >
-              Login with Google
+              {isLoading ? "Logging in..." : "Login with Google"}
             </Button>
           </div>
           <div className="after:border-border relative text-center text-sm after:absolute after:inset-0 after:top-1/2 after:z-0 after:flex after:items-center after:border-t">
@@ -125,6 +176,7 @@ export function LoginForm({
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="m@example.com"
                 required
+                disabled={isLoading}
               />
             </div>
             <div className="grid gap-3">
@@ -137,10 +189,11 @@ export function LoginForm({
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
+                disabled={isLoading}
               />
             </div>
-            <Button type="submit" className="w-full">
-              Login
+            <Button type="submit" className="w-full" disabled={isLoading}>
+              {isLoading ? "Logging in..." : "Login"}
             </Button>
           </div>
         </div>

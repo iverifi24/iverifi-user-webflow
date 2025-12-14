@@ -9,12 +9,9 @@ import {
 import { auth } from "@/firebase/firebase_setup";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
-import {
-  getRecipientIdFromStorage,
-  saveRecipientIdForLater,
-} from "@/utils/connectionFlow";
-import { useAddConnectionMutation } from "@/redux/api";
+import { saveRecipientIdForLater } from "@/utils/connectionFlow";
 import { saveUserDetailsToFirestore } from "@/utils/userRegistration";
+import { toast } from "sonner";
 
 export function SignupForm({
   className,
@@ -27,53 +24,42 @@ export function SignupForm({
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [addConnection] = useAddConnectionMutation();
+  const [isLoading, setIsLoading] = useState(false);
 
-  // Capture ?recipientId=... from URL on mount and persist for post-signup
+  // Capture ?code=... or ?recipientId=... from URL on mount and persist for post-signup
   useEffect(() => {
-    const fromUrl = searchParams.get("recipientId");
-    if (fromUrl) {
+    const codeFromUrl =
+      searchParams.get("code") || searchParams.get("recipientId");
+    if (codeFromUrl) {
       try {
-        saveRecipientIdForLater(fromUrl);
-        console.log("Saved recipientId from URL:", fromUrl);
+        saveRecipientIdForLater(codeFromUrl);
+        console.log("Saved code from URL:", codeFromUrl);
       } catch (e) {
-        console.error("Failed to persist recipientId:", e);
+        console.error("Failed to persist code:", e);
       }
     }
   }, [searchParams]);
 
   const postSignupCheck = async () => {
-    const pendingId = getRecipientIdFromStorage(); // reads & clears
-    console.log("Pending ID from storage:", pendingId);
-
-    if (pendingId) {
-      try {
-        await addConnection({
-          document_id: pendingId,
-          type: "Company",
-        }).unwrap();
-        nav(`/connections/${pendingId}`);
-      } catch (err) {
-        console.error("Failed to add connection after signup", err);
-        nav("/home");
-      }
-    } else {
-      nav("/home");
-    }
+    // Navigate to profile completion page
+    // The recipientId is already saved in localStorage and will be handled there
+    nav("/complete-profile");
   };
 
   const handleEmailSignup = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (password !== confirmPassword) {
-      alert("Passwords do not match");
+      toast.error("Passwords do not match");
       return;
     }
 
     if (password.length < 6) {
-      alert("Password must be at least 6 characters long");
+      toast.error("Password must be at least 6 characters long");
       return;
     }
+
+    setIsLoading(true);
 
     try {
       const userCredential = await createUserWithEmailAndPassword(
@@ -85,34 +71,73 @@ export function SignupForm({
       // Save user details to Firestore before proceeding
       await saveUserDetailsToFirestore(userCredential.user);
 
+      toast.success("Account created successfully!");
       await postSignupCheck();
-    } catch (err: unknown) {
+    } catch (err: any) {
       console.error("Signup failed:", err);
-      const error = err as { code?: string };
-      if (error.code === "auth/email-already-in-use") {
-        alert(
+      console.error("Error code:", err?.code);
+      console.error("Error message:", err?.message);
+
+      const errorCode = err?.code || "";
+      const errorMessage = err?.message || "";
+
+      if (errorCode.includes("email-already-in-use")) {
+        toast.error(
           "This email is already registered. Please try logging in instead."
         );
-      } else if (error.code === "auth/weak-password") {
-        alert("Password is too weak. Please choose a stronger password.");
-      } else if (error.code === "auth/invalid-email") {
-        alert("Please enter a valid email address.");
+      } else if (errorCode.includes("weak-password")) {
+        toast.error("Password is too weak. Please choose a stronger password.");
+      } else if (errorCode.includes("invalid-email")) {
+        toast.error("Please enter a valid email address.");
+      } else if (errorCode.includes("operation-not-allowed")) {
+        toast.error(
+          "Email/password accounts are not enabled. Please contact support."
+        );
+      } else if (errorCode.includes("network-request-failed")) {
+        toast.error("Network error. Please check your connection");
       } else {
-        alert("Signup failed. Please try again.");
+        toast.error(`Signup failed: ${errorMessage || "Please try again"}`);
       }
+      setIsLoading(false);
     }
   };
 
   const handleGoogleSignup = async () => {
+    setIsLoading(true);
     try {
       const userCredential = await loginWithGoogle();
 
       // Save user details to Firestore before proceeding
       await saveUserDetailsToFirestore(userCredential.user);
 
+      toast.success("Account created successfully!");
       await postSignupCheck();
-    } catch (err) {
+    } catch (err: any) {
       console.error("Google signup failed:", err);
+      console.error("Error code:", err?.code);
+      console.error("Error message:", err?.message);
+
+      const errorCode = err?.code || "";
+      const errorMessage = err?.message || "";
+
+      if (errorCode.includes("popup-closed-by-user")) {
+        toast.error("Signup cancelled");
+      } else if (errorCode.includes("popup-blocked")) {
+        toast.error("Popup was blocked. Please allow popups for this site");
+      } else if (
+        errorCode.includes("account-exists-with-different-credential")
+      ) {
+        toast.error(
+          "An account already exists with this email using a different sign-in method"
+        );
+      } else if (errorCode.includes("network-request-failed")) {
+        toast.error("Network error. Please check your connection");
+      } else {
+        toast.error(
+          `Google signup failed: ${errorMessage || "Please try again"}`
+        );
+      }
+      setIsLoading(false);
     }
   };
 
@@ -128,8 +153,9 @@ export function SignupForm({
               variant="outline"
               className="w-full"
               onClick={handleGoogleSignup}
+              disabled={isLoading}
             >
-              Sign up with Google
+              {isLoading ? "Signing up..." : "Sign up with Google"}
             </Button>
           </div>
           <div className="after:border-border relative text-center text-sm after:absolute after:inset-0 after:top-1/2 after:z-0 after:flex after:items-center after:border-t">
@@ -147,6 +173,7 @@ export function SignupForm({
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="m@example.com"
                 required
+                disabled={isLoading}
               />
             </div>
             <div className="grid gap-3">
@@ -160,6 +187,7 @@ export function SignupForm({
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Enter your password"
                 required
+                disabled={isLoading}
               />
             </div>
             <div className="grid gap-3">
@@ -173,10 +201,11 @@ export function SignupForm({
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 placeholder="Confirm your password"
                 required
+                disabled={isLoading}
               />
             </div>
-            <Button type="submit" className="w-full">
-              Create Account
+            <Button type="submit" className="w-full" disabled={isLoading}>
+              {isLoading ? "Creating Account..." : "Create Account"}
             </Button>
           </div>
         </div>
