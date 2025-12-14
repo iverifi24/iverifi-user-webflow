@@ -10,6 +10,7 @@ import HomePage from "./screens/home/home_page";
 import Login from "./screens/login_screen";
 import Signup from "./screens/signup_screen";
 import UserData from "./screens/user_data";
+import ProfileCompletion from "./screens/profile_completion";
 
 const App = () => {
   return (
@@ -34,6 +35,7 @@ const App = () => {
             <Route path="/connections/:code" element={<Connections />} />
             {/* <Route path="/connections/add" element={<AddConnection />} /> */}
             <Route path="/connections/:id" element={<ConnectionDetails />} />
+            <Route path="/complete-profile" element={<ProfileCompletion />} />
           </Route>
 
           <Route path="*" element={<Login />} />
