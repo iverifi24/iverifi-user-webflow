@@ -8,11 +8,14 @@ import { useEffect, useState } from "react";
 import {
   getRecipientIdFromStorage,
   saveRecipientIdForLater,
+  peekRecipientIdFromStorage,
 } from "@/utils/connectionFlow";
 import { useAddConnectionMutation } from "@/redux/api";
-import type { User } from "firebase/auth";
+import { isTermsAccepted } from "@/utils/terms";
 import { doc, getDoc } from "firebase/firestore";
 import { auth, db } from "@/firebase/firebase_setup";
+import { fetchSignInMethodsForEmail } from "firebase/auth";
+import { saveUserDetailsToFirestore } from "@/utils/userRegistration";
 import { toast } from "sonner";
 
 export function LoginForm({
@@ -35,7 +38,6 @@ export function LoginForm({
     if (codeFromUrl) {
       try {
         saveRecipientIdForLater(codeFromUrl);
-        console.log("Saved code from URL:", codeFromUrl);
       } catch (e) {
         console.error("Failed to persist code:", e);
       }
@@ -43,9 +45,26 @@ export function LoginForm({
   }, [searchParams]);
 
   const postLoginCheck = async () => {
-    const pendingId = getRecipientIdFromStorage(); // reads & clears
-    console.log("Pending ID from storage:", pendingId);
-
+    const user = auth.currentUser;
+    if (!user) {
+      nav("/home");
+      return;
+    }
+  
+    // Check terms once at the beginning
+    const termsAccepted = await isTermsAccepted(user.uid);
+    
+    if (!termsAccepted) {
+      // Terms not accepted - redirect to accept-terms
+      const pendingId = peekRecipientIdFromStorage();
+      const redirectUrl = pendingId ? `/accept-terms?code=${pendingId}` : "/accept-terms";
+      nav(redirectUrl);
+      return;
+    }
+  
+    // Terms accepted - proceed with connection flow
+    const pendingId = getRecipientIdFromStorage(); // This removes it from storage
+    
     if (pendingId) {
       try {
         await addConnection({
@@ -62,20 +81,6 @@ export function LoginForm({
     }
   };
 
-  const checkIfUserExists = async (user: User) => {
-    const userDocRef = doc(db, "applicants", user.uid);
-    const userDoc = await getDoc(userDocRef);
-
-    if (!userDoc.exists()) {
-      await auth.signOut?.();
-      console.log(
-        "User already exists in applicants collection, skipping registration"
-      );
-      return;
-    }
-    throw new Error("User doesn't exist. Please sign up.");
-  };
-
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -90,15 +95,38 @@ export function LoginForm({
 
       const errorCode = err?.code || "";
 
-      // Always show a toast to confirm it's working
-      if (
-        errorCode.includes("wrong-password") ||
-        errorCode.includes("user-not-found") ||
-        errorCode.includes("invalid-credential")
-      ) {
-        toast.error("Invalid email or password");
+      // Handle user-not-found first (don't check sign-in methods for non-existent users)
+      if (errorCode.includes("user-not-found")) {
+        toast.error("No account found with this email. Please sign up first.");
       } else if (errorCode.includes("invalid-email")) {
         toast.error("Please enter a valid email address");
+      } else if (
+        errorCode.includes("invalid-credential") ||
+        errorCode.includes("wrong-password")
+      ) {
+        // Only check sign-in methods for credential errors (account exists but wrong password/method)
+        try {
+          // Check what sign-in methods are available for this email
+          const signInMethods = await fetchSignInMethodsForEmail(auth, email);
+          
+          if (signInMethods.includes("google.com")) {
+            toast.error(
+              "This account was created with Google. Please use 'Login with Google' instead."
+            );
+          } else if (signInMethods.length > 0) {
+            toast.error(
+              "This account uses a different sign-in method. Please use the original method you signed up with."
+            );
+          } else {
+            // Account exists but no other sign-in methods found
+            toast.error("Invalid email or password");
+          }
+        } catch (checkError: any) {
+          // If fetchSignInMethodsForEmail fails, it likely means the email doesn't exist
+          // or there's a network issue - just show generic error
+          console.error("Error checking sign-in methods:", checkError);
+          toast.error("Invalid email or password");
+        }
       } else if (errorCode.includes("too-many-requests")) {
         toast.error("Too many failed attempts. Please try again later");
       } else if (errorCode.includes("network-request-failed")) {
@@ -118,7 +146,22 @@ export function LoginForm({
     setIsLoading(true);
     try {
       const userCredential = await loginWithGoogle();
-      await checkIfUserExists(userCredential.user);
+      // Check if user exists in Firestore, but don't block login if they don't
+      // They might need to complete their profile, which will be handled in postLoginCheck
+      const userDocRef = doc(db, "applicants", userCredential.user.uid);
+      const userDoc = await getDoc(userDocRef);
+      
+      if (!userDoc.exists()) {
+        // User doesn't exist in Firestore - they might have signed up but profile wasn't saved
+        // Save their details now and continue with login
+        try {
+          await saveUserDetailsToFirestore(userCredential.user);
+        } catch (saveError) {
+          console.error("Error saving user details during login:", saveError);
+          // Continue with login anyway - don't block the user
+        }
+      }
+      
       toast.success("Login successful!");
       await postLoginCheck();
     } catch (err: any) {

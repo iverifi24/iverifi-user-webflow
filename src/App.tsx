@@ -11,6 +11,9 @@ import Login from "./screens/login_screen";
 import Signup from "./screens/signup_screen";
 import UserData from "./screens/user_data";
 import ProfileCompletion from "./screens/profile_completion";
+import TermsAcceptance from "./screens/terms_acceptance";
+import TermsPage from "./screens/terms_page";
+import PrivacyPage from "./screens/privacy_page";
 
 const App = () => {
   return (
@@ -19,6 +22,9 @@ const App = () => {
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
+          <Route path="/accept-terms" element={<TermsAcceptance />} />
+          <Route path="/terms" element={<TermsPage />} />
+          <Route path="/privacy" element={<PrivacyPage />} />
 
           <Route
             element={

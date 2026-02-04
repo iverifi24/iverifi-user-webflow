@@ -19,7 +19,6 @@ export function SignupForm({
   ...props
 }: React.ComponentProps<"div"> & { navigate?: (path: string) => void }) {
   const defaultNavigate = useNavigate();
-  const nav = navigate || defaultNavigate;
   const [searchParams] = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -33,7 +32,6 @@ export function SignupForm({
     if (codeFromUrl) {
       try {
         saveRecipientIdForLater(codeFromUrl);
-        console.log("Saved code from URL:", codeFromUrl);
       } catch (e) {
         console.error("Failed to persist code:", e);
       }
@@ -41,9 +39,15 @@ export function SignupForm({
   }, [searchParams]);
 
   const postSignupCheck = async () => {
-    // Navigate to profile completion page
-    // The recipientId is already saved in localStorage and will be handled there
-    nav("/complete-profile");
+    // Always redirect to terms acceptance page for new signups
+    const code = searchParams.get("code") || searchParams.get("recipientId");
+    
+    // After accepting terms, users will be redirected to /complete-profile
+    const redirectUrl = code 
+      ? `/accept-terms?code=${code}`
+      : `/accept-terms`;
+    // Use defaultNavigate with replace: true to prevent back navigation and ensure this redirect takes priority
+    defaultNavigate(redirectUrl, { replace: true });
   };
 
   const handleEmailSignup = async (e: React.FormEvent) => {

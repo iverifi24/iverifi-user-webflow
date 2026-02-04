@@ -7,3 +7,7 @@ export const getRecipientIdFromStorage = () => {
   localStorage.removeItem("pendingRecipientId");
   return id;
 };
+
+export const peekRecipientIdFromStorage = () => {
+  return localStorage.getItem("pendingRecipientId");
+};
