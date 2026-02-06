@@ -33,6 +33,7 @@ const App = () => {
               </ProtectedRoute>
             }
           >
+            <Route path="/" element={<HomePage />} />
             <Route path="/home" element={<HomePage />} />
             <Route path="/user-data" element={<UserData />} />
             <Route path="/documents" element={<Documents />} />

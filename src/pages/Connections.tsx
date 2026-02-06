@@ -8,15 +8,22 @@ import {
   useGetRecipientCredentialsQuery,
   useUpdateCredentialsRequestMutation,
   useUpdateCheckInStatusMutation,
+  useDeleteCredentialMutation,
 } from "@/redux/api";
 import { determineConnectionType, isValidQRCode } from "@/utils/qr-code-utils";
 import { addDays, format } from "date-fns";
 import { collection, getDocs, query, where } from "firebase/firestore";
-import { CheckCircle, ExternalLink, Share2, X } from "lucide-react";
+import { CheckCircle, ExternalLink, Share2, X, Trash2, Loader2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { Badge } from "../components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { DigiLockerIcon } from "@/components/digilocker-icon";
 
 const DOCUMENT_TYPES = ["DRIVING_LICENSE", "AADHAAR_CARD", "PAN_CARD", "PASSPORT"] as const;
@@ -91,6 +98,9 @@ const Connections = () => {
   const [updateCredentials, { isLoading: isUpdating }] = useUpdateCredentialsRequestMutation();
   const [updateCheckInStatus, { isLoading: isCheckInUpdating }] = useUpdateCheckInStatusMutation();
   const [addConnection] = useAddConnectionMutation();
+  const [deleteCredential, { isLoading: isDeleting }] = useDeleteCredentialMutation();
+
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; document_type: string } | null>(null);
 
   // helper to robustly pick connection id from addConnection response
   const pickConnectionId = (res: any): string | null => {
@@ -217,6 +227,19 @@ const Connections = () => {
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
   }, [refetchCredentials, refetchRecipient, code]);
+
+  const handleDeleteDoc = async () => {
+    if (!deleteTarget) return;
+    try {
+      await deleteCredential({ credential_id: deleteTarget.id }).unwrap();
+      toast.success("Document deleted successfully");
+      setDeleteTarget(null);
+      await refetchCredentials();
+      if (code) await refetchRecipient();
+    } catch (e: any) {
+      toast.error(e?.data?.message || e?.message || "Failed to delete document");
+    }
+  };
 
   // share credentials (use the derivedConnectionId)
   const handleShareCredentials = async (documentType: DocumentType) => {
@@ -432,7 +455,7 @@ const Connections = () => {
           return (
             <Card key={docType} className="transition-all hover:shadow-md">
               <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-2">
                   <CardTitle className="text-lg capitalize">{docType.replace(/_/g, " ").toLowerCase()}</CardTitle>
                   {isVerified && (
                     <Badge variant="secondary" className="bg-green-100 text-green-800 gap-1">
@@ -445,10 +468,30 @@ const Connections = () => {
               </CardHeader>
               <CardContent>
                 {isVerified ? (
-                  <Button className="w-full" disabled={isShareDisabled} onClick={() => handleShareCredentials(docType)}>
-                    <Share2 className="h-4 w-4 mr-2" />
-                    {derivedConnectionId ? "Share credentials" : "Preparing connection…"}
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      className="flex-1"
+                      disabled={isShareDisabled}
+                      onClick={() => handleShareCredentials(docType)}
+                    >
+                      <Share2 className="h-4 w-4 mr-2" />
+                      {derivedConnectionId ? "Share credentials" : "Preparing connection…"}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      className="shrink-0 text-muted-foreground hover:text-destructive hover:border-destructive/50"
+                      onClick={() => {
+                        const cred = verifiedCredentialsMap[docType];
+                        const id = cred?.credential_id || cred?.id || cred?.credentialId;
+                        if (id) setDeleteTarget({ id, document_type: docType });
+                      }}
+                      aria-label="Delete document"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 ) : (
                   <Button className="w-full" variant="outline" onClick={() => handleVerifyDocument(docType)}>
                     <ExternalLink className="h-4 w-4 mr-2" />
@@ -460,6 +503,28 @@ const Connections = () => {
           );
         })}
       </div>
+
+      {/* Delete document confirmation */}
+      <Dialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete document</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Are you sure you want to delete this verified document
+            {deleteTarget?.document_type ? ` (${deleteTarget.document_type.replace(/_/g, " ")})` : ""}?
+            You can add it again later.
+          </p>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" onClick={() => setDeleteTarget(null)} disabled={isDeleting}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteDoc} disabled={isDeleting}>
+              {isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Delete"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Iframe Overlay */}
       {iframeUrl && (

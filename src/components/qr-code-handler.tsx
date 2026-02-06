@@ -1,8 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { useAuth } from "@/context/auth_context";
 import { isValidQRCode } from "@/utils/qr-code-utils";
-import { isTermsAccepted } from "@/utils/terms";
 
 interface QRCodeHandlerProps {
   children: React.ReactNode;

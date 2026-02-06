@@ -1,5 +1,4 @@
 import { useNavigate } from "react-router-dom";
-import { Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import iverifiLogo from "../assets/new_no_bg.png"

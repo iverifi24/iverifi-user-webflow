@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { isAfter, parseISO, format, addDays } from "date-fns";
-import { Eye } from "lucide-react";
+import { Eye, Trash2, Loader2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -18,6 +18,7 @@ import {
   useGetRecipientCredentialsQuery,
   useUpdateCredentialsRequestMutation,
   useGetCredentialsQuery,
+  useDeleteCredentialMutation,
 } from "@/redux/api";
 import {
   Select,
@@ -42,8 +43,10 @@ const ConnectionDetails = () => {
 
   const { data: credsData, isLoading: isCredsLoading } =
     useGetCredentialsQuery();
+  const [deleteCredential, { isLoading: isDeleting }] = useDeleteCredentialMutation();
 
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; document_type?: string } | null>(null);
   const [extendDialog, setExtendDialog] = useState<{
     open: boolean;
     cred: any | null;
@@ -113,6 +116,20 @@ const ConnectionDetails = () => {
     }
   };
 
+  const handleDeleteDoc = async () => {
+    if (!deleteTarget) return;
+    try {
+      await deleteCredential({ credential_id: deleteTarget.id }).unwrap();
+      toast.success("Document deleted successfully");
+      setDeleteTarget(null);
+    } catch (e: any) {
+      toast.error(e?.data?.message || e?.message || "Failed to delete document");
+    }
+  };
+
+  const formatDocType = (type: string) =>
+    type ? type.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase()) : "Document";
+
   const handleShareDocs = async () => {
     if (!selectedDocs.length || !sharePeriod) {
       toast.error("Select at least one document and share period");
@@ -168,12 +185,24 @@ const ConnectionDetails = () => {
               ) : (
                 <div className="space-y-4">
                   {verifiedDocs.map((doc: any) => (
-                    <div key={doc.id} className="flex items-center space-x-2">
-                      <Checkbox
-                        checked={selectedDocs.includes(doc.id)}
-                        onCheckedChange={() => toggleDoc(doc.id)}
-                      />
-                      <Label>{doc.document_type.replace(/_/g, " ")}</Label>
+                    <div key={doc.id} className="flex items-center justify-between gap-2">
+                      <div className="flex items-center space-x-2 flex-1 min-w-0">
+                        <Checkbox
+                          checked={selectedDocs.includes(doc.id)}
+                          onCheckedChange={() => toggleDoc(doc.id)}
+                        />
+                        <Label className="truncate">{formatDocType(doc.document_type)}</Label>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
+                        onClick={() => setDeleteTarget({ id: doc.id, document_type: doc.document_type })}
+                        aria-label="Delete document"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
                   ))}
                 </div>
@@ -323,6 +352,28 @@ const ConnectionDetails = () => {
               className="w-full rounded-md"
             />
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete document confirmation */}
+      <Dialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete document</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Are you sure you want to delete this verified document
+            {deleteTarget?.document_type ? ` (${formatDocType(deleteTarget.document_type)})` : ""}?
+            You can add it again later.
+          </p>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" onClick={() => setDeleteTarget(null)} disabled={isDeleting}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteDoc} disabled={isDeleting}>
+              {isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Delete"}
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
 

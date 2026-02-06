@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
-import { Shield, Grid3x3, FileText, Send, Lock, ArrowDown, X, CheckCircle } from "lucide-react";
+import { Grid3x3, FileText, Send, Lock, ArrowDown, X, CheckCircle } from "lucide-react";
 import { useGetRecipientCredentialsQuery } from "@/redux/api";
 import { Separator } from "@/components/ui/separator";
 import { setTermsAccepted } from "@/utils/terms";
