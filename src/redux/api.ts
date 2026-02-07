@@ -14,6 +14,7 @@ export const api = createApi({
     "userManagement",
     "reward",
     "connections",
+    "credentials",
   ],
   endpoints: (builder) => ({
     getCredentials: builder.query<any, void>({
@@ -21,7 +22,15 @@ export const api = createApi({
         url: "/users/listAllCredentials",
         method: "GET",
       }),
-      // providesTags: ["admin"],
+      providesTags: ["credentials"],
+    }),
+    deleteCredential: builder.mutation<{ data: { credential_id: string } }, { credential_id: string }>({
+      query: ({ credential_id }) => ({
+        url: "/users/deleteCredential",
+        method: "POST",
+        body: { credential_id },
+      }),
+      invalidatesTags: ["credentials"],
     }),
     getConnections: builder.query<any, void>({
       query: () => ({
@@ -276,6 +285,7 @@ export const api = createApi({
 });
 export const {
   useGetCredentialsQuery,
+  useDeleteCredentialMutation,
   useGetConnectionsQuery,
   useGetRecipientCredentialsQuery,
   useUpdateCredentialsRequestMutation,

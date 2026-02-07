@@ -8,15 +8,23 @@ import {
   useGetRecipientCredentialsQuery,
   useUpdateCredentialsRequestMutation,
   useUpdateCheckInStatusMutation,
+  useDeleteCredentialMutation,
 } from "@/redux/api";
 import { determineConnectionType, isValidQRCode } from "@/utils/qr-code-utils";
 import { addDays, format } from "date-fns";
 import { collection, getDocs, query, where } from "firebase/firestore";
-import { CheckCircle, ExternalLink, FileText, Share2, X } from "lucide-react";
+import { CheckCircle, ExternalLink, Share2, X, Trash2, Loader2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { Badge } from "../components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { DigiLockerIcon } from "@/components/digilocker-icon";
 
 const DOCUMENT_TYPES = ["DRIVING_LICENSE", "AADHAAR_CARD", "PAN_CARD", "PASSPORT"] as const;
 type DocumentType = (typeof DOCUMENT_TYPES)[number];
@@ -39,12 +47,18 @@ interface RecipientRequest {
   id: string;
   check_in_time?: string;
   check_out_time?: string;
+  check_in_status?: string; // 'pending' when awaiting hotel approval
+  credentials?: Array<{
+    credential_id?: string;
+    document_type?: string;
+    status?: string;
+    expiry_date?: string;
+  }>;
 }
 
 const IVERIFI_ORIGIN = "https://iverifi.app.getkwikid.com";
 
 const Connections = () => {
-  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const params = useParams();
 
@@ -56,6 +70,9 @@ const Connections = () => {
 
   // track the just-created connection id (to avoid waiting on recipientData)
   const [activeConnectionId, setActiveConnectionId] = useState<string | null>(null);
+
+  // track if credentials are available for check-in/out
+  const [hasCredentials, setHasCredentials] = useState<boolean | null>(null);
 
   // run-once guard for adding connection by code
   const processedCodeRef = useRef<string | null>(null);
@@ -81,6 +98,9 @@ const Connections = () => {
   const [updateCredentials, { isLoading: isUpdating }] = useUpdateCredentialsRequestMutation();
   const [updateCheckInStatus, { isLoading: isCheckInUpdating }] = useUpdateCheckInStatusMutation();
   const [addConnection] = useAddConnectionMutation();
+  const [deleteCredential, { isLoading: isDeleting }] = useDeleteCredentialMutation();
+
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; document_type: string } | null>(null);
 
   // helper to robustly pick connection id from addConnection response
   const pickConnectionId = (res: any): string | null => {
@@ -150,14 +170,46 @@ const Connections = () => {
     return requests[0] || null;
   }, [recipientData, code]);
 
-  // Determine button states based on check-in/check-out times
-  const isCheckInDisabled = useMemo(() => {
-    return !derivedConnectionId || isCheckInUpdating || !!currentConnection?.check_in_time;
-  }, [derivedConnectionId, isCheckInUpdating, currentConnection?.check_in_time]);
+  // Check credentials availability from API response instead of Firestore
+  const hasCredentialsFromAPI = useMemo(() => {
+    if (!currentConnection) return null;
+    
+    // Check if credentials array exists and has at least one active credential
+    const credentials = currentConnection.credentials;
+    if (!credentials || !Array.isArray(credentials)) return false;
+    
+    // Check if there's at least one credential with status "Active"
+    const hasActiveCredential = credentials.some(
+      (cred: any) => cred?.status === "Active" && cred?.document_type
+    );
+    
+    return hasActiveCredential;
+  }, [currentConnection]);
 
-  const isCheckOutDisabled = useMemo(() => {
-    return !derivedConnectionId || isCheckInUpdating || !!currentConnection?.check_out_time;
-  }, [derivedConnectionId, isCheckInUpdating, currentConnection?.check_out_time]);
+  // Use API data if available, otherwise fallback to null (loading state)
+  useEffect(() => {
+    if (hasCredentialsFromAPI !== null) {
+      setHasCredentials(hasCredentialsFromAPI);
+    } else {
+      // If we don't have connection data yet, set to null (loading)
+      setHasCredentials(null);
+    }
+  }, [hasCredentialsFromAPI]);
+
+  // Determine button states: disable if no connection, updating, no credentials, already checked in, or pending approval
+  const isCheckInDisabled = useMemo(() => {
+    return (
+      !derivedConnectionId ||
+      isCheckInUpdating ||
+      hasCredentials === false ||
+      !!currentConnection?.check_in_time || // Disable if already checked in
+      currentConnection?.check_in_status === "pending" // Disable if pending hotel approval
+    );
+  }, [derivedConnectionId, isCheckInUpdating, hasCredentials, currentConnection?.check_in_time, currentConnection?.check_in_status]);
+
+  // const isCheckOutDisabled = useMemo(() => {
+  //   return !derivedConnectionId || isCheckInUpdating || !!currentConnection?.check_out_time;
+  // }, [derivedConnectionId, isCheckInUpdating, currentConnection?.check_out_time]);
 
   // postMessage listener to close iframe and refresh
   useEffect(() => {
@@ -175,6 +227,19 @@ const Connections = () => {
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
   }, [refetchCredentials, refetchRecipient, code]);
+
+  const handleDeleteDoc = async () => {
+    if (!deleteTarget) return;
+    try {
+      await deleteCredential({ credential_id: deleteTarget.id }).unwrap();
+      toast.success("Document deleted successfully");
+      setDeleteTarget(null);
+      await refetchCredentials();
+      if (code) await refetchRecipient();
+    } catch (e: any) {
+      toast.error(e?.data?.message || e?.message || "Failed to delete document");
+    }
+  };
 
   // share credentials (use the derivedConnectionId)
   const handleShareCredentials = async (documentType: DocumentType) => {
@@ -204,6 +269,9 @@ const Connections = () => {
       }).unwrap();
 
       toast.success("Your verified credential was shared successfully with this connection.");
+      
+      // Refetch recipient data to update credentials state
+      await refetchRecipient();
     } catch (error: any) {
       toast.error(error?.data?.message ? String(error.data.message) : "Failed to share credentials");
     }
@@ -239,7 +307,7 @@ const Connections = () => {
     }
   };
 
-  const navigateToCleanConnections = () => navigate("/connections", { replace: true });
+  // const navigateToCleanConnections = () => navigate("/connections", { replace: true });
 
   // Handle Check In/Out actions
   const handleCheckInOut = async (status: "checkin" | "checkout") => {
@@ -256,7 +324,11 @@ const Connections = () => {
         status,
       }).unwrap();
 
-      toast.success(`Successfully ${status === "checkin" ? "checked in" : "checked out"}.`);
+      toast.success(
+        status === "checkin"
+          ? "Check-in request submitted. Waiting for hotel approval."
+          : "Successfully checked out."
+      );
 
       // Refresh recipient data to get updated check-in/check-out status
       await refetchRecipient();
@@ -298,47 +370,67 @@ const Connections = () => {
   return (
     <div className="p-4 space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      {/* <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Connections</h1>
         {code && (
           <Button variant="outline" size="sm" onClick={navigateToCleanConnections}>
             Clear Code
           </Button>
         )}
-      </div>
+      </div> */}
 
       {/* Connection Info */}
       {code && (
-        <Card className="bg-blue-50 border-blue-200">
-          <CardContent className="p-4">
-            <div className="flex items-center space-x-2">
-              <FileText className="h-4 w-4 text-blue-600" />
-              <span className="text-sm text-blue-800">
+        <div className="py-6 border-b border-gray-200">
+          <h2 className="text-2xl font-semibold text-gray-900">
+            Welcome to the{" "}
+            <span>
                 {recipientData?.data?.requests?.[0]?.recipients?.name ||
                   recipientData?.data?.requests?.[0]?.recipients?.firstName ||
                   "Connection"}
               </span>
+          </h2>
             </div>
-          </CardContent>
-        </Card>
       )}
 
       {/* Check In/Out Actions */}
       {code && (
-        <div className="flex gap-4">
-          <Button
-            className="flex-1 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
-            onClick={() => handleCheckInOut("checkin")}
-            disabled={isCheckInDisabled}
-          >
-            <CheckCircle className="h-4 w-4 mr-2" />
-            {isCheckInUpdating
-              ? "Checking In..."
-              : currentConnection?.check_in_time
-              ? "Already Checked In"
-              : "Check In"}
-          </Button>
-          <Button
+        <div className="space-y-2">
+          {hasCredentials === false && (
+            <p className="text-sm text-muted-foreground text-center">
+              Please verify at least one document to complete check-in at{" "}
+              <span className="font-semibold">
+                {recipientData?.data?.requests?.[0]?.recipients?.name ||
+                  recipientData?.data?.requests?.[0]?.recipients?.firstName ||
+                  "Connection"}
+              </span>
+            </p>
+          )}
+        <div className="flex flex-col gap-2">
+          <div className="flex gap-4">
+            <Button
+              className="flex-1 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+              onClick={() => handleCheckInOut("checkin")}
+              disabled={isCheckInDisabled}
+            >
+              <CheckCircle className="h-4 w-4 mr-2" />
+              {isCheckInUpdating
+                ? "Submitting..."
+                : currentConnection?.check_in_time
+                ? "Already Checked In"
+                : currentConnection?.check_in_status === "pending"
+                ? "Check-in Pending Approval"
+                : hasCredentials === false
+                ? "Check In (Document Required)"
+                : "Check In"}
+            </Button>
+          </div>
+          {currentConnection?.check_in_status === "pending" && !currentConnection?.check_in_time && (
+            <p className="text-sm text-amber-600 text-center">
+              Your check-in is pending. The hotel will approve it shortly.
+            </p>
+          )}
+          {/* <Button
             className="flex-1 bg-red-600 hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
             onClick={() => handleCheckInOut("checkout")}
             disabled={isCheckOutDisabled}
@@ -349,7 +441,8 @@ const Connections = () => {
               : currentConnection?.check_out_time
               ? "Already Checked Out"
               : "Check Out"}
-          </Button>
+          </Button> */}
+          </div>
         </div>
       )}
 
@@ -362,22 +455,43 @@ const Connections = () => {
           return (
             <Card key={docType} className="transition-all hover:shadow-md">
               <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-2">
                   <CardTitle className="text-lg capitalize">{docType.replace(/_/g, " ").toLowerCase()}</CardTitle>
                   {isVerified && (
-                    <Badge variant="secondary" className="bg-green-100 text-green-800">
-                      <CheckCircle className="h-3 w-3 mr-1" />
-                      Verified
+                    <Badge variant="secondary" className="bg-green-100 text-green-800 gap-1">
+                      <CheckCircle className="h-3.5 w-3.5 shrink-0" />
+                      <span>Verified by</span>
+                      <DigiLockerIcon size={9} className="shrink-0" />
                     </Badge>
                   )}
                 </div>
               </CardHeader>
               <CardContent>
                 {isVerified ? (
-                  <Button className="w-full" disabled={isShareDisabled} onClick={() => handleShareCredentials(docType)}>
-                    <Share2 className="h-4 w-4 mr-2" />
-                    {derivedConnectionId ? "Share credentials" : "Preparing connection…"}
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      className="flex-1"
+                      disabled={isShareDisabled}
+                      onClick={() => handleShareCredentials(docType)}
+                    >
+                      <Share2 className="h-4 w-4 mr-2" />
+                      {derivedConnectionId ? "Share credentials" : "Preparing connection…"}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      className="shrink-0 text-muted-foreground hover:text-destructive hover:border-destructive/50"
+                      onClick={() => {
+                        const cred = verifiedCredentialsMap[docType];
+                        const id = cred?.credential_id || cred?.id || cred?.credentialId;
+                        if (id) setDeleteTarget({ id, document_type: docType });
+                      }}
+                      aria-label="Delete document"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 ) : (
                   <Button className="w-full" variant="outline" onClick={() => handleVerifyDocument(docType)}>
                     <ExternalLink className="h-4 w-4 mr-2" />
@@ -389,6 +503,28 @@ const Connections = () => {
           );
         })}
       </div>
+
+      {/* Delete document confirmation */}
+      <Dialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete document</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Are you sure you want to delete this verified document
+            {deleteTarget?.document_type ? ` (${deleteTarget.document_type.replace(/_/g, " ")})` : ""}?
+            You can add it again later.
+          </p>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" onClick={() => setDeleteTarget(null)} disabled={isDeleting}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteDoc} disabled={isDeleting}>
+              {isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Delete"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Iframe Overlay */}
       {iframeUrl && (

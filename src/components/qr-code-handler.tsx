@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { useAuth } from "@/context/auth_context";
 import { isValidQRCode } from "@/utils/qr-code-utils";
 
@@ -7,50 +7,41 @@ interface QRCodeHandlerProps {
   children: React.ReactNode;
 }
 
+// QRCodeHandler should be simplified to:
 export function QRCodeHandler({ children }: QRCodeHandlerProps) {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const { user, loading } = useAuth();
 
-  const isAuthenticated = !!user;
-
   useEffect(() => {
-    // Don't process anything while auth is loading
     if (loading) return;
 
     const code = searchParams.get("code");
+    const currentPath = location.pathname;
 
-    // Only proceed if there's a valid code parameter
-    if (!isValidQRCode(code)) return;
+    // Exclude protected routes and onboarding - let ProtectedRoute handle those
+    const excludedPaths = [
+      "/accept-terms", "/terms", "/privacy", "/complete-profile",
+      "/login", "/signup", "/connections", "/home", "/documents", "/user-data"
+    ];
+    
+    if (excludedPaths.includes(currentPath) || !isValidQRCode(code)) {
+      return;
+    }
 
-    const handleQRCodeFlow = async () => {
-      try {
-        // Case 1: User not logged in - redirect to login with code
-        if (!isAuthenticated) {
-          const currentPath = window.location.pathname;
-
-          // Only redirect if we're not already on the login or signup page
-          if (currentPath !== "/login" && currentPath !== "/signup") {
-            navigate(`/login?code=${code}`, { replace: true });
-          }
-          return;
-        }
-
-        // Case 2: User already logged in - redirect to connections with code
-        if (isAuthenticated) {
-          navigate(`/connections?code=${code}`, { replace: true });
-        }
-      } catch (error) {
-        console.error("Error handling QR code flow:", error);
-
-        // You might want to show a toast notification here
-        // For now, we'll navigate to home on error
-        navigate("/home");
+    // Only handle QR code routing - no terms checking needed
+    if (!user) {
+      if (currentPath !== "/login" && currentPath !== "/signup") {
+        navigate(`/login?code=${code}`, { replace: true });
       }
-    };
-
-    handleQRCodeFlow();
-  }, [isAuthenticated, loading, searchParams, navigate]);
+    } else {
+      // User is authenticated - ProtectedRoute will handle terms check
+      if (currentPath !== "/connections") {
+        navigate(`/connections?code=${code}`, { replace: true });
+      }
+    }
+  }, [user, loading, searchParams, navigate, location.pathname]);
 
   return <>{children}</>;
 }
