@@ -9,8 +9,14 @@ import {
 import { auth } from "@/firebase/firebase_setup";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
-import { saveRecipientIdForLater } from "@/utils/connectionFlow";
+import {
+  getRecipientIdFromStorage,
+  saveRecipientIdForLater,
+  peekRecipientIdFromStorage,
+} from "@/utils/connectionFlow";
 import { saveUserDetailsToFirestore } from "@/utils/userRegistration";
+import { isTermsAccepted } from "@/utils/terms";
+import { useAddConnectionMutation } from "@/redux/api";
 import { toast } from "sonner";
 
 export function SignupForm({
@@ -24,6 +30,7 @@ export function SignupForm({
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [addConnection] = useAddConnectionMutation();
 
   // Capture ?code=... or ?recipientId=... from URL on mount and persist for post-signup
   useEffect(() => {
@@ -39,15 +46,34 @@ export function SignupForm({
   }, [searchParams]);
 
   const postSignupCheck = async () => {
-    // Always redirect to terms acceptance page for new signups
-    const code = searchParams.get("code") || searchParams.get("recipientId");
-    
-    // After accepting terms, users will be redirected to /complete-profile
-    const redirectUrl = code 
-      ? `/accept-terms?code=${code}`
-      : `/accept-terms`;
-    // Use defaultNavigate with replace: true to prevent back navigation and ensure this redirect takes priority
-    defaultNavigate(redirectUrl, { replace: true });
+    const user = auth.currentUser;
+    if (!user) {
+      defaultNavigate("/home", { replace: true });
+      return;
+    }
+
+    const termsAccepted = await isTermsAccepted(user.uid);
+
+    if (!termsAccepted) {
+      const code = searchParams.get("code") || searchParams.get("recipientId") || peekRecipientIdFromStorage();
+      const redirectUrl = code ? `/accept-terms?code=${code}` : "/accept-terms";
+      defaultNavigate(redirectUrl, { replace: true });
+      return;
+    }
+
+    // Terms already accepted (e.g. existing user signing in via Google) — go to home or connections
+    const pendingId = getRecipientIdFromStorage();
+    if (pendingId) {
+      try {
+        await addConnection({ document_id: pendingId, type: "Company" }).unwrap();
+        defaultNavigate(`/connections?code=${pendingId}`, { replace: true });
+      } catch (err) {
+        console.error("Failed to add connection after signup", err);
+        defaultNavigate("/home", { replace: true });
+      }
+    } else {
+      defaultNavigate("/home", { replace: true });
+    }
   };
 
   const handleEmailSignup = async (e: React.FormEvent) => {
