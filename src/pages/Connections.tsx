@@ -343,32 +343,35 @@ const Connections = () => {
 
   if (isCredentialsLoading || isRecipientLoading) {
     return (
-      <div className="p-4 space-y-4">
-        <div className="flex items-center justify-between">
-          <Skeleton className="h-8 w-32" />
-          <Skeleton className="h-10 w-32" />
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {DOCUMENT_TYPES.map((docType) => (
-            <Card key={docType} className="p-4">
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <Skeleton className="h-6 w-24" />
-                  <Skeleton className="h-5 w-16" />
-                </div>
-              </CardHeader>
-              <CardContent>
-                <Skeleton className="h-10 w-full" />
-              </CardContent>
-            </Card>
-          ))}
+      <div className="min-h-screen bg-gradient-to-b from-teal-50/50 to-white p-4 sm:p-6">
+        <div className="max-w-2xl mx-auto space-y-6">
+          <div className="flex items-center justify-between">
+            <Skeleton className="h-8 w-32 rounded-lg" />
+            <Skeleton className="h-10 w-32 rounded-lg" />
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {DOCUMENT_TYPES.map((docType) => (
+              <Card key={docType} className="p-4 rounded-xl border-teal-100 shadow-sm">
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <Skeleton className="h-6 w-24 rounded" />
+                    <Skeleton className="h-5 w-16 rounded-full" />
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <Skeleton className="h-10 w-full rounded-lg" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="p-4 space-y-4">
+    <div className="min-h-screen bg-gradient-to-b from-teal-50/50 via-white to-slate-50/30 p-4 sm:p-6">
+      <div className="max-w-2xl mx-auto space-y-6">
       {/* Header */}
       {/* <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Connections</h1>
@@ -379,57 +382,61 @@ const Connections = () => {
         )}
       </div> */}
 
-      {/* Connection Info */}
+      {/* Connection Info - Welcome */}
       {code && (
-        <div className="py-6 border-b border-gray-200">
-          <h2 className="text-2xl font-semibold text-gray-900">
-            Welcome to the{" "}
-            <span>
-                {recipientData?.data?.requests?.[0]?.recipients?.name ||
-                  recipientData?.data?.requests?.[0]?.recipients?.firstName ||
-                  "Connection"}
-              </span>
+        <div className="py-4 text-center">
+          <h2 className="text-2xl sm:text-3xl font-semibold text-gray-900">
+            Welcome to{" "}
+            <span className="font-bold text-teal-600">
+              {recipientData?.data?.requests?.[0]?.recipients?.name ||
+                recipientData?.data?.requests?.[0]?.recipients?.firstName ||
+                "your stay"}
+            </span>
           </h2>
-            </div>
+          <p className="text-gray-500 text-sm mt-2">
+            Verify a document below, then tap Check In to request approval.
+          </p>
+        </div>
       )}
 
-      {/* Check In/Out Actions */}
+      {/* Check In / Status card */}
       {code && (
-        <div className="space-y-2">
-          {hasCredentials === false && (
-            <p className="text-sm text-muted-foreground text-center">
-              Please verify at least one document to complete check-in at{" "}
-              <span className="font-semibold">
-                {recipientData?.data?.requests?.[0]?.recipients?.name ||
-                  recipientData?.data?.requests?.[0]?.recipients?.firstName ||
-                  "Connection"}
-              </span>
-            </p>
-          )}
-        <div className="flex flex-col gap-2">
-          <div className="flex gap-4">
-            <Button
-              className="flex-1 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
-              onClick={() => handleCheckInOut("checkin")}
-              disabled={isCheckInDisabled}
-            >
-              <CheckCircle className="h-4 w-4 mr-2" />
-              {isCheckInUpdating
-                ? "Submitting..."
-                : currentConnection?.check_in_time
-                ? "Already Checked In"
-                : currentConnection?.check_in_status === "pending"
-                ? "Check-in Pending Approval"
-                : hasCredentials === false
-                ? "Check In (Document Required)"
-                : "Check In"}
-            </Button>
-          </div>
-          {currentConnection?.check_in_status === "pending" && !currentConnection?.check_in_time && (
-            <p className="text-sm text-amber-600 text-center">
-              Your check-in is pending. The hotel will approve it shortly.
-            </p>
-          )}
+        <Card className="rounded-2xl border-teal-100 shadow-md overflow-hidden">
+          <CardContent className="p-4 sm:p-6">
+            {hasCredentials === false && (
+              <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-4 text-center">
+                Verify at least one document to check in at{" "}
+                <span className="font-bold text-amber-900">
+                  {recipientData?.data?.requests?.[0]?.recipients?.name ||
+                    recipientData?.data?.requests?.[0]?.recipients?.firstName ||
+                    "this property"}
+                </span>
+              </p>
+            )}
+            <div className="flex flex-col gap-3">
+              <Button
+                className="flex-1 h-12 text-base font-semibold rounded-xl bg-teal-600 hover:bg-teal-700 text-white shadow-md shadow-teal-200 disabled:bg-slate-300 disabled:shadow-none disabled:cursor-not-allowed transition-all"
+                onClick={() => handleCheckInOut("checkin")}
+                disabled={isCheckInDisabled}
+              >
+                <CheckCircle className="h-5 w-5 mr-2" />
+                {isCheckInUpdating
+                  ? "Submitting..."
+                  : currentConnection?.check_in_time
+                  ? "Already Checked In"
+                  : currentConnection?.check_in_status === "pending"
+                  ? "Check-in Pending Approval"
+                  : hasCredentials === false
+                  ? "Check In (Document Required)"
+                  : "Check In"}
+              </Button>
+              {currentConnection?.check_in_status === "pending" && !currentConnection?.check_in_time && (
+                <div className="rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 text-center">
+                  <p className="text-sm font-medium text-amber-800">
+                    Your check-in is pending. The hotel will approve it shortly.
+                  </p>
+                </div>
+              )}
           {/* <Button
             className="flex-1 bg-red-600 hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
             onClick={() => handleCheckInOut("checkout")}
@@ -442,9 +449,16 @@ const Connections = () => {
               ? "Already Checked Out"
               : "Check Out"}
           </Button> */}
-          </div>
-        </div>
+            </div>
+          </CardContent>
+        </Card>
       )}
+
+      {/* Document cards section label */}
+      <div className="pt-2">
+        <h3 className="text-lg font-semibold text-slate-800 mb-1">Your documents</h3>
+        <p className="text-sm text-slate-500">Verify and share credentials with the property.</p>
+      </div>
 
       {/* Document Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -453,15 +467,24 @@ const Connections = () => {
           const isShareDisabled = !isVerified || isUpdating || !derivedConnectionId;
 
           return (
-            <Card key={docType} className="transition-all hover:shadow-md">
+            <Card
+              key={docType}
+              className={`rounded-2xl border-2 transition-all duration-200 hover:shadow-lg ${
+                isVerified
+                  ? "border-teal-200 bg-teal-50/30 shadow-sm hover:border-teal-300"
+                  : "border-slate-200 bg-white shadow-sm hover:border-teal-200 hover:bg-teal-50/20"
+              }`}
+            >
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between gap-2">
-                  <CardTitle className="text-lg capitalize">{docType.replace(/_/g, " ").toLowerCase()}</CardTitle>
+                  <CardTitle className="text-lg font-semibold text-slate-800 capitalize">
+                    {docType.replace(/_/g, " ").toLowerCase()}
+                  </CardTitle>
                   {isVerified && (
-                    <Badge variant="secondary" className="bg-green-100 text-green-800 gap-1">
+                    <Badge className="bg-teal-600 text-white gap-1 border-0 shadow-sm">
                       <CheckCircle className="h-3.5 w-3.5 shrink-0" />
-                      <span>Verified by</span>
-                      <DigiLockerIcon size={9} className="shrink-0" />
+                      <span>Verified</span>
+                      <DigiLockerIcon size={9} className="shrink-0 opacity-90" />
                     </Badge>
                   )}
                 </div>
@@ -470,18 +493,18 @@ const Connections = () => {
                 {isVerified ? (
                   <div className="flex gap-2">
                     <Button
-                      className="flex-1"
+                      className="flex-1 rounded-xl bg-teal-600 hover:bg-teal-700 font-medium"
                       disabled={isShareDisabled}
                       onClick={() => handleShareCredentials(docType)}
                     >
                       <Share2 className="h-4 w-4 mr-2" />
-                      {derivedConnectionId ? "Share credentials" : "Preparing connection…"}
+                      {derivedConnectionId ? "Share credentials" : "Preparing…"}
                     </Button>
                     <Button
                       type="button"
                       variant="outline"
                       size="icon"
-                      className="shrink-0 text-muted-foreground hover:text-destructive hover:border-destructive/50"
+                      className="shrink-0 rounded-xl text-slate-500 hover:text-red-600 hover:border-red-200 hover:bg-red-50"
                       onClick={() => {
                         const cred = verifiedCredentialsMap[docType];
                         const id = cred?.credential_id || cred?.id || cred?.credentialId;
@@ -493,7 +516,11 @@ const Connections = () => {
                     </Button>
                   </div>
                 ) : (
-                  <Button className="w-full" variant="outline" onClick={() => handleVerifyDocument(docType)}>
+                  <Button
+                    className="w-full rounded-xl border-2 border-teal-300 text-teal-700 hover:bg-teal-50 hover:border-teal-400 font-medium"
+                    variant="outline"
+                    onClick={() => handleVerifyDocument(docType)}
+                  >
                     <ExternalLink className="h-4 w-4 mr-2" />
                     Verify Document
                   </Button>
@@ -503,6 +530,9 @@ const Connections = () => {
           );
         })}
       </div>
+
+      </div>
+      {/* max-w-2xl end */}
 
       {/* Delete document confirmation */}
       <Dialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
@@ -532,7 +562,7 @@ const Connections = () => {
           <div className="relative bg-white w-full max-w-3xl h-[88vh] rounded-2xl shadow-xl overflow-hidden">
             <button
               aria-label="Close"
-              className="absolute top-3 right-3 inline-flex items-center gap-2 rounded-full border px-3 py-1 text-sm hover:bg-gray-50"
+              className="absolute top-3 right-3 inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm hover:bg-teal-50 hover:border-teal-200 hover:text-teal-800 transition-colors"
               onClick={async () => {
                 setIframeUrl(null);
                 // setVerifyingDocType(null);
