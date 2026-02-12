@@ -23,9 +23,9 @@ export function QRCodeHandler({ children }: QRCodeHandlerProps) {
     // Exclude protected routes and onboarding - let ProtectedRoute handle those
     const excludedPaths = [
       "/accept-terms", "/terms", "/privacy", "/complete-profile",
-      "/login", "/signup", "/connections", "/home", "/documents", "/user-data"
+      "/login", "/signup", "/", "/home", "/connections", "/documents", "/user-data"
     ];
-    
+
     if (excludedPaths.includes(currentPath) || !isValidQRCode(code)) {
       return;
     }
@@ -36,9 +36,9 @@ export function QRCodeHandler({ children }: QRCodeHandlerProps) {
         navigate(`/login?code=${code}`, { replace: true });
       }
     } else {
-      // User is authenticated - ProtectedRoute will handle terms check
-      if (currentPath !== "/connections") {
-        navigate(`/connections?code=${code}`, { replace: true });
+      // User is authenticated - home is Connections; handle code on /
+      if (currentPath !== "/" && currentPath !== "/home") {
+        navigate(`/?code=${code}`, { replace: true });
       }
     }
   }, [user, loading, searchParams, navigate, location.pathname]);

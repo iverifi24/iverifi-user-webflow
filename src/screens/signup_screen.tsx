@@ -16,9 +16,9 @@ export default function SignupPage() {
     if (user) {
       const code = searchParams.get("code");
       if (code) {
-        navigate(`/connections?code=${encodeURIComponent(code)}`, { replace: true });
+        navigate(`/?code=${encodeURIComponent(code)}`, { replace: true });
       } else {
-        navigate("/home", { replace: true });
+        navigate("/", { replace: true });
       }
     }
   }, [user, loading, navigate, searchParams]);

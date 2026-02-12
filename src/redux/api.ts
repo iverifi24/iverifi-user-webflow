@@ -15,6 +15,7 @@ export const api = createApi({
     "reward",
     "connections",
     "credentials",
+    "activity",
   ],
   endpoints: (builder) => ({
     getCredentials: builder.query<any, void>({
@@ -30,7 +31,7 @@ export const api = createApi({
         method: "POST",
         body: { credential_id },
       }),
-      invalidatesTags: ["credentials"],
+      invalidatesTags: ["credentials", "activity"],
     }),
     getConnections: builder.query<any, void>({
       query: () => ({
@@ -47,6 +48,16 @@ export const api = createApi({
       }),
       // providesTags: ["connections"],
     }),
+    getMyActivity: builder.query<
+      { data: { activity: Array<{ id: string; type: string; message: string; name?: string; date: number; activity_type?: string }> } },
+      void
+    >({
+      query: () => ({
+        url: "/users/activity",
+        method: "GET",
+      }),
+      providesTags: ["activity"],
+    }),
     addConnection: builder.mutation({
       query: ({ document_id, type }) => ({
         url: "/users/addConnection",
@@ -56,18 +67,19 @@ export const api = createApi({
           type, // Pass "Company" or "Individual"
         },
       }),
-      invalidatesTags: ["connections"],
+      invalidatesTags: ["connections", "activity"],
     }),
     updateCredentialsRequest: builder.mutation({
-      query: ({ credential_request_id, credentials }) => ({
+      query: ({ credential_request_id, credentials, action }) => ({
         url: "/users/updateCredentialsRequest",
         method: "POST",
         body: {
           credential_request_id,
           credentials,
+          ...(action && { action }),
         },
       }),
-      invalidatesTags: ["connections"],
+      invalidatesTags: ["connections", "activity"],
     }),
     updateCheckInStatus: builder.mutation({
       query: ({ credential_request_id, credentials, status }) => ({
@@ -79,7 +91,7 @@ export const api = createApi({
           status,
         },
       }),
-      invalidatesTags: ["connections"],
+      invalidatesTags: ["connections", "activity"],
     }),
     login: builder.mutation({
       query: (data) => ({ url: "/admin/login", method: "POST", body: data }),
@@ -288,6 +300,7 @@ export const {
   useDeleteCredentialMutation,
   useGetConnectionsQuery,
   useGetRecipientCredentialsQuery,
+  useGetMyActivityQuery,
   useUpdateCredentialsRequestMutation,
   useUpdateCheckInStatusMutation,
   useAddConnectionMutation,

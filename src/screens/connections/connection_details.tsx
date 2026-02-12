@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { isAfter, parseISO, format, addDays } from "date-fns";
-import { Eye, Trash2, Loader2 } from "lucide-react";
+import { Eye, Trash2, Loader2, CalendarCheck, CalendarX } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -36,6 +36,7 @@ const ConnectionDetails = () => {
     data: connectionData,
     isLoading,
     isError,
+    refetch: refetchConnection,
   } = useGetRecipientCredentialsQuery(id || "", { skip: !id });
 
   const [updateCredentials, { isLoading: isUpdating }] =
@@ -88,10 +89,12 @@ const ConnectionDetails = () => {
             expiry_date: format(newExpiry, "yyyy-MM-dd"),
           },
         ],
+        action: "extend",
       }).unwrap();
       toast.success("Access extended successfully");
       setExtendDialog({ open: false, cred: null });
       setSelectedDays("");
+      await refetchConnection();
     } catch (err: any) {
       toast.error(err?.data?.message || "Failed to extend access");
     }
@@ -111,6 +114,7 @@ const ConnectionDetails = () => {
         ],
       }).unwrap();
       toast.success("Access revoked successfully");
+      await refetchConnection();
     } catch (err: any) {
       toast.error(err?.data?.message || "Failed to revoke access");
     }
@@ -240,7 +244,7 @@ const ConnectionDetails = () => {
 
       <Separator />
 
-      {/* Loading State */}
+      {/* Documents shared with this connection */}
       {isLoading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
           {Array(3)
@@ -335,6 +339,78 @@ const ConnectionDetails = () => {
           })}
         </div>
       )}
+
+      <Separator />
+
+      {/* Activity with this connection */}
+      {connection && (() => {
+        const activities = connectionData?.data?.activities ?? [];
+        return (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Activity with this connection</CardTitle>
+              <p className="text-sm text-muted-foreground font-normal">
+                {activities.length} stay{activities.length !== 1 ? "s" : ""} at this property
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {activities.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No stays or check-ins yet.</p>
+              ) : (
+                activities.map((act: any, index: number) => {
+                  const checkInTs = act.check_in_time ? (typeof act.check_in_time === "number" ? act.check_in_time : new Date(act.check_in_time).getTime()) : null;
+                  const checkOutTs = act.check_out_time ? (typeof act.check_out_time === "number" ? act.check_out_time : new Date(act.check_out_time).getTime()) : null;
+                  const status = checkOutTs
+                    ? "Checked out"
+                    : checkInTs
+                      ? "Checked in"
+                      : "—";
+                  const statusCls =
+                    status === "Checked out"
+                      ? "text-slate-600"
+                      : status === "Checked in"
+                        ? "text-teal-600"
+                        : "text-slate-600";
+                  return (
+                    <div
+                      key={act.id || index}
+                      className="rounded-lg border border-slate-200 bg-slate-50/50 p-3 text-sm"
+                    >
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        <div className="flex items-center gap-2 text-muted-foreground">
+                          <CalendarCheck className="h-4 w-4 shrink-0" />
+                          <span>
+                            Check-in:{" "}
+                            {checkInTs ? format(new Date(checkInTs), "MMM d, yyyy · h:mm a") : "—"}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 text-muted-foreground">
+                          <CalendarX className="h-4 w-4 shrink-0" />
+                          <span>
+                            Check-out:{" "}
+                            {checkOutTs ? format(new Date(checkOutTs), "MMM d, yyyy · h:mm a") : "—"}
+                          </span>
+                        </div>
+                        {(act.room_number || act.booking_ref || act.document) && (
+                          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-muted-foreground sm:col-span-2">
+                            {act.room_number && <span>Room: {act.room_number}</span>}
+                            {act.booking_ref && <span>Ref: {act.booking_ref}</span>}
+                            {act.document && <span>Doc: {formatDocType(act.document)}</span>}
+                          </div>
+                        )}
+                      </div>
+                      <div className="pt-1.5">
+                        <span className="text-muted-foreground">Status: </span>
+                        <span className={`font-medium ${statusCls}`}>{status}</span>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </CardContent>
+          </Card>
+        );
+      })()}
 
       {/* Image Preview Dialog */}
       <Dialog

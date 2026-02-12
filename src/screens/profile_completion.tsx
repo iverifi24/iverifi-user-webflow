@@ -56,12 +56,10 @@ export default function ProfileCompletion() {
       const pendingId = getRecipientIdFromStorage();
 
       if (pendingId) {
-        // Navigate to connections page with the code
-        // The Connections page will handle adding the connection
-        navigate(`/connections?code=${pendingId}`);
+        // Navigate to home (Connections) with the code
+        navigate(`/?code=${pendingId}`);
       } else {
-        // No pending connection, go to home
-        navigate("/home");
+        navigate("/");
       }
     } catch (error) {
       console.error("Error updating profile:", error);
