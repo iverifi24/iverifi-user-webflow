@@ -48,7 +48,7 @@ export function SignupForm({
   const postSignupCheck = async () => {
     const user = auth.currentUser;
     if (!user) {
-      defaultNavigate("/home", { replace: true });
+      defaultNavigate("/", { replace: true });
       return;
     }
 
@@ -66,13 +66,13 @@ export function SignupForm({
     if (pendingId) {
       try {
         await addConnection({ document_id: pendingId, type: "Company" }).unwrap();
-        defaultNavigate(`/connections?code=${pendingId}`, { replace: true });
+        defaultNavigate(`/?code=${pendingId}`, { replace: true });
       } catch (err) {
         console.error("Failed to add connection after signup", err);
-        defaultNavigate("/home", { replace: true });
+        defaultNavigate("/", { replace: true });
       }
     } else {
-      defaultNavigate("/home", { replace: true });
+      defaultNavigate("/", { replace: true });
     }
   };
 

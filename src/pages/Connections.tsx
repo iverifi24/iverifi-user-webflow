@@ -29,12 +29,28 @@ import { DigiLockerIcon } from "@/components/digilocker-icon";
 const DOCUMENT_TYPES = ["DRIVING_LICENSE", "AADHAAR_CARD", "PAN_CARD", "PASSPORT"] as const;
 type DocumentType = (typeof DOCUMENT_TYPES)[number];
 
+/** Backend document_type values for children's Aadhaar (Kwik: XMLM1, XMLM2, XMLM3) */
+const CHILD_AADHAAR_TYPES = ["Child 1 Aadhaar", "Child 2 Aadhaar", "Child 3 Aadhaar"] as const;
+type ChildAadhaarType = (typeof CHILD_AADHAAR_TYPES)[number];
+
 const PRODUCT_CODE_MAP: Record<DocumentType, string> = {
   AADHAAR_CARD: "KYC",
   PASSPORT: "PP",
   PAN_CARD: "PC",
   DRIVING_LICENSE: "DL",
 };
+
+/** Kwik product codes for child Aadhaar (minor XML flow) */
+const CHILD_PRODUCT_CODE_MAP: Record<ChildAadhaarType, string> = {
+  "Child 1 Aadhaar": "XMLM1",
+  "Child 2 Aadhaar": "XMLM2",
+  "Child 3 Aadhaar": "XMLM3",
+};
+
+const getProductCode = (docType: DocumentType | ChildAadhaarType): string =>
+  docType in PRODUCT_CODE_MAP
+    ? (PRODUCT_CODE_MAP as Record<string, string>)[docType]
+    : (CHILD_PRODUCT_CODE_MAP as Record<string, string>)[docType];
 
 interface Credential {
   id?: string;
@@ -241,12 +257,10 @@ const Connections = () => {
     }
   };
 
-  // share credentials (use the derivedConnectionId)
-  const handleShareCredentials = async (documentType: DocumentType) => {
+  // share credentials (use the derivedConnectionId). Supports main docs and children's Aadhaar.
+  const handleShareCredentials = async (documentType: DocumentType | ChildAadhaarType) => {
     if (!derivedConnectionId) {
-      toast.error("No connection found yet. Please wait a moment and try again.");
-      // optionally force a refetch to speed things up
-      await refetchRecipient();
+      toast.error("You need to scan a QR code to share credentials.");
       return;
     }
     const credential = verifiedCredentialsMap[documentType];
@@ -277,8 +291,8 @@ const Connections = () => {
     }
   };
 
-  // verify document → open iframe overlay (no popup)
-  const handleVerifyDocument = async (documentType: DocumentType) => {
+  // verify document → open iframe overlay (no popup). Supports main docs and children's Aadhaar.
+  const handleVerifyDocument = async (documentType: DocumentType | ChildAadhaarType) => {
     const currentUser = auth.currentUser;
     if (!currentUser?.email) return toast.error("User not authenticated");
 
@@ -287,10 +301,8 @@ const Connections = () => {
       const querySnapshot = await getDocs(q);
       if (querySnapshot.empty) return toast.error("User data not found");
 
-      // const userId = querySnapshot.docs[0].data().firebase_user_id;
       const userId = auth.currentUser?.uid || "";
-      console.log("Fetched userId:", userId);
-      const productCode = PRODUCT_CODE_MAP[documentType];
+      const productCode = getProductCode(documentType);
       const origin = window.location.origin;
 
       const verificationUrl =
@@ -299,7 +311,6 @@ const Connections = () => {
         `&user_id=${encodeURIComponent(userId)}` +
         `&redirect_origin=${encodeURIComponent(origin)}`;
 
-      // setVerifyingDocType(documentType);
       setIframeUrl(verificationUrl);
     } catch (error) {
       console.error("Error fetching user data:", error);
@@ -423,7 +434,7 @@ const Connections = () => {
                 {isCheckInUpdating
                   ? "Submitting..."
                   : currentConnection?.check_in_time
-                  ? "Already Checked In"
+                  ? "Checked In"
                   : currentConnection?.check_in_status === "pending"
                   ? "Check-in Pending Approval"
                   : hasCredentials === false
@@ -457,14 +468,14 @@ const Connections = () => {
       {/* Document cards section label */}
       <div className="pt-2">
         <h3 className="text-lg font-semibold text-slate-800 mb-1">Your documents</h3>
-        <p className="text-sm text-slate-500">Verify and share credentials with the property.</p>
+        <p className="text-sm text-slate-500">Verify and share credentials {code && 'with the property'}</p>
       </div>
 
       {/* Document Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {DOCUMENT_TYPES.map((docType) => {
           const isVerified = !!verifiedCredentialsMap[docType];
-          const isShareDisabled = !isVerified || isUpdating || !derivedConnectionId;
+          const isShareDisabled = !isVerified || isUpdating;
 
           return (
             <Card
@@ -498,7 +509,7 @@ const Connections = () => {
                       onClick={() => handleShareCredentials(docType)}
                     >
                       <Share2 className="h-4 w-4 mr-2" />
-                      {derivedConnectionId ? "Share credentials" : "Preparing…"}
+                      Share credentials
                     </Button>
                     <Button
                       type="button"
@@ -529,6 +540,84 @@ const Connections = () => {
             </Card>
           );
         })}
+      </div>
+
+      {/* Children's Aadhaar — parent can manage Aadhaar for up to 3 children */}
+      <div className="pt-6">
+        <h3 className="text-lg font-semibold text-slate-800 mb-1">Children&apos;s Aadhaar</h3>
+        <p className="text-sm text-slate-500 mb-4">
+          Manage Aadhaar for your children. You can add and verify Aadhaar for up to 3 children.
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {CHILD_AADHAAR_TYPES.map((docType) => {
+            const isVerified = !!verifiedCredentialsMap[docType];
+            const isShareDisabled = !isVerified || isUpdating;
+            const childLabel = docType.replace(" Aadhaar", ""); // "Child 1", "Child 2", "Child 3"
+
+            return (
+              <Card
+                key={docType}
+                className={`rounded-2xl border-2 transition-all duration-200 hover:shadow-lg ${
+                  isVerified
+                    ? "border-teal-200 bg-teal-50/30 shadow-sm hover:border-teal-300"
+                    : "border-slate-200 bg-white shadow-sm hover:border-teal-200 hover:bg-teal-50/20"
+                }`}
+              >
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <CardTitle className="text-lg font-semibold text-slate-800">
+                      {childLabel}&apos;s Aadhaar
+                    </CardTitle>
+                    {isVerified && (
+                      <Badge className="bg-teal-600 text-white gap-1 border-0 shadow-sm">
+                        <CheckCircle className="h-3.5 w-3.5 shrink-0" />
+                        <span>Verified</span>
+                        <DigiLockerIcon size={9} className="shrink-0 opacity-90" />
+                      </Badge>
+                    )}
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {isVerified ? (
+                    <div className="flex gap-2">
+                      <Button
+                        className="flex-1 rounded-xl bg-teal-600 hover:bg-teal-700 font-medium"
+                        disabled={isShareDisabled}
+                        onClick={() => handleShareCredentials(docType)}
+                      >
+                        <Share2 className="h-4 w-4 mr-2" />
+                        Share credentials
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        className="shrink-0 rounded-xl text-slate-500 hover:text-red-600 hover:border-red-200 hover:bg-red-50"
+                        onClick={() => {
+                          const cred = verifiedCredentialsMap[docType];
+                          const id = cred?.credential_id || cred?.id || cred?.credentialId;
+                          if (id) setDeleteTarget({ id, document_type: docType });
+                        }}
+                        aria-label={`Delete ${childLabel}'s Aadhaar`}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button
+                      className="w-full rounded-xl border-2 border-teal-300 text-teal-700 hover:bg-teal-50 hover:border-teal-400 font-medium"
+                      variant="outline"
+                      onClick={() => handleVerifyDocument(docType)}
+                    >
+                      <ExternalLink className="h-4 w-4 mr-2" />
+                      Verify Document
+                    </Button>
+                  )}
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
       </div>
 
       </div>

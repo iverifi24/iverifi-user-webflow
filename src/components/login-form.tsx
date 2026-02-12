@@ -47,7 +47,7 @@ export function LoginForm({
   const postLoginCheck = async () => {
     const user = auth.currentUser;
     if (!user) {
-      nav("/home");
+      nav("/");
       return;
     }
   
@@ -71,13 +71,13 @@ export function LoginForm({
           document_id: pendingId,
           type: "Company",
         }).unwrap();
-        nav(`/connections?code=${pendingId}`);
+        nav(`/?code=${pendingId}`);
       } catch (err) {
         console.error("Failed to add connection after login", err);
-        nav("/home");
+        nav("/");
       }
     } else {
-      nav("/home");
+      nav("/");
     }
   };
 

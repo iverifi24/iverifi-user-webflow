@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { doc, getDoc } from "firebase/firestore";
 import { signOut } from "firebase/auth";
-import { ChevronsUpDown, LogOut } from "lucide-react";
+import { ChevronsUpDown, FileText, History, Home, LogOut } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -126,6 +126,19 @@ export function HeaderProfileMenu() {
             </div>
           </div>
         </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => navigate("/connections")}>
+          <Home className="size-4" />
+          Connections
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => navigate("/documents")}>
+          <FileText className="size-4" />
+          Documents
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => navigate("/my-activity")}>
+          <History className="size-4" />
+          My Activity
+        </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={handleLogout}>
           <LogOut className="size-4" />

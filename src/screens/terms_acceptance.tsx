@@ -58,7 +58,7 @@ export default function TermsAcceptance() {
           return "/complete-profile";
         } else {
           // Profile complete - redirect to connections with code or home
-          return code ? `/connections?code=${code}` : "/home";
+          return code ? `/?code=${code}` : "/";
         }
       } catch (error) {
         console.error("Error checking profile completion:", error);
@@ -66,7 +66,7 @@ export default function TermsAcceptance() {
         if (code) {
           saveRecipientIdForLater(code);
         }
-        return code ? "/complete-profile" : "/home";
+        return code ? "/complete-profile" : "/";
       }
     };
 
