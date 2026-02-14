@@ -8,13 +8,13 @@ import { useEffect } from "react";
 import { determineConnectionType, isValidQRCode } from "@/utils/qr-code-utils";
 import AddConnectionModal from "./add_connection";
 
-const formatDocType = (type: string): string => {
-  return type
-    .toLowerCase()
-    .split("_")
-    .map((w) => w[0].toUpperCase() + w.slice(1))
-    .join(" ");
-};
+// const formatDocType = (type: string): string => {
+//   return type
+//     .toLowerCase()
+//     .split("_")
+//     .map((w) => w[0].toUpperCase() + w.slice(1))
+//     .join(" ");
+// };
 
 const ConnectionsRouter = () => {
   const navigate = useNavigate();
@@ -121,8 +121,13 @@ const ConnectionsRouter = () => {
                 }}
               >
                 <CardHeader>
-                  <CardTitle className="text-lg capitalize">
-                    {formatDocType(conn.recipients.firstName || "Document")}
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Recipient</p>
+                  <CardTitle className="text-lg mt-0.5">
+                    {conn.recipients?.name ||
+                      conn.recipients?.firstName ||
+                      conn.recipients?.hotel_name ||
+                      conn.recipients?.businessName ||
+                      "Your Stay"}
                   </CardTitle>
                 </CardHeader>
 

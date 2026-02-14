@@ -68,9 +68,11 @@ export default function ConnectionRequestsPage() {
         ) : (
           <div className="space-y-3">
             {connectionRequests.map((req: any) => {
-              const name =
+              const recipientName =
                 req.recipients?.name ||
                 req.recipients?.firstName ||
+                req.recipients?.hotel_name ||
+                req.recipients?.businessName ||
                 "Property";
               const isCompany = req.type === "Company";
               const status = req.check_out_time
@@ -109,8 +111,11 @@ export default function ConnectionRequestsPage() {
                         )}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="font-medium text-slate-800 truncate">
-                          {name}
+                        <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+                          Recipient
+                        </p>
+                        <p className="font-medium text-slate-800 truncate mt-0.5">
+                          {recipientName}
                         </p>
                         <p className="text-xs text-slate-500 mt-0.5">
                           {isCompany ? "Property" : "Individual"}

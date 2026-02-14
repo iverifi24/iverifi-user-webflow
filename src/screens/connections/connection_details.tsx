@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { isAfter, parseISO, format, addDays } from "date-fns";
-import { Eye, Trash2, Loader2, CalendarCheck, CalendarX } from "lucide-react";
+import { Eye, Trash2, Loader2, CalendarCheck, CalendarX, ChevronDown, ChevronRight } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -48,6 +48,8 @@ const ConnectionDetails = () => {
 
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; document_type?: string } | null>(null);
+  const [activityOpen, setActivityOpen] = useState(true);
+  /* Extend option commented for now
   const [extendDialog, setExtendDialog] = useState<{
     open: boolean;
     cred: any | null;
@@ -56,6 +58,7 @@ const ConnectionDetails = () => {
     cred: null,
   });
   const [selectedDays, setSelectedDays] = useState<string>("");
+  */
 
   const [addDocsDialogOpen, setAddDocsDialogOpen] = useState(false);
   const [selectedDocs, setSelectedDocs] = useState<string[]>([]);
@@ -63,6 +66,21 @@ const ConnectionDetails = () => {
 
   const connection = connectionData?.data?.requests?.[0];
   const verifiedDocs = credsData?.data?.credential || [];
+
+  // IDs of credentials already shared with this connection and still active (not expired)
+  const activeSharedCredentialIds = new Set(
+    (connection?.credentials || [])
+      .filter((cred: any) => {
+        const expiry = cred?.expiry_date;
+        return expiry && isAfter(parseISO(expiry), new Date());
+      })
+      .map((cred: any) => cred.credential_id)
+  );
+
+  // Documents that can be selected to share (exclude already shared + active)
+  const docsAvailableToShare = verifiedDocs.filter(
+    (doc: any) => !activeSharedCredentialIds.has(doc.id)
+  );
 
   const toggleDoc = (docId: string) => {
     setSelectedDocs((prev) =>
@@ -72,6 +90,7 @@ const ConnectionDetails = () => {
     );
   };
 
+  /* Extend option commented for now
   const handleExtendConfirm = async () => {
     if (!selectedDays || !extendDialog.cred) {
       toast.error("Please select duration");
@@ -99,6 +118,7 @@ const ConnectionDetails = () => {
       toast.error(err?.data?.message || "Failed to extend access");
     }
   };
+  */
 
   const handleRevoke = async (cred: any) => {
     try {
@@ -158,6 +178,7 @@ const ConnectionDetails = () => {
       setSelectedDocs([]);
       setSharePeriod("");
       setAddDocsDialogOpen(false);
+      await refetchConnection();
     } catch (err: any) {
       toast.error(err?.data?.message || "Failed to share documents");
     }
@@ -167,13 +188,20 @@ const ConnectionDetails = () => {
     <div className="p-4 space-y-4">
       {/* Header */}
       <div className="flex justify-between items-center">
-        <h2 className="text-xl font-semibold">
-          {connection?.recipients?.name || "Connection Details"}
-        </h2>
+        <div>
+          <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Recipient</p>
+          <h2 className="text-xl font-semibold">
+            {connection?.recipients?.name ||
+              connection?.recipients?.firstName ||
+              connection?.recipients?.hotel_name ||
+              connection?.recipients?.businessName ||
+              "Connection Details"}
+          </h2>
+        </div>
         {connection?.id && (
           <Dialog open={addDocsDialogOpen} onOpenChange={setAddDocsDialogOpen}>
             <DialogTrigger asChild>
-              <Button>Add Documents</Button>
+              <Button>Share Documents</Button>
             </DialogTrigger>
             <DialogContent className="max-w-md">
               <DialogHeader>
@@ -182,13 +210,15 @@ const ConnectionDetails = () => {
 
               {isCredsLoading ? (
                 <p>Loading your verified documents...</p>
-              ) : verifiedDocs.length === 0 ? (
+              ) : docsAvailableToShare.length === 0 ? (
                 <p className="text-muted-foreground">
-                  No verified documents found
+                  {verifiedDocs.length === 0
+                    ? "No verified documents found"
+                    : "All your verified documents are already shared with this connection."}
                 </p>
               ) : (
                 <div className="space-y-4">
-                  {verifiedDocs.map((doc: any) => (
+                  {docsAvailableToShare.map((doc: any) => (
                     <div key={doc.id} className="flex items-center justify-between gap-2">
                       <div className="flex items-center space-x-2 flex-1 min-w-0">
                         <Checkbox
@@ -212,7 +242,7 @@ const ConnectionDetails = () => {
                 </div>
               )}
 
-              <div className="mt-4">
+              <div className="mt-4 space-y-2">
                 <Label>Share Period</Label>
                 <Select onValueChange={setSharePeriod} value={sharePeriod}>
                   <SelectTrigger>
@@ -268,23 +298,35 @@ const ConnectionDetails = () => {
           No documents shared with this connection.
         </p>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+        <div className="space-y-3">
+          <h3 className="text-base font-semibold text-slate-800">
+            Documents you&apos;ve shared with{" "}
+            {connection?.recipients?.name ||
+              connection?.recipients?.firstName ||
+              connection?.recipients?.hotel_name ||
+              connection?.recipients?.businessName ||
+              "this connection"}
+          </h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
           {connection.credentials.map((cred: any) => {
             const expiry = cred?.expiry_date;
             const isActive = expiry && isAfter(parseISO(expiry), new Date());
             const imageUrl = cred.details?.images?.[0]?.url_original;
+            const isDeleted = !cred.details;
 
             return (
               <Card
-                key={cred.details?.id}
+                key={cred.details?.id ?? cred.credential_id ?? cred.document_type}
                 className="hover:shadow-md transition"
               >
                 <CardHeader className="flex justify-between items-start">
                   <CardTitle className="capitalize">
-                    {cred.details?.document_type?.replace(/_/g, " ") ||
-                      "Document"}
+                    {isDeleted
+                      ? "Document deleted"
+                      : cred.details?.document_type?.replace(/_/g, " ") ||
+                        "Document"}
                   </CardTitle>
-                  {imageUrl && (
+                  {!isDeleted && imageUrl && (
                     <Button
                       size="icon"
                       variant="ghost"
@@ -307,15 +349,19 @@ const ConnectionDetails = () => {
                     <span>Status:</span>
                     <span
                       className={
-                        isActive
-                          ? "text-green-600 font-medium"
-                          : "text-red-500 font-medium"
+                        isDeleted
+                          ? "text-amber-600 font-medium"
+                          : isActive
+                            ? "text-green-600 font-medium"
+                            : "text-red-500 font-medium"
                       }
                     >
-                      {isActive ? "Active" : "Expired"}
+                      {isDeleted ? "Document deleted" : isActive ? "Active" : "Expired"}
                     </span>
                   </div>
-                  <div className="flex justify-end gap-2 pt-2">
+                  {!isDeleted && (
+                    <div className="flex justify-end gap-2 pt-2">
+                      {/* Extend option commented for now
                     <Button
                       size="sm"
                       variant="outline"
@@ -324,19 +370,22 @@ const ConnectionDetails = () => {
                     >
                       Extend
                     </Button>
-                    <Button
-                      size="sm"
-                      variant="destructive"
-                      disabled={isUpdating}
-                      onClick={() => handleRevoke(cred)}
-                    >
-                      Revoke
-                    </Button>
-                  </div>
+                    */}
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        disabled={isUpdating}
+                        onClick={() => handleRevoke(cred)}
+                      >
+                        Revoke
+                      </Button>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             );
           })}
+          </div>
         </div>
       )}
 
@@ -347,12 +396,25 @@ const ConnectionDetails = () => {
         const activities = connectionData?.data?.activities ?? [];
         return (
           <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base">Activity with this connection</CardTitle>
-              <p className="text-sm text-muted-foreground font-normal">
-                {activities.length} stay{activities.length !== 1 ? "s" : ""} at this property
-              </p>
+            <CardHeader
+              className="cursor-pointer pb-2 select-none"
+              onClick={() => setActivityOpen((o) => !o)}
+            >
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  {activityOpen ? (
+                    <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  ) : (
+                    <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  )}
+                  <CardTitle className="text-base">Activity with this connection</CardTitle>
+                </div>
+                <p className="text-sm text-muted-foreground font-normal">
+                  {activities.length} stay{activities.length !== 1 ? "s" : ""} at this property
+                </p>
+              </div>
             </CardHeader>
+            {activityOpen && (
             <CardContent className="space-y-4">
               {activities.length === 0 ? (
                 <p className="text-sm text-muted-foreground">No stays or check-ins yet.</p>
@@ -408,6 +470,7 @@ const ConnectionDetails = () => {
                 })
               )}
             </CardContent>
+            )}
           </Card>
         );
       })()}
@@ -453,7 +516,7 @@ const ConnectionDetails = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Extend Dialog */}
+      {/* Extend Dialog - commented for now
       <Dialog
         open={extendDialog.open}
         onOpenChange={() => setExtendDialog({ open: false, cred: null })}
@@ -486,6 +549,7 @@ const ConnectionDetails = () => {
           </div>
         </DialogContent>
       </Dialog>
+      */}
     </div>
   );
 };
