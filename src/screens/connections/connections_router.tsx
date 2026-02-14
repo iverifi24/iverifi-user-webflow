@@ -8,13 +8,13 @@ import { useEffect } from "react";
 import { determineConnectionType, isValidQRCode } from "@/utils/qr-code-utils";
 import AddConnectionModal from "./add_connection";
 
-const formatDocType = (type: string): string => {
-  return type
-    .toLowerCase()
-    .split("_")
-    .map((w) => w[0].toUpperCase() + w.slice(1))
-    .join(" ");
-};
+// const formatDocType = (type: string): string => {
+//   return type
+//     .toLowerCase()
+//     .split("_")
+//     .map((w) => w[0].toUpperCase() + w.slice(1))
+//     .join(" ");
+// };
 
 const ConnectionsRouter = () => {
   const navigate = useNavigate();
