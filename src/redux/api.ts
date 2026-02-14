@@ -31,7 +31,7 @@ export const api = createApi({
         method: "POST",
         body: { credential_id },
       }),
-      invalidatesTags: ["credentials", "activity"],
+      invalidatesTags: ["credentials", "activity", "connections"],
     }),
     getConnections: builder.query<any, void>({
       query: () => ({
@@ -46,7 +46,7 @@ export const api = createApi({
         method: "GET",
         params: { recipient_id: recipientId },
       }),
-      // providesTags: ["connections"],
+      providesTags: ["connections"],
     }),
     getMyActivity: builder.query<
       { data: { activity: Array<{ id: string; type: string; message: string; name?: string; date: number; activity_type?: string }> } },

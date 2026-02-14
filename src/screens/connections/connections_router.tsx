@@ -121,8 +121,13 @@ const ConnectionsRouter = () => {
                 }}
               >
                 <CardHeader>
-                  <CardTitle className="text-lg capitalize">
-                    {formatDocType(conn.recipients.firstName || "Document")}
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Recipient</p>
+                  <CardTitle className="text-lg mt-0.5">
+                    {conn.recipients?.name ||
+                      conn.recipients?.firstName ||
+                      conn.recipients?.hotel_name ||
+                      conn.recipients?.businessName ||
+                      "Your Stay"}
                   </CardTitle>
                 </CardHeader>
 
