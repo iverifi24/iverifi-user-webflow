@@ -15,7 +15,8 @@ import { addDays, format } from "date-fns";
 import { collection, getDocs, query, where } from "firebase/firestore";
 import { CheckCircle, ExternalLink, Share2, X, Trash2, Loader2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useParams, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { clearPendingRecipientId } from "@/utils/connectionFlow";
 import { toast } from "sonner";
 import { Badge } from "../components/ui/badge";
 import {
@@ -77,6 +78,8 @@ const IVERIFI_ORIGIN = "https://iverifi.app.getkwikid.com";
 const Connections = () => {
   const [searchParams] = useSearchParams();
   const params = useParams();
+  const location = useLocation();
+  const navigate = useNavigate();
 
   // iframe overlay
   const [iframeUrl, setIframeUrl] = useState<string | null>(null);
@@ -335,6 +338,12 @@ const Connections = () => {
         status,
       }).unwrap();
 
+      if (status === "checkin") {
+        // Clear connection code from storage and URL so user cannot return to this flow until they scan again
+        clearPendingRecipientId();
+        navigate(location.pathname, { replace: true });
+      }
+
       toast.success(
         status === "checkin"
           ? "Check-in request submitted. Waiting for hotel approval."
@@ -392,6 +401,15 @@ const Connections = () => {
           </Button>
         )}
       </div> */}
+
+      {/* When no venue code: prompt to scan QR */}
+      {!code && (
+        <div className="py-4 text-center">
+          <p className="text-slate-600 text-base">
+            Scan a QR at the venue to share your ID document.
+          </p>
+        </div>
+      )}
 
       {/* Connection Info - Welcome */}
       {code && (
@@ -468,7 +486,9 @@ const Connections = () => {
       {/* Document cards section label */}
       <div className="pt-2">
         <h3 className="text-lg font-semibold text-slate-800 mb-1">Your documents</h3>
-        <p className="text-sm text-slate-500">Verify and share credentials {code && 'with the property'}</p>
+        <p className="text-sm text-slate-500">
+          {code ? "Verify and share credentials with the property" : "Scan a QR at the venue to share your ID document."}
+        </p>
       </div>
 
       {/* Document Cards */}
@@ -503,14 +523,24 @@ const Connections = () => {
               <CardContent>
                 {isVerified ? (
                   <div className="flex gap-2">
-                    <Button
-                      className="flex-1 rounded-xl bg-teal-600 hover:bg-teal-700 font-medium"
-                      disabled={isShareDisabled}
-                      onClick={() => handleShareCredentials(docType)}
-                    >
-                      <Share2 className="h-4 w-4 mr-2" />
-                      Share credentials
-                    </Button>
+                    {code ? (
+                      <Button
+                        className="flex-1 rounded-xl bg-teal-600 hover:bg-teal-700 font-medium"
+                        disabled={isShareDisabled}
+                        onClick={() => handleShareCredentials(docType)}
+                      >
+                        <Share2 className="h-4 w-4 mr-2" />
+                        Share credentials
+                      </Button>
+                    ) : (
+                      <Button
+                        className="flex-1 rounded-xl bg-teal-600 hover:bg-teal-700 font-medium"
+                        variant="outline"
+                        onClick={() => navigate("/documents")}
+                      >
+                        View documents
+                      </Button>
+                    )}
                     <Button
                       type="button"
                       variant="outline"
@@ -580,14 +610,24 @@ const Connections = () => {
                 <CardContent>
                   {isVerified ? (
                     <div className="flex gap-2">
-                      <Button
-                        className="flex-1 rounded-xl bg-teal-600 hover:bg-teal-700 font-medium"
-                        disabled={isShareDisabled}
-                        onClick={() => handleShareCredentials(docType)}
-                      >
-                        <Share2 className="h-4 w-4 mr-2" />
-                        Share credentials
-                      </Button>
+                      {code ? (
+                        <Button
+                          className="flex-1 rounded-xl bg-teal-600 hover:bg-teal-700 font-medium"
+                          disabled={isShareDisabled}
+                          onClick={() => handleShareCredentials(docType)}
+                        >
+                          <Share2 className="h-4 w-4 mr-2" />
+                          Share credentials
+                        </Button>
+                      ) : (
+                        <Button
+                          className="flex-1 rounded-xl bg-teal-600 hover:bg-teal-700 font-medium"
+                          variant="outline"
+                          onClick={() => navigate("/documents")}
+                        >
+                          View documents
+                        </Button>
+                      )}
                       <Button
                         type="button"
                         variant="outline"
