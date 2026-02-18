@@ -11,3 +11,8 @@ export const getRecipientIdFromStorage = () => {
 export const peekRecipientIdFromStorage = () => {
   return localStorage.getItem("pendingRecipientId");
 };
+
+/** Clear the pending connection code from storage (e.g. after user has clicked Check In so they must scan again to return). */
+export const clearPendingRecipientId = () => {
+  localStorage.removeItem("pendingRecipientId");
+};
