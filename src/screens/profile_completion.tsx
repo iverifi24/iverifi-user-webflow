@@ -75,13 +75,15 @@ export default function ProfileCompletion() {
           <CardHeader>
             <CardTitle>Complete Your Profile</CardTitle>
             <CardDescription>
-              Please provide your details to continue
+              All fields are required. Please provide your details to continue.
             </CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid gap-3">
-                <Label htmlFor="firstName">First Name</Label>
+                <Label htmlFor="firstName">
+                  First Name <span className="text-destructive">*</span>
+                </Label>
                 <Input
                   id="firstName"
                   type="text"
@@ -89,12 +91,15 @@ export default function ProfileCompletion() {
                   onChange={(e) => setFirstName(e.target.value)}
                   placeholder="Enter your first name"
                   required
+                  aria-required="true"
                   disabled={isSubmitting}
                 />
               </div>
 
               <div className="grid gap-3">
-                <Label htmlFor="lastName">Last Name</Label>
+                <Label htmlFor="lastName">
+                  Last Name <span className="text-destructive">*</span>
+                </Label>
                 <Input
                   id="lastName"
                   type="text"
@@ -102,12 +107,15 @@ export default function ProfileCompletion() {
                   onChange={(e) => setLastName(e.target.value)}
                   placeholder="Enter your last name"
                   required
+                  aria-required="true"
                   disabled={isSubmitting}
                 />
               </div>
 
               <div className="grid gap-3">
-                <Label htmlFor="mobileNumber">Mobile Number</Label>
+                <Label htmlFor="mobileNumber">
+                  Mobile Number <span className="text-destructive">*</span>
+                </Label>
                 <Input
                   id="mobileNumber"
                   type="tel"
@@ -116,6 +124,7 @@ export default function ProfileCompletion() {
                   placeholder="Enter your 10-digit mobile number"
                   maxLength={10}
                   required
+                  aria-required="true"
                   disabled={isSubmitting}
                 />
               </div>

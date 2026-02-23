@@ -13,7 +13,7 @@ import {
 import { determineConnectionType, isValidQRCode } from "@/utils/qr-code-utils";
 import { addDays, format } from "date-fns";
 import { collection, getDocs, query, where } from "firebase/firestore";
-import { CheckCircle, ExternalLink, Share2, X, Trash2, Loader2 } from "lucide-react";
+import { CheckCircle, ExternalLink, Upload, X, Trash2, Loader2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { clearPendingRecipientId } from "@/utils/connectionFlow";
@@ -260,10 +260,10 @@ const Connections = () => {
     }
   };
 
-  // share credentials (use the derivedConnectionId). Supports main docs and children's Aadhaar.
+  // upload credentials (use the derivedConnectionId). Supports main docs and children's Aadhaar.
   const handleShareCredentials = async (documentType: DocumentType | ChildAadhaarType) => {
     if (!derivedConnectionId) {
-      toast.error("You need to scan a QR code to share credentials.");
+      toast.error("You need to scan a QR code to upload.");
       return;
     }
     const credential = verifiedCredentialsMap[documentType];
@@ -285,12 +285,12 @@ const Connections = () => {
         ],
       }).unwrap();
 
-      toast.success("Your verified credential was shared successfully with this connection.");
+      toast.success("Your verified credential was uploaded successfully.");
       
       // Refetch recipient data to update credentials state
       await refetchRecipient();
     } catch (error: any) {
-      toast.error(error?.data?.message ? String(error.data.message) : "Failed to share credentials");
+      toast.error(error?.data?.message ? String(error.data.message) : "Failed to upload");
     }
   };
 
@@ -487,7 +487,7 @@ const Connections = () => {
       <div className="pt-2">
         <h3 className="text-lg font-semibold text-slate-800 mb-1">Your documents</h3>
         <p className="text-sm text-slate-500">
-          {code ? "Verify and share credentials with the property" : "Scan a QR at the venue to share your ID document."}
+          {code ? "Verify and upload to the property" : "Scan a QR at the venue to share your ID document."}
         </p>
       </div>
 
@@ -504,7 +504,9 @@ const Connections = () => {
                 isVerified
                   ? "border-teal-200 bg-teal-50/30 shadow-sm hover:border-teal-300"
                   : "border-slate-200 bg-white shadow-sm hover:border-teal-200 hover:bg-teal-50/20"
-              }`}
+              } ${code && isVerified && !isShareDisabled ? "cursor-pointer" : ""}`}
+              onClick={code && isVerified && !isShareDisabled ? () => handleShareCredentials(docType) : undefined}
+              role={code && isVerified && !isShareDisabled ? "button" : undefined}
             >
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between gap-2">
@@ -527,10 +529,13 @@ const Connections = () => {
                       <Button
                         className="flex-1 rounded-xl bg-teal-600 hover:bg-teal-700 font-medium"
                         disabled={isShareDisabled}
-                        onClick={() => handleShareCredentials(docType)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleShareCredentials(docType);
+                        }}
                       >
-                        <Share2 className="h-4 w-4 mr-2" />
-                        Share credentials
+                        <Upload className="h-4 w-4 mr-2" />
+                        Upload
                       </Button>
                     ) : (
                       <Button
@@ -541,18 +546,19 @@ const Connections = () => {
                         View documents
                       </Button>
                     )}
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      className="shrink-0 rounded-xl text-slate-500 hover:text-red-600 hover:border-red-200 hover:bg-red-50"
-                      onClick={() => {
-                        const cred = verifiedCredentialsMap[docType];
-                        const id = cred?.credential_id || cred?.id || cred?.credentialId;
-                        if (id) setDeleteTarget({ id, document_type: docType });
-                      }}
-                      aria-label="Delete document"
-                    >
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        className="shrink-0 rounded-xl text-slate-500 hover:text-red-600 hover:border-red-200 hover:bg-red-50"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const cred = verifiedCredentialsMap[docType];
+                          const id = cred?.credential_id || cred?.id || cred?.credentialId;
+                          if (id) setDeleteTarget({ id, document_type: docType });
+                        }}
+                        aria-label="Delete document"
+                      >
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
@@ -591,7 +597,9 @@ const Connections = () => {
                   isVerified
                     ? "border-teal-200 bg-teal-50/30 shadow-sm hover:border-teal-300"
                     : "border-slate-200 bg-white shadow-sm hover:border-teal-200 hover:bg-teal-50/20"
-                }`}
+                } ${code && isVerified && !isShareDisabled ? "cursor-pointer" : ""}`}
+                onClick={code && isVerified && !isShareDisabled ? () => handleShareCredentials(docType) : undefined}
+                role={code && isVerified && !isShareDisabled ? "button" : undefined}
               >
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between gap-2">
@@ -614,10 +622,13 @@ const Connections = () => {
                         <Button
                           className="flex-1 rounded-xl bg-teal-600 hover:bg-teal-700 font-medium"
                           disabled={isShareDisabled}
-                          onClick={() => handleShareCredentials(docType)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleShareCredentials(docType);
+                          }}
                         >
-                          <Share2 className="h-4 w-4 mr-2" />
-                          Share credentials
+                          <Upload className="h-4 w-4 mr-2" />
+                          Upload
                         </Button>
                       ) : (
                         <Button
@@ -633,7 +644,8 @@ const Connections = () => {
                         variant="outline"
                         size="icon"
                         className="shrink-0 rounded-xl text-slate-500 hover:text-red-600 hover:border-red-200 hover:bg-red-50"
-                        onClick={() => {
+                        onClick={(e) => {
+                          e.stopPropagation();
                           const cred = verifiedCredentialsMap[docType];
                           const id = cred?.credential_id || cred?.id || cred?.credentialId;
                           if (id) setDeleteTarget({ id, document_type: docType });

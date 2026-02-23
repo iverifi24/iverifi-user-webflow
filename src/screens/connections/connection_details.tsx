@@ -65,6 +65,7 @@ const ConnectionDetails = () => {
   const [sharePeriod, setSharePeriod] = useState<string>("");
 
   const connection = connectionData?.data?.requests?.[0];
+  const externalIntegration = connection?.recipients?.externalIntegration === true;
   const verifiedDocs = credsData?.data?.credential || [];
 
   // IDs of credentials already shared with this connection and still active (not expired)
@@ -183,6 +184,288 @@ const ConnectionDetails = () => {
       toast.error(err?.data?.message || "Failed to share documents");
     }
   };
+
+  // External integration: header + share documents + documents shared + activity (activity shows only doc shared)
+  if (externalIntegration) {
+    const activities = connectionData?.data?.activities ?? [];
+    return (
+      <div className="p-4 space-y-4">
+        {/* Header + Share Documents */}
+        <div className="flex justify-between items-center">
+          <div>
+            <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Recipient</p>
+            <h2 className="text-xl font-semibold">
+              {connection?.recipients?.name ||
+                connection?.recipients?.firstName ||
+                connection?.recipients?.hotel_name ||
+                connection?.recipients?.businessName ||
+                "Connection Details"}
+            </h2>
+          </div>
+          {connection?.id && (
+            <Dialog open={addDocsDialogOpen} onOpenChange={setAddDocsDialogOpen}>
+              <DialogTrigger asChild>
+                <Button>Share Documents</Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Select Documents to Share</DialogTitle>
+                </DialogHeader>
+
+                {isCredsLoading ? (
+                  <p>Loading your verified documents...</p>
+                ) : docsAvailableToShare.length === 0 ? (
+                  <p className="text-muted-foreground">
+                    {verifiedDocs.length === 0
+                      ? "No verified documents found"
+                      : "All your verified documents are already shared with this connection."}
+                  </p>
+                ) : (
+                  <div className="space-y-4">
+                    {docsAvailableToShare.map((doc: any) => (
+                      <div key={doc.id} className="flex items-center justify-between gap-2">
+                        <div className="flex items-center space-x-2 flex-1 min-w-0">
+                          <Checkbox
+                            checked={selectedDocs.includes(doc.id)}
+                            onCheckedChange={() => toggleDoc(doc.id)}
+                          />
+                          <Label className="truncate">{formatDocType(doc.document_type)}</Label>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
+                          onClick={() => setDeleteTarget({ id: doc.id, document_type: doc.document_type })}
+                          aria-label="Delete document"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div className="mt-4 space-y-2">
+                  <Label>Share Period</Label>
+                  <Select onValueChange={setSharePeriod} value={sharePeriod}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select period" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="7">7 Days</SelectItem>
+                      <SelectItem value="30">30 Days</SelectItem>
+                      <SelectItem value="90">90 Days</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="flex justify-end gap-2 mt-6">
+                  <Button
+                    variant="secondary"
+                    onClick={() => setAddDocsDialogOpen(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button onClick={handleShareDocs} disabled={isUpdating}>
+                    Share
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+          )}
+        </div>
+
+        <Separator />
+
+        {isLoading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+            {Array(3)
+              .fill(0)
+              .map((_, idx) => (
+                <Card key={idx} className="p-4">
+                  <Skeleton className="h-6 w-1/2 mb-3" />
+                  <Skeleton className="h-4 w-2/3 mb-2" />
+                  <Skeleton className="h-4 w-1/3" />
+                </Card>
+              ))}
+          </div>
+        ) : isError ? (
+          <p className="text-red-500">Failed to load connection details.</p>
+        ) : !connection ? (
+          <p className="text-muted-foreground text-sm border p-4 rounded-md bg-muted/50">
+            Connection not found.
+          </p>
+        ) : !connection.credentials || connection.credentials.length === 0 ? (
+          <p className="text-muted-foreground text-sm border p-4 rounded-md bg-muted/50">
+            No documents shared with this connection.
+          </p>
+        ) : (
+          <div className="space-y-3">
+            <h3 className="text-base font-semibold text-slate-800">
+              Documents you&apos;ve shared with{" "}
+              {connection?.recipients?.name ||
+                connection?.recipients?.firstName ||
+                connection?.recipients?.hotel_name ||
+                connection?.recipients?.businessName ||
+                "this connection"}
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+              {connection.credentials.map((cred: any) => {
+                const expiry = cred?.expiry_date;
+                const isActive = expiry && isAfter(parseISO(expiry), new Date());
+                const imageUrl = cred.details?.images?.[0]?.url_original;
+                const isDeleted = !cred.details;
+
+                return (
+                  <Card
+                    key={cred.details?.id ?? cred.credential_id ?? cred.document_type}
+                    className="hover:shadow-md transition"
+                  >
+                    <CardHeader className="flex justify-between items-start">
+                      <CardTitle className="capitalize">
+                        {isDeleted
+                          ? "Document deleted"
+                          : cred.details?.document_type?.replace(/_/g, " ") ||
+                            "Document"}
+                      </CardTitle>
+                      {!isDeleted && imageUrl && (
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => setSelectedImage(imageUrl)}
+                        >
+                          <Eye className="h-5 w-5" />
+                        </Button>
+                      )}
+                    </CardHeader>
+                    <CardContent className="space-y-2 text-sm text-muted-foreground">
+                      <div className="flex justify-between">
+                        <span>Expiry Date:</span>
+                        <span>
+                          {expiry
+                            ? format(parseISO(expiry), "MMM dd, yyyy")
+                            : "N/A"}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Status:</span>
+                        <span
+                          className={
+                            isDeleted
+                              ? "text-amber-600 font-medium"
+                              : isActive
+                                ? "text-green-600 font-medium"
+                                : "text-red-500 font-medium"
+                          }
+                        >
+                          {isDeleted ? "Document deleted" : isActive ? "Active" : "Expired"}
+                        </span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Activity: only document shared per activity (external integration) */}
+        {connection && (
+          <Card>
+            <CardHeader
+              className="cursor-pointer pb-2 select-none"
+              onClick={() => setActivityOpen((o) => !o)}
+            >
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  {activityOpen ? (
+                    <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  ) : (
+                    <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  )}
+                  <CardTitle className="text-base">Activity with this connection</CardTitle>
+                </div>
+                <p className="text-sm text-muted-foreground font-normal">
+                  {activities.length} stay{activities.length !== 1 ? "s" : ""} at this property
+                </p>
+              </div>
+            </CardHeader>
+            {activityOpen && (
+              <CardContent className="space-y-4">
+                {activities.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No stays or check-ins yet.</p>
+                ) : (
+                  activities.map((act: any, index: number) => {
+                    const checkInTs = act.check_in_time
+                      ? typeof act.check_in_time === "number"
+                        ? act.check_in_time
+                        : new Date(act.check_in_time).getTime()
+                      : null;
+                    return (
+                      <div
+                        key={act.id || index}
+                        className="rounded-lg border border-slate-200 bg-slate-50/50 p-3 text-sm space-y-1"
+                      >
+                        {checkInTs != null && (
+                          <div className="flex items-center gap-2 text-muted-foreground">
+                            <CalendarCheck className="h-4 w-4 shrink-0" />
+                            <span>
+                              Check-in: {format(new Date(checkInTs), "MMM d, yyyy · h:mm a")}
+                            </span>
+                          </div>
+                        )}
+                        {act.document ? (
+                          <span className="text-muted-foreground">
+                            Document shared: <span className="font-medium text-slate-800">{formatDocType(act.document)}</span>
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground">Document shared: —</span>
+                        )}
+                      </div>
+                    );
+                  })
+                )}
+              </CardContent>
+            )}
+          </Card>
+        )}
+
+        <Dialog open={!!selectedImage} onOpenChange={() => setSelectedImage(null)}>
+          <DialogContent className="max-w-3xl">
+            <DialogHeader>
+              <DialogTitle>Document Preview</DialogTitle>
+            </DialogHeader>
+            {selectedImage && (
+              <img src={selectedImage} alt="Document" className="w-full rounded-md" />
+            )}
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete document confirmation */}
+        <Dialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Delete document</DialogTitle>
+            </DialogHeader>
+            <p className="text-sm text-muted-foreground">
+              Are you sure you want to delete this verified document
+              {deleteTarget?.document_type ? ` (${formatDocType(deleteTarget.document_type)})` : ""}?
+              You can add it again later.
+            </p>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" onClick={() => setDeleteTarget(null)} disabled={isDeleting}>
+                Cancel
+              </Button>
+              <Button variant="destructive" onClick={handleDeleteDoc} disabled={isDeleting}>
+                {isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Delete"}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 space-y-4">
