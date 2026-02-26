@@ -331,11 +331,24 @@ const Connections = () => {
       return;
     }
 
+    // For check-in, send the credential_id of the first active shared credential so the hotel sees the correct document
+    const credentials = currentConnection?.credentials ?? [];
+    const firstActiveCredential = Array.isArray(credentials)
+      ? credentials.find(
+          (c: { status?: string; credential_id?: string }) => c?.status === "Active" && c?.credential_id
+        )
+      : undefined;
+    const credentialIdForCheckIn =
+      firstActiveCredential && typeof firstActiveCredential === "object" && "credential_id" in firstActiveCredential
+        ? firstActiveCredential.credential_id
+        : undefined;
+
     try {
       await updateCheckInStatus({
         credential_request_id: derivedConnectionId,
         credentials: [],
         status,
+        ...(status === "checkin" && credentialIdForCheckIn && { credential_id: credentialIdForCheckIn }),
       }).unwrap();
 
       if (status === "checkin") {
