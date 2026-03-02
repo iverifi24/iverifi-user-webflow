@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { doc, updateDoc } from "firebase/firestore";
+import { doc, setDoc } from "firebase/firestore";
 import { auth, db } from "@/firebase/firebase_setup";
 import { toast } from "sonner";
 import { getRecipientIdFromStorage } from "@/utils/connectionFlow";
@@ -41,14 +41,19 @@ export default function ProfileCompletion() {
         return;
       }
 
-      // Update user profile in Firestore
+      // Update or create user profile in Firestore (merge so it works even if doc was missing)
       const userDocRef = doc(db, "applicants", user.uid);
-      await updateDoc(userDocRef, {
-        firstName: firstName.trim(),
-        lastName: lastName.trim(),
-        phone: mobileNumber.trim(),
-        profile_completion_level: 10,
-      });
+      await setDoc(
+        userDocRef,
+        {
+          email: user.email ?? "",
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+          phone: mobileNumber.trim(),
+          profile_completion_level: 2,
+        },
+        { merge: true }
+      );
 
       toast.success("Profile updated successfully!");
 
@@ -61,8 +66,11 @@ export default function ProfileCompletion() {
       } else {
         navigate("/");
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Error updating profile:", error);
+      if (error && typeof error === "object" && "code" in error) {
+        console.error("Firebase error:", (error as { code?: string }).code, (error as { message?: string }).message);
+      }
       toast.error("Failed to update profile. Please try again.");
       setIsSubmitting(false);
     }

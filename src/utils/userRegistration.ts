@@ -1,6 +1,6 @@
 import { getToken } from "firebase/messaging";
 import { messaging } from "@/firebase/firebase_setup";
-import { doc, setDoc, getDoc, updateDoc } from "firebase/firestore";
+import { doc, setDoc, getDoc } from "firebase/firestore";
 import { db } from "@/firebase/firebase_setup";
 import type { User } from "firebase/auth";
 
@@ -26,22 +26,22 @@ export interface UserRegistrationData {
 }
 
 /**
- * Get FCM token for push notifications
+ * Get FCM token for push notifications.
+ * Returns "" if permission is denied/blocked or token fails — never blocks or throws.
  *
- * Note: You need to configure your VAPID key in Firebase Console:
- * 1. Go to Firebase Console > Project Settings > Cloud Messaging
- * 2. Generate a Web Push certificate (VAPID key)
- * 3. Replace "YOUR_VAPID_KEY" with your actual VAPID key
+ * Configure VAPID key in Firebase Console > Project Settings > Cloud Messaging (Web Push certificate).
  */
 export const getFCMToken = async (): Promise<string> => {
   try {
+    if (typeof Notification !== "undefined" && Notification.permission === "denied") {
+      return "";
+    }
     const token = await getToken(messaging, {
       vapidKey: "YOUR_VAPID_KEY", // Replace with your actual VAPID key from Firebase Console
     });
-    return token;
-  } catch (error) {
-    console.error("Error getting FCM token:", error);
-    return ""; // Return empty string if token retrieval fails
+    return token ?? "";
+  } catch {
+    return "";
   }
 };
 
@@ -58,7 +58,7 @@ export const saveUserDetailsToFirestore = async (user: User): Promise<void> => {
       return;
     }
 
-    const fcmToken = await getFCMToken();
+    const fcmToken = await getFCMToken().catch(() => "");
     const currentYear = new Date().getFullYear().toString();
 
     const userData: UserRegistrationData = {
@@ -88,8 +88,9 @@ export const saveUserDetailsToFirestore = async (user: User): Promise<void> => {
 };
 
 /**
- * Save terms acceptance to Firestore for legal compliance
- * Stores: acceptance status, timestamp, terms version, and IP address (if available)
+ * Save terms acceptance to Firestore for legal compliance.
+ * Uses setDoc with merge so terms are saved even when the applicant doc does not exist yet
+ * (e.g. user went accept-terms → complete-profile before signup created the doc).
  */
 export const saveTermsAcceptanceToFirestore = async (
   userId: string,
@@ -97,23 +98,17 @@ export const saveTermsAcceptanceToFirestore = async (
 ): Promise<void> => {
   try {
     const userDocRef = doc(db, "applicants", userId);
-    const userDoc = await getDoc(userDocRef);
-
-    if (!userDoc.exists()) {
-      console.warn("User document does not exist, cannot save terms acceptance");
-      return;
-    }
 
     const termsData = {
       terms_accepted: accepted,
       terms_accepted_timestamp: new Date().toISOString(),
-      terms_version: "2.0", // Update this when terms are updated
+      terms_version: "2.0",
       terms_effective_date: "2026-01-01",
+      firebase_user_id: userId,
     };
 
-    await updateDoc(userDocRef, termsData);
-    
-    // Verify the write completed by reading it back
+    await setDoc(userDocRef, termsData, { merge: true });
+
     const verifyDoc = await getDoc(userDocRef);
     if (verifyDoc.exists()) {
       const verifyData = verifyDoc.data();
@@ -123,6 +118,6 @@ export const saveTermsAcceptanceToFirestore = async (
     }
   } catch (error) {
     console.error("Error saving terms acceptance to Firestore:", error);
-    throw error; // Re-throw to let caller handle the error
+    throw error;
   }
 };
