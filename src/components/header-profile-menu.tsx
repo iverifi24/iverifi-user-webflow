@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { doc, getDoc } from "firebase/firestore";
 import { signOut } from "firebase/auth";
 import { ChevronsUpDown, FileText, History, Home, LogOut } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -13,12 +12,14 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { auth, db } from "@/firebase/firebase_setup";
+import { auth } from "@/firebase/firebase_setup";
+import { getApplicantProfileFromBackend } from "@/utils/syncApplicantProfile";
 
 export function HeaderProfileMenu() {
   const navigate = useNavigate();
   const [userName, setUserName] = useState<string>("No Name");
   const [userEmail, setUserEmail] = useState<string>("no-email");
+  const [userPhone, setUserPhone] = useState<string>("");
   const [userAvatar, setUserAvatar] = useState<string>("");
 
   useEffect(() => {
@@ -30,28 +31,26 @@ export function HeaderProfileMenu() {
         setUserAvatar(currentUser.photoURL || "");
 
         try {
-          const userDocRef = doc(db, "applicants", currentUser.uid);
-          const userDoc = await getDoc(userDocRef);
+          const profile = await getApplicantProfileFromBackend();
+          const firstName = profile.firstName ?? "";
+          const lastName = profile.lastName ?? "";
+          const name = profile.name ?? "";
 
-          if (userDoc.exists()) {
-            const applicantData = userDoc.data();
-            const firstName = applicantData.firstName || "";
-            const lastName = applicantData.lastName || "";
-
-            if (firstName || lastName) {
-              setUserName(
-                `${firstName} ${lastName}`.trim() ||
-                  currentUser.displayName ||
-                  "No Name"
-              );
-            } else {
-              setUserName(currentUser.displayName || "No Name");
-            }
+          if (firstName || lastName) {
+            setUserName(
+              `${firstName} ${lastName}`.trim() ||
+                currentUser.displayName ||
+                "No Name"
+            );
+          } else if (name) {
+            setUserName(name);
           } else {
             setUserName(currentUser.displayName || "No Name");
           }
+
+          setUserPhone((profile.phone || profile.phoneNumber || "") as string);
         } catch (error) {
-          console.error("Error fetching applicant data:", error);
+          console.error("Error fetching applicant profile:", error);
           setUserName(currentUser.displayName || "No Name");
         }
       }
@@ -123,6 +122,11 @@ export function HeaderProfileMenu() {
               <span className="truncate text-xs text-muted-foreground">
                 {userEmail}
               </span>
+              {userPhone ? (
+                <span className="truncate text-xs text-muted-foreground">
+                  {userPhone}
+                </span>
+              ) : null}
             </div>
           </div>
         </DropdownMenuLabel>

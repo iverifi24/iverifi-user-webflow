@@ -56,3 +56,44 @@ export async function syncApplicantProfileToBackend(
     throw new Error(err?.message || `Sync failed: ${res.status}`);
   }
 }
+
+/**
+ * Fetch current applicant profile from backend (PII is decrypted server-side).
+ * Use this instead of reading applicants doc from Firestore when you need to display name/phone.
+ */
+export async function getApplicantProfileFromBackend(): Promise<{
+  id: string;
+  email?: string;
+  firstName?: string;
+  lastName?: string;
+  name?: string;
+  phone?: string;
+  phoneNumber?: string;
+  [key: string]: unknown;
+}> {
+  const user = auth.currentUser;
+  if (!user) {
+    throw new Error("User not authenticated");
+  }
+  const baseUrl = getBaseUrl();
+  if (!baseUrl) {
+    throw new Error("VITE_BASE_URL is not configured");
+  }
+  const token = await getIdToken(user);
+  if (!token) {
+    throw new Error("Could not get Firebase ID token");
+  }
+  const res = await fetch(`${baseUrl}/users/applicantProfile`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ message: res.statusText }));
+    throw new Error(err?.message || `Profile fetch failed: ${res.status}`);
+  }
+  const json = await res.json();
+  if (json?.data) return json.data;
+  return { id: user.uid, email: user.email ?? "" };
+}

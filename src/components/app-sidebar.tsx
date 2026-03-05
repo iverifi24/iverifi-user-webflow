@@ -1,6 +1,5 @@
 import * as React from "react";
 import { useEffect, useState } from "react";
-import { doc, getDoc } from "firebase/firestore";
 
 import {
   Sidebar,
@@ -9,56 +8,49 @@ import {
   SidebarHeader,
   SidebarRail,
 } from "@/components/ui/sidebar";
-import { auth, db } from "@/firebase/firebase_setup";
+import { auth } from "@/firebase/firebase_setup";
 import { NavUser } from "./nav-user";
 import { IverifiLogo } from "./iverifi-logo";
+import { getApplicantProfileFromBackend } from "@/utils/syncApplicantProfile";
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const [userName, setUserName] = useState<string>("No Name");
   const [userEmail, setUserEmail] = useState<string>("no-email");
   const [userAvatar, setUserAvatar] = useState<string>("");
+  const [userPhone, setUserPhone] = useState<string>("");
 
   useEffect(() => {
     const fetchUserData = async () => {
       const currentUser = auth.currentUser;
-      
+
       if (currentUser) {
-        // Set email and avatar from Firebase auth
         setUserEmail(currentUser.email || "no-email");
         setUserAvatar(currentUser.photoURL || "");
 
-        // Fetch applicant data from Firestore
         try {
-          const userDocRef = doc(db, "applicants", currentUser.uid);
-          const userDoc = await getDoc(userDocRef);
+          const profile = await getApplicantProfileFromBackend();
+          const firstName = profile.firstName ?? "";
+          const lastName = profile.lastName ?? "";
+          const name = profile.name ?? "";
 
-          if (userDoc.exists()) {
-            const applicantData = userDoc.data();
-            const firstName = applicantData.firstName || "";
-            const lastName = applicantData.lastName || "";
-            
-            // Combine first and last name, fallback to displayName if not available
-            if (firstName || lastName) {
-              setUserName(`${firstName} ${lastName}`.trim() || currentUser.displayName || "No Name");
-            } else {
-              setUserName(currentUser.displayName || "No Name");
-            }
+          if (firstName || lastName) {
+            setUserName(`${firstName} ${lastName}`.trim() || currentUser.displayName || "No Name");
+          } else if (name) {
+            setUserName(name);
           } else {
-            // Fallback to displayName if applicant data doesn't exist
             setUserName(currentUser.displayName || "No Name");
           }
+
+          setUserPhone((profile.phone || profile.phoneNumber || "") as string);
         } catch (error) {
-          console.error("Error fetching applicant data:", error);
-          // Fallback to displayName on error
+          console.error("Error fetching applicant profile:", error);
           setUserName(currentUser.displayName || "No Name");
         }
       }
     };
 
-    // Fetch data on mount
     fetchUserData();
 
-    // Listen for auth state changes
     const unsubscribe = auth.onAuthStateChanged(() => {
       fetchUserData();
     });
@@ -102,6 +94,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             name: userName,
             email: userEmail,
             avatar: userAvatar,
+            phone: userPhone || undefined,
           }}
         />
       </SidebarFooter>
