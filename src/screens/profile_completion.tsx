@@ -4,10 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { doc, setDoc } from "firebase/firestore";
 import { auth, db } from "@/firebase/firebase_setup";
+import { doc, setDoc } from "firebase/firestore";
 import { toast } from "sonner";
 import { getRecipientIdFromStorage } from "@/utils/connectionFlow";
+import { syncApplicantProfileToBackend } from "@/utils/syncApplicantProfile";
 
 export default function ProfileCompletion() {
   const navigate = useNavigate();
@@ -41,15 +42,20 @@ export default function ProfileCompletion() {
         return;
       }
 
-      // Update or create user profile in Firestore (merge so it works even if doc was missing)
+      // Sync PII to backend (encrypted at rest); backend writes to applicants/{uid}
+      await syncApplicantProfileToBackend({
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        phone: mobileNumber.trim(),
+        profile_completion_level: 2,
+      });
+
+      // Keep email and profile_completion_level in Firestore for local reads (non-PII)
       const userDocRef = doc(db, "applicants", user.uid);
       await setDoc(
         userDocRef,
         {
           email: user.email ?? "",
-          firstName: firstName.trim(),
-          lastName: lastName.trim(),
-          phone: mobileNumber.trim(),
           profile_completion_level: 2,
         },
         { merge: true }

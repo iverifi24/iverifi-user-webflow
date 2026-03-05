@@ -3,6 +3,7 @@ import { messaging } from "@/firebase/firebase_setup";
 import { doc, setDoc, getDoc } from "firebase/firestore";
 import { db } from "@/firebase/firebase_setup";
 import type { User } from "firebase/auth";
+import { syncApplicantProfileToBackend } from "@/utils/syncApplicantProfile";
 
 export interface UserRegistrationData {
   batch: string;
@@ -79,8 +80,31 @@ export const saveUserDetailsToFirestore = async (user: User): Promise<void> => {
       status: true,
     };
 
-    // Save to Firestore applicants collection
-    await setDoc(userDocRef, userData);
+    // Write non-PII to Firestore (doc must exist for merge later)
+    await setDoc(userDocRef, {
+      batch: userData.batch,
+      email: userData.email,
+      email_verified: userData.email_verified,
+      fcm_token: userData.fcm_token,
+      firebase_user_id: userData.firebase_user_id,
+      kyc: userData.kyc,
+      kyc_data: userData.kyc_data,
+      mpin: userData.mpin,
+      notification: userData.notification,
+      otp: userData.otp,
+      payment: userData.payment,
+      profile_completion_level: userData.profile_completion_level,
+      status: userData.status,
+    });
+
+    // Sync PII (firstName, lastName) via backend so it is stored encrypted
+    if (userData.firstName || userData.lastName) {
+      await syncApplicantProfileToBackend({
+        firstName: userData.firstName,
+        lastName: userData.lastName,
+        profile_completion_level: userData.profile_completion_level,
+      }).catch((err) => console.warn("Sync applicant PII to backend failed:", err));
+    }
   } catch (error) {
     console.error("Error saving user details to Firestore:", error);
     throw error;
