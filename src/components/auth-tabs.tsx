@@ -22,8 +22,8 @@ export function AuthTabs({ className }: AuthTabsProps) {
           <CardTitle className="text-xl">{activeTab === "login" ? "Welcome back" : "Create your account"}</CardTitle>
           <CardDescription>
             {activeTab === "login"
-              ? "Login with your Apple or Google account"
-              : "Sign up with your Apple or Google account"}
+              ? "Sign in with Google or your phone number"
+              : "Sign up with Google or your phone number"}
           </CardDescription>
         </CardHeader>
 

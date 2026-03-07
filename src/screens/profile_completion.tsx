@@ -10,52 +10,83 @@ import { toast } from "sonner";
 import { getRecipientIdFromStorage } from "@/utils/connectionFlow";
 import { syncApplicantProfileToBackend } from "@/utils/syncApplicantProfile";
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const PHONE_REGEX = /^[0-9]{10}$/;
+
 export default function ProfileCompletion() {
   const navigate = useNavigate();
+  const user = auth.currentUser;
+  const isPhoneUser = Boolean(user?.phoneNumber && !user?.email);
+
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [mobileNumber, setMobileNumber] = useState("");
+  const [email, setEmail] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  if (!user) {
+    navigate("/login", { replace: true });
+    return null;
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!firstName.trim() || !lastName.trim() || !mobileNumber.trim()) {
-      toast.error("Please fill in all fields");
+    if (!firstName.trim() || !lastName.trim()) {
+      toast.error("Please fill in first name and last name");
       return;
     }
 
-    // Basic mobile number validation
-    const phoneRegex = /^[0-9]{10}$/;
-    if (!phoneRegex.test(mobileNumber)) {
-      toast.error("Please enter a valid 10-digit mobile number");
-      return;
+    if (isPhoneUser) {
+      if (!email.trim()) {
+        toast.error("Please enter your email address");
+        return;
+      }
+      if (!EMAIL_REGEX.test(email.trim())) {
+        toast.error("Please enter a valid email address");
+        return;
+      }
+    } else {
+      if (!mobileNumber.trim()) {
+        toast.error("Please enter your mobile number");
+        return;
+      }
+      if (!PHONE_REGEX.test(mobileNumber.trim())) {
+        toast.error("Please enter a valid 10-digit mobile number");
+        return;
+      }
     }
 
     setIsSubmitting(true);
 
     try {
-      const user = auth.currentUser;
-      if (!user) {
+      const currentUser = auth.currentUser;
+      if (!currentUser) {
         toast.error("User not authenticated");
         navigate("/login");
         return;
       }
 
-      // Sync PII to backend (encrypted at rest); backend writes to applicants/{uid}
-      await syncApplicantProfileToBackend({
-        firstName: firstName.trim(),
-        lastName: lastName.trim(),
-        phone: mobileNumber.trim(),
-        profile_completion_level: 2,
-      });
+      if (isPhoneUser) {
+        await syncApplicantProfileToBackend({
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+          email: email.trim(),
+          profile_completion_level: 2,
+        });
+      } else {
+        await syncApplicantProfileToBackend({
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+          phone: mobileNumber.trim(),
+          profile_completion_level: 2,
+        });
+      }
 
-      // Keep email and profile_completion_level in Firestore for local reads (non-PII)
-      const userDocRef = doc(db, "applicants", user.uid);
       await setDoc(
-        userDocRef,
+        doc(db, "applicants", currentUser.uid),
         {
-          email: user.email ?? "",
+          email: isPhoneUser ? email.trim() : currentUser.email ?? "",
           profile_completion_level: 2,
         },
         { merge: true }
@@ -63,20 +94,14 @@ export default function ProfileCompletion() {
 
       toast.success("Profile updated successfully!");
 
-      // Check if there's a pending connection code
       const pendingId = getRecipientIdFromStorage();
-
       if (pendingId) {
-        // Navigate to home (Connections) with the code
         navigate(`/?code=${pendingId}`);
       } else {
         navigate("/");
       }
     } catch (error: unknown) {
       console.error("Error updating profile:", error);
-      if (error && typeof error === "object" && "code" in error) {
-        console.error("Firebase error:", (error as { code?: string }).code, (error as { message?: string }).message);
-      }
       toast.error("Failed to update profile. Please try again.");
       setIsSubmitting(false);
     }
@@ -89,7 +114,9 @@ export default function ProfileCompletion() {
           <CardHeader>
             <CardTitle>Complete Your Profile</CardTitle>
             <CardDescription>
-              All fields are required. Please provide your details to continue.
+              {isPhoneUser
+                ? "You signed up with your phone number. Please add your email and name to continue."
+                : "All fields are required. Please provide your details to continue."}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -126,6 +153,23 @@ export default function ProfileCompletion() {
                 />
               </div>
 
+              {isPhoneUser ? (
+                <div className="grid gap-3">
+                  <Label htmlFor="email">
+                    Email <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="you@example.com"
+                    required
+                    aria-required="true"
+                    disabled={isSubmitting}
+                  />
+                </div>
+              ) : (
               <div className="grid gap-3">
                 <Label htmlFor="mobileNumber">
                   Mobile Number <span className="text-destructive">*</span>
@@ -142,6 +186,7 @@ export default function ProfileCompletion() {
                   disabled={isSubmitting}
                 />
               </div>
+              )}
 
               <Button
                 type="submit"

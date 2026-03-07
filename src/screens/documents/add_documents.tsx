@@ -1,5 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
+import { LoadingScreen } from "@/components/loading-screen";
 import { Button } from "@/components/ui/button";
 import { useGetCredentialsQuery } from "@/redux/api";
 import { useNavigate } from "react-router-dom";
@@ -36,20 +36,7 @@ const AddDocuments = () => {
         </div>
 
         {isLoadingCreds ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {Array(4)
-              .fill(0)
-              .map((_, idx) => (
-                <Card key={idx} className="rounded-2xl border-2 border-slate-200">
-                  <CardHeader className="pb-3">
-                    <Skeleton className="h-6 w-32 rounded" />
-                  </CardHeader>
-                  <CardContent className="pt-0">
-                    <Skeleton className="h-14 w-full rounded-xl" />
-                  </CardContent>
-                </Card>
-              ))}
-          </div>
+          <LoadingScreen variant="cards" cardCount={4} />
         ) : unverifiedTypes.length === 0 ? (
           <Card className="rounded-2xl border-2 border-teal-200 bg-teal-50/30 p-6 text-center">
             <p className="text-slate-700 font-medium">All required documents are verified</p>

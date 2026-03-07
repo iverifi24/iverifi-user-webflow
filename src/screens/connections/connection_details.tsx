@@ -2,7 +2,7 @@ import { useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Skeleton } from "@/components/ui/skeleton";
+import { LoadingScreen } from "@/components/loading-screen";
 import { isAfter, parseISO, format, addDays } from "date-fns";
 import { Eye, Trash2, Loader2, CalendarCheck, CalendarX, ChevronDown, ChevronRight } from "lucide-react";
 import {
@@ -279,17 +279,7 @@ const ConnectionDetails = () => {
         <Separator />
 
         {isLoading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-            {Array(3)
-              .fill(0)
-              .map((_, idx) => (
-                <Card key={idx} className="p-4">
-                  <Skeleton className="h-6 w-1/2 mb-3" />
-                  <Skeleton className="h-4 w-2/3 mb-2" />
-                  <Skeleton className="h-4 w-1/3" />
-                </Card>
-              ))}
-          </div>
+          <LoadingScreen variant="cards" cardCount={3} gridCols="2" />
         ) : isError ? (
           <p className="text-red-500">Failed to load connection details.</p>
         ) : !connection ? (
@@ -559,17 +549,7 @@ const ConnectionDetails = () => {
 
       {/* Documents shared with this connection */}
       {isLoading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-          {Array(3)
-            .fill(0)
-            .map((_, idx) => (
-              <Card key={idx} className="p-4">
-                <Skeleton className="h-6 w-1/2 mb-3" />
-                <Skeleton className="h-4 w-2/3 mb-2" />
-                <Skeleton className="h-4 w-1/3" />
-              </Card>
-            ))}
-        </div>
+        <LoadingScreen variant="cards" cardCount={3} gridCols="2" />
       ) : isError ? (
         <p className="text-red-500">Failed to load connection details.</p>
       ) : !connection ? (

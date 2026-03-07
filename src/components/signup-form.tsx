@@ -6,6 +6,7 @@ import {
   createUserWithEmailAndPassword,
   loginWithGoogle,
 } from "@/firebase_auth_service";
+import { PhoneLoginForm } from "@/components/phone-login-form";
 import { auth } from "@/firebase/firebase_setup";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
@@ -17,6 +18,8 @@ import {
 import { saveUserDetailsToFirestore } from "@/utils/userRegistration";
 import { isTermsAccepted } from "@/utils/terms";
 import { useAddConnectionMutation } from "@/redux/api";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "@/firebase/firebase_setup";
 import { toast } from "sonner";
 
 export function SignupForm({
@@ -25,11 +28,13 @@ export function SignupForm({
   ...props
 }: React.ComponentProps<"div"> & { navigate?: (path: string) => void }) {
   const defaultNavigate = useNavigate();
+  const nav = navigate || defaultNavigate;
   const [searchParams] = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [showPhoneSignup, setShowPhoneSignup] = useState(false);
   const [addConnection] = useAddConnectionMutation();
 
   // Capture ?code=... or ?recipientId=... from URL on mount and persist for post-signup
@@ -61,7 +66,7 @@ export function SignupForm({
       return;
     }
 
-    // Terms already accepted (e.g. existing user signing in via Google) — go to home or connections
+    // Terms already accepted — go to home or connections
     const pendingId = getRecipientIdFromStorage();
     if (pendingId) {
       try {
@@ -74,6 +79,22 @@ export function SignupForm({
     } else {
       defaultNavigate("/", { replace: true });
     }
+  };
+
+  const handlePhoneSignupSuccess = async () => {
+    const user = auth.currentUser;
+    if (user) {
+      try {
+        const userDocRef = doc(db, "applicants", user.uid);
+        const userDoc = await getDoc(userDocRef);
+        if (!userDoc.exists()) {
+          await saveUserDetailsToFirestore(user);
+        }
+      } catch (e) {
+        console.error("Error saving user details after phone signup:", e);
+      }
+    }
+    await postSignupCheck();
   };
 
   const handleEmailSignup = async (e: React.FormEvent) => {
@@ -173,6 +194,20 @@ export function SignupForm({
 
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
+      {showPhoneSignup ? (
+        <>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="self-start -mt-2 text-muted-foreground"
+            onClick={() => setShowPhoneSignup(false)}
+          >
+            ← Back to email / Google
+          </Button>
+          <PhoneLoginForm onSuccess={handlePhoneSignupSuccess} />
+        </>
+      ) : (
       <form onSubmit={handleEmailSignup}>
         <div className="grid gap-6">
           <div className="flex flex-col gap-4">
@@ -238,8 +273,20 @@ export function SignupForm({
               {isLoading ? "Creating Account..." : "Create Account"}
             </Button>
           </div>
+          <div className="relative text-center">
+            <span className="bg-card text-muted-foreground text-xs px-2">or</span>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full"
+            onClick={() => setShowPhoneSignup(true)}
+          >
+            Sign up with phone number
+          </Button>
         </div>
       </form>
+      )}
     </div>
   );
 }

@@ -7,7 +7,7 @@ export default function TermsPage() {
   const navigate = useNavigate();
 
   const handleClose = () => {
-    navigate(-1);
+    navigate("/");
   };
 
   return (
@@ -36,12 +36,12 @@ export default function TermsPage() {
               </div>
             </div>
             <Button
-              variant="outline"
+              variant="ghost"
               size="sm"
               onClick={handleClose}
-              className="text-xs sm:text-sm"
+              className="text-xs sm:text-sm text-muted-foreground hover:text-foreground"
             >
-              Close
+              ← Back to home
             </Button>
           </div>
         </div>

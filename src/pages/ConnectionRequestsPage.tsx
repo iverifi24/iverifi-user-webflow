@@ -4,7 +4,7 @@ import { useMemo } from "react";
 import { format } from "date-fns";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
+import { LoadingScreen } from "@/components/loading-screen";
 import { Building2, User, ChevronRight, FileCheck, CalendarCheck, CalendarX } from "lucide-react";
 
 export default function ConnectionRequestsPage() {
@@ -40,24 +40,7 @@ export default function ConnectionRequestsPage() {
         </div>
 
         {isLoading ? (
-          <div className="space-y-3">
-            {Array(3)
-              .fill(0)
-              .map((_, idx) => (
-                <Card
-                  key={idx}
-                  className="rounded-2xl border-2 border-slate-200 p-4"
-                >
-                  <div className="flex items-center gap-3">
-                    <Skeleton className="h-10 w-10 rounded-xl shrink-0" />
-                    <div className="flex-1 space-y-2">
-                      <Skeleton className="h-5 w-32" />
-                      <Skeleton className="h-3 w-24" />
-                    </div>
-                  </div>
-                </Card>
-              ))}
-          </div>
+          <LoadingScreen variant="cards" cardCount={3} gridCols="1" />
         ) : connectionRequests.length === 0 ? (
           <Card className="rounded-2xl border-2 border-slate-200 bg-white p-8 text-center">
             <p className="text-slate-500 text-sm">

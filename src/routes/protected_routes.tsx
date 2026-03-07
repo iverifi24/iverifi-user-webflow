@@ -4,6 +4,7 @@ import { peekRecipientIdFromStorage } from "@/utils/connectionFlow";
 import type { JSX } from "react";
 import { Navigate, useLocation, useSearchParams } from "react-router-dom";
 import { useEffect, useState } from "react";
+import { LoadingScreen } from "@/components/loading-screen";
 
 const ProtectedRoute = ({ children }: { children: JSX.Element }) => {
   const { user, loading } = useAuth();
@@ -52,13 +53,13 @@ const ProtectedRoute = ({ children }: { children: JSX.Element }) => {
   }
 
   // For non-allowed paths, do normal checks
-  if (loading) return <div>Loading...</div>;
+  if (loading) return <LoadingScreen variant="fullPage" />;
   
   if (!user) return <Navigate to="/login" />;
 
   // Wait for terms check to complete
   if (termsAccepted === null) {
-    return <div>Loading...</div>;
+    return <LoadingScreen variant="fullPage" />;
   }
 
   // Check if terms accepted from database (source of truth) for other protected routes

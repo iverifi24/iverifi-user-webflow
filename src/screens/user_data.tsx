@@ -2,6 +2,7 @@ import { auth, db } from "@/firebase/firebase_setup";
 import type { User } from "firebase/auth";
 import { collection, getDocs, query, where } from "firebase/firestore";
 import { useEffect, useState } from "react";
+import { LoadingScreen } from "@/components/loading-screen";
 
 type Applicant = {
   fullName?: string;
@@ -37,7 +38,7 @@ const UserData = () => {
     return () => unsubscribe();
   }, []);
 
-  if (loading) return <p>Loading user data...</p>;
+  if (loading) return <LoadingScreen variant="fullPage" message="Loading user data..." />;
   if (!user || !applicantData) return <p>No data found.</p>;
 
   return (

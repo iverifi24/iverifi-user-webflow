@@ -7,13 +7,12 @@ import {
 } from "@/components/ui/dialog";
 import { useGetCredentialsQuery, useDeleteCredentialMutation } from "@/redux/api";
 import { useState } from "react";
-import { Skeleton } from "@/components/ui/skeleton";
+import { LoadingScreen } from "@/components/loading-screen";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { Trash2, Loader2, Eye, FileText } from "lucide-react";
 import { toast } from "sonner";
-import { Badge } from "@/components/ui/badge";
-import { DigiLockerIcon } from "@/components/digilocker-icon";
+import { VerifierBadge } from "@/components/verifier-badge";
 
 const formatDocType = (type: string): string => {
   return type
@@ -81,23 +80,10 @@ const Documents = () => {
         </div>
 
         {isLoadingCreds ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {Array(4)
-              .fill(0)
-              .map((_, idx) => (
-                <Card key={idx} className="rounded-2xl border-2 border-slate-200">
-                  <CardHeader className="pb-3">
-                    <Skeleton className="h-6 w-32 rounded" />
-                  </CardHeader>
-                  <CardContent className="pt-0">
-                    <Skeleton className="h-24 w-full rounded-xl" />
-                  </CardContent>
-                </Card>
-              ))}
-          </div>
+          <LoadingScreen variant="cards" cardCount={4} />
         ) : (
           <>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {documents.map((doc: any, idx: number) => {
                 const hasPreview = !!getPreviewImageUrl(doc);
                 return (
@@ -106,16 +92,13 @@ const Documents = () => {
                     className="rounded-2xl border-2 transition-all duration-200 hover:shadow-lg border-teal-200 bg-teal-50/30 shadow-sm hover:border-teal-300"
                   >
                     <CardHeader className="pb-3">
-                      <div className="flex items-center justify-between gap-2">
-                        <CardTitle className="text-lg font-semibold text-slate-800">
+                      <div className="flex items-center justify-between gap-2 min-w-0">
+                        <CardTitle className="text-lg font-semibold text-slate-800 min-w-0 truncate">
                           {doc.document_type
                             ? formatDocType(doc.document_type)
                             : "Document"}
                         </CardTitle>
-                        <Badge className="bg-teal-600 text-white gap-1 border-0 shadow-sm">
-                          <DigiLockerIcon size={9} className="shrink-0 opacity-90" />
-                          <span>Verified</span>
-                        </Badge>
+                        <VerifierBadge documentType={doc.document_type || "Document"} className="shrink-0" />
                       </div>
                     </CardHeader>
                     <CardContent className="pt-0">

@@ -14,6 +14,7 @@ export interface SyncApplicantProfilePayload {
   firstName?: string;
   lastName?: string;
   name?: string;
+  email?: string;
   phone?: string;
   phoneNumber?: string;
   dob?: string;

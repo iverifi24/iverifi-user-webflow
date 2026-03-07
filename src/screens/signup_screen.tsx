@@ -4,7 +4,7 @@ import { AuthTabs } from "@/components/auth-tabs";
 import { Toaster } from "@/components/ui/sonner";
 import { IverifiLogo } from "@/components/iverifi-logo";
 import { useAuth } from "@/context/auth_context";
-import { Loader2 } from "lucide-react";
+import { LoadingScreen } from "@/components/loading-screen";
 
 export default function SignupPage() {
   const { user, loading } = useAuth();
@@ -24,11 +24,7 @@ export default function SignupPage() {
   }, [user, loading, navigate, searchParams]);
 
   if (loading || user) {
-    return (
-      <div className="bg-muted flex min-h-svh flex-col items-center justify-center p-6">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    );
+    return <LoadingScreen variant="fullPage" />;
   }
 
   return (

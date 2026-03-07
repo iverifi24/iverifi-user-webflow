@@ -1,5 +1,6 @@
 import { Route, BrowserRouter as Router, Routes } from "react-router-dom";
 import { QRCodeHandler } from "./components/qr-code-handler";
+import { AddToHomeScreenPrompt } from "./components/add-to-home-screen-prompt";
 import Connections from "./pages/Connections";
 import ConnectionRequestsPage from "./pages/ConnectionRequestsPage";
 import ProtectedLayout from "./routes/protected_layout";
@@ -48,6 +49,7 @@ const App = () => {
           <Route path="*" element={<Login />} />
         </Routes>
       </QRCodeHandler>
+      <AddToHomeScreenPrompt />
     </Router>
   );
 };

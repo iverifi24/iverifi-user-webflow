@@ -1,5 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
+import { LoadingScreen } from "@/components/loading-screen";
 import { useGetConnectionsQuery, useGetCredentialsQuery } from "@/redux/api";
 import { useNavigate } from "react-router-dom";
 
@@ -32,18 +32,7 @@ const HomePage = () => {
     <div className="p-4">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
         {isLoading
-          ? Array(2)
-              .fill(0)
-              .map((_, index) => (
-                <Card key={index}>
-                  <CardHeader>
-                    <Skeleton className="h-6 w-1/2" />
-                  </CardHeader>
-                  <CardContent>
-                    <Skeleton className="h-8 w-20" />
-                  </CardContent>
-                </Card>
-              ))
+          ? <LoadingScreen variant="cards" cardCount={2} gridCols="2" />
           : cards.map((card, index) => (
               <Card
                 key={index}

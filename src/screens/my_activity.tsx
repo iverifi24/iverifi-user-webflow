@@ -1,5 +1,5 @@
 import { Card, CardContent } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
+import { LoadingScreen } from "@/components/loading-screen";
 import { useGetMyActivityQuery } from "@/redux/api";
 import { format } from "date-fns";
 import {
@@ -60,21 +60,7 @@ const MyActivity = () => {
         </div>
 
         {isLoading ? (
-          <div className="space-y-3">
-            {Array(6)
-              .fill(0)
-              .map((_, idx) => (
-                <Card key={idx} className="rounded-2xl border-2 border-slate-200">
-                  <CardContent className="p-4 flex items-center gap-3">
-                    <Skeleton className="h-10 w-10 rounded-lg shrink-0" />
-                    <div className="flex-1 space-y-2">
-                      <Skeleton className="h-4 w-3/4" />
-                      <Skeleton className="h-3 w-1/2" />
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-          </div>
+          <LoadingScreen variant="cards" cardCount={6} gridCols="1" />
         ) : isError ? (
           <Card className="rounded-2xl border-2 border-red-100 bg-red-50/50 p-6">
             <p className="text-sm text-red-700">

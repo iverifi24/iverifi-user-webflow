@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
+import { LoadingScreen } from "@/components/loading-screen";
 import { auth, db } from "@/firebase/firebase_setup";
 import {
   useAddConnectionMutation,
@@ -13,19 +13,18 @@ import {
 import { determineConnectionType, isValidQRCode } from "@/utils/qr-code-utils";
 import { addDays, format } from "date-fns";
 import { collection, getDocs, query, where } from "firebase/firestore";
-import { CheckCircle, ExternalLink, Upload, X, Trash2, Loader2 } from "lucide-react";
+import { CheckCircle, ExternalLink, Share2, X, Trash2, Loader2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { clearPendingRecipientId } from "@/utils/connectionFlow";
 import { toast } from "sonner";
-import { Badge } from "../components/ui/badge";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { DigiLockerIcon } from "@/components/digilocker-icon";
+import { VerifierBadge } from "@/components/verifier-badge";
 
 const DOCUMENT_TYPES = ["DRIVING_LICENSE", "AADHAAR_CARD", "PAN_CARD", "PASSPORT"] as const;
 type DocumentType = (typeof DOCUMENT_TYPES)[number];
@@ -121,6 +120,9 @@ const Connections = () => {
 
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; document_type: string } | null>(null);
 
+  /** Prevent double-submit: stays true until API settles; only cleared on error so user can retry */
+  const [isCheckInOutInFlight, setCheckInOutInFlight] = useState(false);
+
   // helper to robustly pick connection id from addConnection response
   const pickConnectionId = (res: any): string | null => {
     return res?.data?.request_id ?? res?.data?.id ?? res?.request_id ?? res?.id ?? res?.data?.request?.id ?? null;
@@ -215,16 +217,17 @@ const Connections = () => {
     }
   }, [hasCredentialsFromAPI]);
 
-  // Determine button states: disable if no connection, updating, no credentials, already checked in, or pending approval
+  // Determine button states: disable if no connection, updating, in-flight, no credentials, already checked in, or pending approval
   const isCheckInDisabled = useMemo(() => {
     return (
       !derivedConnectionId ||
       isCheckInUpdating ||
+      isCheckInOutInFlight ||
       hasCredentials === false ||
       !!currentConnection?.check_in_time || // Disable if already checked in
       currentConnection?.check_in_status === "pending" // Disable if pending hotel approval
     );
-  }, [derivedConnectionId, isCheckInUpdating, hasCredentials, currentConnection?.check_in_time, currentConnection?.check_in_status]);
+  }, [derivedConnectionId, isCheckInUpdating, isCheckInOutInFlight, hasCredentials, currentConnection?.check_in_time, currentConnection?.check_in_status]);
 
   // const isCheckOutDisabled = useMemo(() => {
   //   return !derivedConnectionId || isCheckInUpdating || !!currentConnection?.check_out_time;
@@ -263,7 +266,7 @@ const Connections = () => {
   // upload credentials (use the derivedConnectionId). Supports main docs and children's Aadhaar.
   const handleShareCredentials = async (documentType: DocumentType | ChildAadhaarType) => {
     if (!derivedConnectionId) {
-      toast.error("You need to scan a QR code to upload.");
+      toast.error("You need to scan a QR code to share.");
       return;
     }
     const credential = verifiedCredentialsMap[documentType];
@@ -285,12 +288,12 @@ const Connections = () => {
         ],
       }).unwrap();
 
-      toast.success("Your verified credential was uploaded successfully.");
+      toast.success("Your verified credential was shared successfully.");
       
       // Refetch recipient data to update credentials state
       await refetchRecipient();
     } catch (error: any) {
-      toast.error(error?.data?.message ? String(error.data.message) : "Failed to upload");
+      toast.error(error?.data?.message ? String(error.data.message) : "Failed to share");
     }
   };
 
@@ -325,11 +328,15 @@ const Connections = () => {
 
   // Handle Check In/Out actions
   const handleCheckInOut = async (status: "checkin" | "checkout") => {
+    if (isCheckInOutInFlight || isCheckInUpdating) return;
+
     if (!derivedConnectionId) {
       toast.error("No connection found yet. Please wait a moment and try again.");
       await refetchRecipient();
       return;
     }
+
+    setCheckInOutInFlight(true);
 
     // For check-in, send the credential_id of the first active shared credential so the hotel sees the correct document
     const credentials = currentConnection?.credentials ?? [];
@@ -366,6 +373,7 @@ const Connections = () => {
       // Refresh recipient data to get updated check-in/check-out status
       await refetchRecipient();
     } catch (error: any) {
+      setCheckInOutInFlight(false);
       toast.error(
         error?.data?.message
           ? String(error.data.message)
@@ -377,26 +385,8 @@ const Connections = () => {
   if (isCredentialsLoading || isRecipientLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-teal-50/50 to-white p-4 sm:p-6">
-        <div className="max-w-2xl mx-auto space-y-6">
-          <div className="flex items-center justify-between">
-            <Skeleton className="h-8 w-32 rounded-lg" />
-            <Skeleton className="h-10 w-32 rounded-lg" />
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {DOCUMENT_TYPES.map((docType) => (
-              <Card key={docType} className="p-4 rounded-xl border-teal-100 shadow-sm">
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between">
-                    <Skeleton className="h-6 w-24 rounded" />
-                    <Skeleton className="h-5 w-16 rounded-full" />
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <Skeleton className="h-10 w-full rounded-lg" />
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+        <div className="max-w-2xl mx-auto">
+          <LoadingScreen variant="cards" cardCount={4} showHeaderSkeletons />
         </div>
       </div>
     );
@@ -499,13 +489,15 @@ const Connections = () => {
       {/* Document cards section label */}
       <div className="pt-2">
         <h3 className="text-lg font-semibold text-slate-800 mb-1">Your documents</h3>
-        <p className="text-sm text-slate-500">
-          {code ? "Verify and upload to the property" : "Scan a QR at the venue to share your ID document."}
-        </p>
+        {code && (
+          <p className="text-sm text-slate-500">
+            Verify and share to the property
+          </p>
+        )}
       </div>
 
       {/* Document Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {DOCUMENT_TYPES.map((docType) => {
           const isVerified = !!verifiedCredentialsMap[docType];
           const isShareDisabled = !isVerified || isUpdating;
@@ -522,16 +514,12 @@ const Connections = () => {
               role={code && isVerified && !isShareDisabled ? "button" : undefined}
             >
               <CardHeader className="pb-3">
-                <div className="flex items-center justify-between gap-2">
-                  <CardTitle className="text-lg font-semibold text-slate-800 capitalize">
+                <div className="flex items-center justify-between gap-2 min-w-0">
+                  <CardTitle className="text-lg font-semibold text-slate-800 capitalize min-w-0 truncate">
                     {docType.replace(/_/g, " ").toLowerCase()}
                   </CardTitle>
                   {isVerified && (
-                    <Badge className="bg-teal-600 text-white gap-1 border-0 shadow-sm">
-                      <CheckCircle className="h-3.5 w-3.5 shrink-0" />
-                      <span>Verified</span>
-                      <DigiLockerIcon size={9} className="shrink-0 opacity-90" />
-                    </Badge>
+                    <VerifierBadge documentType={docType} className="shrink-0" />
                   )}
                 </div>
               </CardHeader>
@@ -547,8 +535,8 @@ const Connections = () => {
                           handleShareCredentials(docType);
                         }}
                       >
-                        <Upload className="h-4 w-4 mr-2" />
-                        Upload
+                        <Share2 className="h-4 w-4 mr-2" />
+                        Share
                       </Button>
                     ) : (
                       <Button
@@ -597,7 +585,7 @@ const Connections = () => {
         <p className="text-sm text-slate-500 mb-4">
           Manage Aadhaar for your children. You can add and verify Aadhaar for up to 3 children.
         </p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {CHILD_AADHAAR_TYPES.map((docType) => {
             const isVerified = !!verifiedCredentialsMap[docType];
             const isShareDisabled = !isVerified || isUpdating;
@@ -615,16 +603,12 @@ const Connections = () => {
                 role={code && isVerified && !isShareDisabled ? "button" : undefined}
               >
                 <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <CardTitle className="text-lg font-semibold text-slate-800">
+                  <div className="flex items-center justify-between gap-2 min-w-0">
+                    <CardTitle className="text-lg font-semibold text-slate-800 min-w-0 truncate">
                       {childLabel}&apos;s Aadhaar
                     </CardTitle>
                     {isVerified && (
-                      <Badge className="bg-teal-600 text-white gap-1 border-0 shadow-sm">
-                        <CheckCircle className="h-3.5 w-3.5 shrink-0" />
-                        <span>Verified</span>
-                        <DigiLockerIcon size={9} className="shrink-0 opacity-90" />
-                      </Badge>
+                      <VerifierBadge documentType={docType} className="shrink-0" />
                     )}
                   </div>
                 </CardHeader>
@@ -640,8 +624,8 @@ const Connections = () => {
                             handleShareCredentials(docType);
                           }}
                         >
-                          <Upload className="h-4 w-4 mr-2" />
-                          Upload
+                          <Share2 className="h-4 w-4 mr-2" />
+                          Share
                         </Button>
                       ) : (
                         <Button
