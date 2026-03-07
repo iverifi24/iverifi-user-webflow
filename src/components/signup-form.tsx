@@ -53,7 +53,7 @@ export function SignupForm({
   const postSignupCheck = async () => {
     const user = auth.currentUser;
     if (!user) {
-      defaultNavigate("/", { replace: true });
+      nav("/", { replace: true });
       return;
     }
 
@@ -62,7 +62,7 @@ export function SignupForm({
     if (!termsAccepted) {
       const code = searchParams.get("code") || searchParams.get("recipientId") || peekRecipientIdFromStorage();
       const redirectUrl = code ? `/accept-terms?code=${code}` : "/accept-terms";
-      defaultNavigate(redirectUrl, { replace: true });
+      nav(redirectUrl, { replace: true });
       return;
     }
 
@@ -71,13 +71,13 @@ export function SignupForm({
     if (pendingId) {
       try {
         await addConnection({ document_id: pendingId, type: "Company" }).unwrap();
-        defaultNavigate(`/?code=${pendingId}`, { replace: true });
+        nav(`/?code=${pendingId}`, { replace: true });
       } catch (err) {
         console.error("Failed to add connection after signup", err);
-        defaultNavigate("/", { replace: true });
+        nav("/", { replace: true });
       }
     } else {
-      defaultNavigate("/", { replace: true });
+      nav("/", { replace: true });
     }
   };
 
