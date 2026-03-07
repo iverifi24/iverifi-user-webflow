@@ -26,9 +26,11 @@ export function SignupForm({
   className,
   navigate,
   ...props
-}: React.ComponentProps<"div"> & { navigate?: (path: string) => void }) {
+}: React.ComponentProps<"div"> & {
+  navigate?: (path: string, options?: { replace?: boolean }) => void;
+}) {
   const defaultNavigate = useNavigate();
-  const nav = navigate || defaultNavigate;
+  const nav = (navigate ?? defaultNavigate) as (path: string, options?: { replace?: boolean }) => void;
   const [searchParams] = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
