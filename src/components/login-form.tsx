@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { loginWithEmail, loginWithGoogle } from "@/firebase_auth_service";
-import { PhoneLoginForm } from "@/components/phone-login-form";
+// import { PhoneLoginForm } from "@/components/phone-login-form"; // Phone login commented out for now
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import {
@@ -30,7 +30,7 @@ export function LoginForm({
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [showPhoneLogin, setShowPhoneLogin] = useState(false);
+  // const [showPhoneLogin, setShowPhoneLogin] = useState(false); // Phone login commented out for now
   const [addConnection] = useAddConnectionMutation();
 
   // ✅ capture ?code=... or ?recipientId=... from URL on mount and persist for post-login
@@ -194,24 +194,26 @@ export function LoginForm({
     }
   };
 
-  const handlePhoneSuccess = async () => {
-    const user = auth.currentUser;
-    if (user) {
-      try {
-        const userDocRef = doc(db, "applicants", user.uid);
-        const userDoc = await getDoc(userDocRef);
-        if (!userDoc.exists()) {
-          await saveUserDetailsToFirestore(user);
-        }
-      } catch (e) {
-        console.error("Error saving user details after phone login:", e);
-      }
-    }
-    await postLoginCheck();
-  };
+  // Phone login commented out for now
+  // const handlePhoneSuccess = async () => {
+  //   const user = auth.currentUser;
+  //   if (user) {
+  //     try {
+  //       const userDocRef = doc(db, "applicants", user.uid);
+  //       const userDoc = await getDoc(userDocRef);
+  //       if (!userDoc.exists()) {
+  //         await saveUserDetailsToFirestore(user);
+  //       }
+  //     } catch (e) {
+  //       console.error("Error saving user details after phone login:", e);
+  //     }
+  //   }
+  //   await postLoginCheck();
+  // };
 
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
+      {/* Phone login commented out for now
       {showPhoneLogin ? (
         <>
           <Button
@@ -226,6 +228,7 @@ export function LoginForm({
           <PhoneLoginForm onSuccess={handlePhoneSuccess} />
         </>
       ) : (
+      */}
       <form onSubmit={handleEmailLogin}>
         <div className="grid gap-6">
           <div className="flex flex-col gap-4">
@@ -276,6 +279,7 @@ export function LoginForm({
               {isLoading ? "Logging in..." : "Login"}
             </Button>
           </div>
+          {/* Phone login commented out for now
           <div className="relative text-center">
             <span className="bg-card text-muted-foreground text-xs px-2">or</span>
           </div>
@@ -287,9 +291,10 @@ export function LoginForm({
           >
             Sign in with phone number
           </Button>
+          */}
         </div>
       </form>
-      )}
+      {/* )} */}
     </div>
   );
 }

@@ -6,7 +6,7 @@ import {
   createUserWithEmailAndPassword,
   loginWithGoogle,
 } from "@/firebase_auth_service";
-import { PhoneLoginForm } from "@/components/phone-login-form";
+// import { PhoneLoginForm } from "@/components/phone-login-form"; // Phone signup commented out for now
 import { auth } from "@/firebase/firebase_setup";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
@@ -18,8 +18,8 @@ import {
 import { saveUserDetailsToFirestore } from "@/utils/userRegistration";
 import { isTermsAccepted } from "@/utils/terms";
 import { useAddConnectionMutation } from "@/redux/api";
-import { doc, getDoc } from "firebase/firestore";
-import { db } from "@/firebase/firebase_setup";
+// import { doc, getDoc } from "firebase/firestore";
+// import { db } from "@/firebase/firebase_setup";
 import { toast } from "sonner";
 
 export function SignupForm({
@@ -36,7 +36,7 @@ export function SignupForm({
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [showPhoneSignup, setShowPhoneSignup] = useState(false);
+  // const [showPhoneSignup, setShowPhoneSignup] = useState(false); // Phone signup commented out for now
   const [addConnection] = useAddConnectionMutation();
 
   // Capture ?code=... or ?recipientId=... from URL on mount and persist for post-signup
@@ -83,21 +83,22 @@ export function SignupForm({
     }
   };
 
-  const handlePhoneSignupSuccess = async () => {
-    const user = auth.currentUser;
-    if (user) {
-      try {
-        const userDocRef = doc(db, "applicants", user.uid);
-        const userDoc = await getDoc(userDocRef);
-        if (!userDoc.exists()) {
-          await saveUserDetailsToFirestore(user);
-        }
-      } catch (e) {
-        console.error("Error saving user details after phone signup:", e);
-      }
-    }
-    await postSignupCheck();
-  };
+  // Phone signup commented out for now
+  // const handlePhoneSignupSuccess = async () => {
+  //   const user = auth.currentUser;
+  //   if (user) {
+  //     try {
+  //       const userDocRef = doc(db, "applicants", user.uid);
+  //       const userDoc = await getDoc(userDocRef);
+  //       if (!userDoc.exists()) {
+  //         await saveUserDetailsToFirestore(user);
+  //       }
+  //     } catch (e) {
+  //       console.error("Error saving user details after phone signup:", e);
+  //     }
+  //   }
+  //   await postSignupCheck();
+  // };
 
   const handleEmailSignup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -196,6 +197,7 @@ export function SignupForm({
 
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
+      {/* Phone signup commented out for now
       {showPhoneSignup ? (
         <>
           <Button
@@ -210,6 +212,7 @@ export function SignupForm({
           <PhoneLoginForm onSuccess={handlePhoneSignupSuccess} />
         </>
       ) : (
+      */}
       <form onSubmit={handleEmailSignup}>
         <div className="grid gap-6">
           <div className="flex flex-col gap-4">
@@ -275,6 +278,7 @@ export function SignupForm({
               {isLoading ? "Creating Account..." : "Create Account"}
             </Button>
           </div>
+          {/* Phone signup commented out for now
           <div className="relative text-center">
             <span className="bg-card text-muted-foreground text-xs px-2">or</span>
           </div>
@@ -286,9 +290,10 @@ export function SignupForm({
           >
             Sign up with phone number
           </Button>
+          */}
         </div>
       </form>
-      )}
+      {/* )} */}
     </div>
   );
 }
