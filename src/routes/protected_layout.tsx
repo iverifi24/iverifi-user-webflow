@@ -13,12 +13,15 @@ const ProtectedLayout = () => {
       {/* <AppSidebar /> */}
       <SidebarInset className="min-w-0 overflow-x-hidden">
         <header className="flex h-18 shrink-0 items-center justify-between gap-2 border-b pl-0 pr-4 min-w-0 overflow-hidden md:px-4">
-          <div className="-ml-[120px] flex h-24 min-w-[320px] shrink-0 items-center justify-start overflow-hidden rounded-lg pr-2 md:min-w-[420px] md:-ml-[140px] md:pl-0">
-            <div onClick={() => navigate("/")} className="flex origin-[0_50%] items-center justify-start scale-[6] cursor-pointer md:origin-left">
+          <div className="-ml-[120px] flex h-24 min-w-[320px] shrink-0 items-center justify-start gap-2 overflow-hidden rounded-lg pr-2 md:min-w-[420px] md:-ml-[140px] md:pl-0">
+            <div onClick={() => navigate("/")} className="flex cursor-pointer origin-[0_50%] scale-[6] items-center justify-start md:origin-left">
               <IverifiLogo
                 containerClassName="inline-flex shrink-0 justify-start"
                 className="h-[56px] w-[90px] min-w-[90px] shrink-0 object-contain object-left align-bottom md:w-[75px] md:min-w-[75px]"
               />
+            </div>
+            <div className="hidden flex-col justify-center md:flex">
+              <span className="text-sm font-semibold text-slate-800">iVerifi</span>
             </div>
           </div>
           <div className="flex items-center shrink-0">
