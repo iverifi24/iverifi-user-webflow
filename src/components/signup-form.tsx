@@ -6,7 +6,7 @@ import {
   createUserWithEmailAndPassword,
   loginWithGoogle,
 } from "@/firebase_auth_service";
-// import { PhoneLoginForm } from "@/components/phone-login-form"; // Phone signup commented out for now
+import { PhoneLoginForm } from "@/components/phone-login-form";
 import { auth } from "@/firebase/firebase_setup";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
@@ -18,8 +18,8 @@ import {
 import { saveUserDetailsToFirestore } from "@/utils/userRegistration";
 import { isTermsAccepted } from "@/utils/terms";
 import { useAddConnectionMutation } from "@/redux/api";
-// import { doc, getDoc } from "firebase/firestore";
-// import { db } from "@/firebase/firebase_setup";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "@/firebase/firebase_setup";
 import { toast } from "sonner";
 
 export function SignupForm({
@@ -36,7 +36,7 @@ export function SignupForm({
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  // const [showPhoneSignup, setShowPhoneSignup] = useState(false); // Phone signup commented out for now
+  const [showPhoneSignup, setShowPhoneSignup] = useState(false);
   const [addConnection] = useAddConnectionMutation();
 
   // Capture ?code=... or ?recipientId=... from URL on mount and persist for post-signup
@@ -83,22 +83,21 @@ export function SignupForm({
     }
   };
 
-  // Phone signup commented out for now
-  // const handlePhoneSignupSuccess = async () => {
-  //   const user = auth.currentUser;
-  //   if (user) {
-  //     try {
-  //       const userDocRef = doc(db, "applicants", user.uid);
-  //       const userDoc = await getDoc(userDocRef);
-  //       if (!userDoc.exists()) {
-  //         await saveUserDetailsToFirestore(user);
-  //       }
-  //     } catch (e) {
-  //       console.error("Error saving user details after phone signup:", e);
-  //     }
-  //   }
-  //   await postSignupCheck();
-  // };
+  const handlePhoneSignupSuccess = async () => {
+    const user = auth.currentUser;
+    if (user) {
+      try {
+        const userDocRef = doc(db, "applicants", user.uid);
+        const userDoc = await getDoc(userDocRef);
+        if (!userDoc.exists()) {
+          await saveUserDetailsToFirestore(user);
+        }
+      } catch (e) {
+        console.error("Error saving user details after phone signup:", e);
+      }
+    }
+    await postSignupCheck();
+  };
 
   const handleEmailSignup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -161,16 +160,12 @@ export function SignupForm({
     try {
       const userCredential = await loginWithGoogle();
 
-      // Save user details to Firestore before proceeding
       await saveUserDetailsToFirestore(userCredential.user);
 
       toast.success("Account created successfully!");
       await postSignupCheck();
     } catch (err: any) {
       console.error("Google signup failed:", err);
-      console.error("Error code:", err?.code);
-      console.error("Error message:", err?.message);
-
       const errorCode = err?.code || "";
       const errorMessage = err?.message || "";
 
@@ -178,11 +173,9 @@ export function SignupForm({
         toast.error("Signup cancelled");
       } else if (errorCode.includes("popup-blocked")) {
         toast.error("Popup was blocked. Please allow popups for this site");
-      } else if (
-        errorCode.includes("account-exists-with-different-credential")
-      ) {
+      } else if (errorCode.includes("account-exists-with-different-credential")) {
         toast.error(
-          "An account already exists with this email using a different sign-in method"
+          "This email is already registered. Please log in with your existing method instead."
         );
       } else if (errorCode.includes("network-request-failed")) {
         toast.error("Network error. Please check your connection");
@@ -197,7 +190,6 @@ export function SignupForm({
 
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
-      {/* Phone signup commented out for now
       {showPhoneSignup ? (
         <>
           <Button
@@ -212,13 +204,9 @@ export function SignupForm({
           <PhoneLoginForm onSuccess={handlePhoneSignupSuccess} />
         </>
       ) : (
-      */}
       <form onSubmit={handleEmailSignup}>
         <div className="grid gap-6">
           <div className="flex flex-col gap-4">
-            {/* <Button variant="outline" className="w-full">
-              Sign up with Apple
-            </Button> */}
             <Button
               variant="outline"
               className="w-full"
@@ -278,7 +266,6 @@ export function SignupForm({
               {isLoading ? "Creating Account..." : "Create Account"}
             </Button>
           </div>
-          {/* Phone signup commented out for now
           <div className="relative text-center">
             <span className="bg-card text-muted-foreground text-xs px-2">or</span>
           </div>
@@ -290,10 +277,9 @@ export function SignupForm({
           >
             Sign up with phone number
           </Button>
-          */}
         </div>
       </form>
-      {/* )} */}
+      )}
     </div>
   );
 }

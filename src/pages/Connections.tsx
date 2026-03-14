@@ -300,28 +300,19 @@ const Connections = () => {
   // verify document → open iframe overlay (no popup). Supports main docs and children's Aadhaar.
   const handleVerifyDocument = async (documentType: DocumentType | ChildAadhaarType) => {
     const currentUser = auth.currentUser;
-    if (!currentUser?.email) return toast.error("User not authenticated");
+    if (!currentUser) return toast.error("User not authenticated");
 
-    try {
-      const q = query(collection(db, "applicants"), where("email", "==", currentUser.email));
-      const querySnapshot = await getDocs(q);
-      if (querySnapshot.empty) return toast.error("User data not found");
+    const userId = currentUser.uid;
+    const productCode = getProductCode(documentType);
+    const origin = window.location.origin;
 
-      const userId = auth.currentUser?.uid || "";
-      const productCode = getProductCode(documentType);
-      const origin = window.location.origin;
+    const verificationUrl =
+      `${IVERIFI_ORIGIN}/user/home?client_id=iverifi&api_key=iverifi&process=U` +
+      `&productCode=${encodeURIComponent(productCode)}` +
+      `&user_id=${encodeURIComponent(userId)}` +
+      `&redirect_origin=${encodeURIComponent(origin)}`;
 
-      const verificationUrl =
-        `${IVERIFI_ORIGIN}/user/home?client_id=iverifi&api_key=iverifi&process=U` +
-        `&productCode=${encodeURIComponent(productCode)}` +
-        `&user_id=${encodeURIComponent(userId)}` +
-        `&redirect_origin=${encodeURIComponent(origin)}`;
-
-      setIframeUrl(verificationUrl);
-    } catch (error) {
-      console.error("Error fetching user data:", error);
-      toast.error("Failed to get user data");
-    }
+    setIframeUrl(verificationUrl);
   };
 
   // const navigateToCleanConnections = () => navigate("/connections", { replace: true });

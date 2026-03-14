@@ -1,10 +1,12 @@
-import { useState, useRef, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { sendPhoneOtp, confirmPhoneCode, type ConfirmationResult } from "@/firebase_auth_service";
+import { signInWithFirebaseCustomToken } from "@/firebase_auth_service";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { auth } from "@/firebase/firebase_setup";
+import { syncApplicantProfileToBackend } from "@/utils/syncApplicantProfile";
 
 const COUNTRY_CODES: { code: string; label: string }[] = [
   { code: "+91", label: "India (+91)" },
@@ -34,20 +36,14 @@ export function PhoneLoginForm({
   const [countryCode, setCountryCode] = useState("+91");
   const [phoneDigits, setPhoneDigits] = useState("");
   const [otp, setOtp] = useState("");
-  const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
+  const [sessionId, setSessionId] = useState<string | null>(null);
   const [isSendingOtp, setIsSendingOtp] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    return () => {
-      try {
-        (window as unknown as { __recaptchaVerifier?: { clear?: () => void } }).__recaptchaVerifier?.clear?.();
-      } catch {
-        // ignore
-      }
-    };
-  }, []);
+  const baseUrl =
+    typeof import.meta !== "undefined" && import.meta.env?.VITE_BASE_URL
+      ? String(import.meta.env.VITE_BASE_URL).replace(/\/$/, "")
+      : "";
 
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -56,31 +52,34 @@ export function PhoneLoginForm({
       toast.error("Enter a valid phone number");
       return;
     }
-    if (!containerRef.current) {
-      toast.error("Verification not ready. Please refresh.");
+    if (!baseUrl) {
+      toast.error("Server is not configured. Please try again later.");
       return;
     }
     setIsSendingOtp(true);
     try {
-      const freshContainer = document.createElement("div");
-      containerRef.current.innerHTML = "";
-      containerRef.current.appendChild(freshContainer);
-      const result = await sendPhoneOtp(raw, freshContainer);
-      setConfirmationResult(result);
+      const res = await fetch(`${baseUrl}/users/phone/send-otp`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ phone: raw }),
+      });
+      const json = await res.json().catch(() => null);
+      if (!res.ok || !json || json.hasError || !json.data?.sessionId) {
+        const msg =
+          json?.message ||
+          (res.status >= 500
+            ? "Failed to send OTP. Please try again."
+            : "Could not send OTP. Check the number and try again.");
+        throw new Error(msg);
+      }
+      setSessionId(json.data.sessionId as string);
       toast.success("Verification code sent to your phone");
       setOtp("");
     } catch (err: unknown) {
-      const code = (err as { code?: string })?.code || "";
       const msg = (err as { message?: string })?.message || "";
-      if (code.includes("too-many-requests")) {
-        toast.error("Too many attempts. Try again later.");
-      } else if (code.includes("invalid-phone-number")) {
-        toast.error("Invalid phone number. Use country code + number.");
-      } else if (msg) {
-        toast.error(msg);
-      } else {
-        toast.error("Failed to send code. Try again.");
-      }
+      toast.error(msg || "Failed to send code. Try again.");
     } finally {
       setIsSendingOtp(false);
     }
@@ -88,7 +87,7 @@ export function PhoneLoginForm({
 
   const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!confirmationResult || !otp.trim()) {
+    if (!sessionId || !otp.trim()) {
       toast.error("Enter the 6-digit code");
       return;
     }
@@ -97,17 +96,54 @@ export function PhoneLoginForm({
       toast.error("Enter the 6-digit code from SMS");
       return;
     }
+    if (!baseUrl) {
+      toast.error("Server is not configured. Please try again later.");
+      return;
+    }
     setIsVerifying(true);
     try {
-      await confirmPhoneCode(confirmationResult, code);
+      const raw = toE164(countryCode, phoneDigits);
+      const res = await fetch(`${baseUrl}/users/phone/verify-otp`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ sessionId, otp: code, phone: raw }),
+      });
+      const json = await res.json().catch(() => null);
+      if (!res.ok || !json || json.hasError || !json.data?.token) {
+        const msg =
+          json?.message ||
+          (res.status >= 500
+            ? "Verification failed. Please try again."
+            : "Invalid or expired code. Request a new one.");
+        throw new Error(msg);
+      }
+
+      const token = json.data.token as string;
+      await signInWithFirebaseCustomToken(token);
+
+      // Ensure Firebase auth.currentUser is loaded
+      await auth.currentUser?.getIdToken(true);
+
+      // Persist phone into applicant profile (and link it to this Firebase user).
+      try {
+        await syncApplicantProfileToBackend({
+          phone: raw,
+          phoneNumber: raw,
+        });
+      } catch (syncErr) {
+        console.warn("Failed to sync phone to applicant profile after phone login:", syncErr);
+      }
+
       toast.success("Signed in successfully");
       onSuccess();
     } catch (err: unknown) {
-      const codeErr = (err as { code?: string })?.code || "";
-      if (codeErr.includes("invalid-verification-code")) {
+      const msg = (err as { message?: string })?.message || "";
+      if (msg.toLowerCase().includes("invalid") || msg.toLowerCase().includes("expired")) {
         toast.error("Invalid or expired code. Request a new one.");
       } else {
-        toast.error("Verification failed. Try again.");
+        toast.error(msg || "Verification failed. Try again.");
       }
     } finally {
       setIsVerifying(false);
@@ -116,9 +152,7 @@ export function PhoneLoginForm({
 
   return (
     <div className={cn("flex flex-col gap-4", className)}>
-      <div id="phone-recaptcha-container" ref={containerRef} aria-hidden className="hidden" />
-
-      {!confirmationResult ? (
+      {!sessionId ? (
         <form onSubmit={handleSendOtp} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="phone-country">Country</Label>
@@ -178,7 +212,7 @@ export function PhoneLoginForm({
               className="flex-1"
               disabled={isVerifying}
               onClick={() => {
-                setConfirmationResult(null);
+                setSessionId(null);
                 setOtp("");
               }}
             >

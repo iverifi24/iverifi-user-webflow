@@ -4,18 +4,20 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { auth, db } from "@/firebase/firebase_setup";
+import { db } from "@/firebase/firebase_setup";
 import { doc, setDoc } from "firebase/firestore";
 import { toast } from "sonner";
 import { getRecipientIdFromStorage } from "@/utils/connectionFlow";
 import { syncApplicantProfileToBackend } from "@/utils/syncApplicantProfile";
+import { useAuth } from "@/context/auth_context";
+import { LoadingScreen } from "@/components/loading-screen";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_REGEX = /^[0-9]{10}$/;
 
 export default function ProfileCompletion() {
   const navigate = useNavigate();
-  const user = auth.currentUser;
+  const { user, loading } = useAuth();
   const isPhoneUser = Boolean(user?.phoneNumber && !user?.email);
 
   const [firstName, setFirstName] = useState("");
@@ -24,8 +26,11 @@ export default function ProfileCompletion() {
   const [email, setEmail] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  if (loading) {
+    return <LoadingScreen variant="fullPage" />;
+  }
+
   if (!user) {
-    navigate("/login", { replace: true });
     return null;
   }
 
@@ -60,13 +65,6 @@ export default function ProfileCompletion() {
     setIsSubmitting(true);
 
     try {
-      const currentUser = auth.currentUser;
-      if (!currentUser) {
-        toast.error("User not authenticated");
-        navigate("/login");
-        return;
-      }
-
       if (isPhoneUser) {
         await syncApplicantProfileToBackend({
           firstName: firstName.trim(),
@@ -84,14 +82,13 @@ export default function ProfileCompletion() {
       }
 
       await setDoc(
-        doc(db, "applicants", currentUser.uid),
+        doc(db, "applicants", user.uid),
         {
-          email: isPhoneUser ? email.trim() : currentUser.email ?? "",
+          email: isPhoneUser ? email.trim() : user.email ?? "",
           profile_completion_level: 2,
         },
         { merge: true }
       );
-
       toast.success("Profile updated successfully!");
 
       const pendingId = getRecipientIdFromStorage();

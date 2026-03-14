@@ -42,13 +42,11 @@ const ProtectedRoute = ({ children }: { children: JSX.Element }) => {
     }
   }, [user, loading, location.pathname, isAllowedPath]);
 
-  // CRITICAL: Check allowed paths FIRST, before any other checks
-  // This prevents any redirects for onboarding flow
+  // CRITICAL: Check allowed paths FIRST, before any other checks.
+  // For onboarding routes like /complete-profile and /accept-terms, we deliberately
+  // do NOT gate on auth state here to avoid "instant logout" feelings while Firebase
+  // is still restoring the session or immediately after phone/signup flows.
   if (isAllowedPath) {
-    // Don't even check loading or user for allowed paths
-    if (!user && !loading) {
-      return <Navigate to="/login" />;
-    }
     return children;
   }
 

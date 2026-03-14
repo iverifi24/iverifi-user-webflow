@@ -94,6 +94,12 @@ export const api = createApi({
       }),
       invalidatesTags: ["connections", "activity"],
     }),
+    deleteProfile: builder.mutation<{ message: string }, void>({
+      query: () => ({
+        url: "/users/deleteProfile",
+        method: "POST",
+      }),
+    }),
     login: builder.mutation({
       query: (data) => ({ url: "/admin/login", method: "POST", body: data }),
     }),
@@ -304,6 +310,7 @@ export const {
   useGetMyActivityQuery,
   useUpdateCredentialsRequestMutation,
   useUpdateCheckInStatusMutation,
+  useDeleteProfileMutation,
   useAddConnectionMutation,
   useLoginMutation,
   useSignupMutation,
