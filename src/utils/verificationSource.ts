@@ -32,5 +32,10 @@ export function getVerificationSource(documentType: string | undefined): string 
 
 /** Whether we have a logo for this verifier. */
 export function verifierHasLogo(verifierName: string): boolean {
-  return verifierName === "DigiLocker" || verifierName === "Parivahan" || verifierName === "e-Filing";
+  return (
+    verifierName === "DigiLocker" ||
+    verifierName === "Parivahan" ||
+    verifierName === "e-Filing" ||
+    verifierName === "Passport Seva"
+  );
 }

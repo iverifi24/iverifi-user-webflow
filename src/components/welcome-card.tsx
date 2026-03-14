@@ -9,38 +9,37 @@ interface WelcomeCardProps {
 }
 
 /**
- * Hero welcome card: gradient teal/green, greeting, tagline, and Scan QR Code CTA.
+ * Welcome card: solid teal, formal copy, Scan QR CTA. DigiLocker-level tone.
  */
 export function WelcomeCard({
   userName,
   onScanQR,
   className = "",
 }: WelcomeCardProps) {
-  const greeting = userName ? `Welcome back, ${userName}!` : "Welcome back!";
+  const greeting = userName ? `Welcome back, ${userName}` : "Welcome back";
 
   return (
     <div
       className={
-        "rounded-2xl bg-gradient-to-b from-teal-600 to-emerald-500 p-6 shadow-lg shadow-teal-900/10 " +
-        className
+        "rounded-lg border border-teal-200 bg-teal-600 p-6 shadow-md " + className
       }
     >
-      <h2 className="text-xl font-bold text-white sm:text-2xl">{greeting}</h2>
-      <p className="mt-1 text-sm text-white/90 sm:text-base">
-        Manage your verified documents securely.
+      <h2 className="text-xl font-semibold text-white sm:text-2xl">{greeting}</h2>
+      <p className="mt-1.5 text-sm text-white/90 sm:text-base">
+        Your verified documents are stored securely.
       </p>
-      <p className="mt-2 text-sm text-white/80 sm:text-base">
-        Scan a QR code at your hotel to share your documents with them.
+      <p className="mt-1.5 text-sm text-white/80 sm:text-base">
+        Scan a QR code at the property to share your documents.
       </p>
-      <div className="mt-6 flex flex-wrap gap-3">
+      <div className="mt-5 flex flex-wrap gap-3">
         {onScanQR && (
           <Button
             type="button"
             variant="secondary"
-            className="h-auto rounded-xl bg-white px-4 py-3 text-teal-700 shadow-sm hover:bg-white/95"
+            className="h-auto rounded-lg bg-white px-4 py-2.5 text-teal-700 shadow-sm hover:bg-white/95"
             onClick={onScanQR}
           >
-            <QrCode className="mr-2 h-5 w-5" />
+            <QrCode className="mr-2 h-4 w-4" />
             Scan QR Code
           </Button>
         )}

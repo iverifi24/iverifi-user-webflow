@@ -3,9 +3,8 @@ import { Badge } from "@/components/ui/badge";
 import { DigiLockerIcon } from "@/components/digilocker-icon";
 import { ParivahanIcon } from "@/components/parivahan-icon";
 import { IncomeTaxIcon } from "@/components/income-tax-icon";
-import {
-  getVerificationSource,
-} from "@/utils/verificationSource";
+import { PassportSevaIcon } from "@/components/passport-seva-icon";
+import { getVerificationSource } from "@/utils/verificationSource";
 
 interface VerifierBadgeProps {
   /** document_type from credential (e.g. AADHAAR_CARD, PAN_CARD, DRIVING_LICENSE). */
@@ -28,7 +27,7 @@ export function VerifierBadge({
 }: VerifierBadgeProps) {
   const source = getVerificationSource(documentType);
 
-  // PAN → Income Tax / e-Filing icon; DL → Parivahan icon; Aadhaar → DigiLocker icon
+  // PAN → e-Filing; DL → Parivahan; Aadhaar → DigiLocker; Passport → Passport Seva
   const VerifierLogo =
     source === "e-Filing"
       ? () => <IncomeTaxIcon size={iconSize} className="shrink-0 opacity-90" />
@@ -36,7 +35,9 @@ export function VerifierBadge({
         ? () => <ParivahanIcon size={iconSize} className="shrink-0 opacity-90" />
         : source === "DigiLocker"
           ? () => <DigiLockerIcon size={iconSize} className="shrink-0 opacity-90" />
-          : null;
+          : source === "Passport Seva"
+            ? () => <PassportSevaIcon size={iconSize} className="shrink-0 opacity-90" />
+            : null;
 
   return (
     <Badge className={`bg-teal-600 text-white gap-1 border-0 shadow-sm px-2 py-0.5 ${className}`}>

@@ -12,8 +12,7 @@ import {
 } from "@/redux/api";
 import { determineConnectionType, isValidQRCode } from "@/utils/qr-code-utils";
 import { addDays, format } from "date-fns";
-import { CheckCircle, Share2, Trash2, Loader2, IdCard, FileText, Receipt, Car, Globe, X } from "lucide-react";
-import type { ComponentType } from "react";
+import { CheckCircle, Share2, Trash2, Loader2, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { clearPendingRecipientId } from "@/utils/connectionFlow";
@@ -25,6 +24,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { VerifierBadge } from "@/components/verifier-badge";
+import { DocumentTypeIcon } from "@/components/document-type-icon";
 import { WelcomeCard } from "@/components/welcome-card";
 import { QRScannerModal } from "@/components/qr-scanner-modal";
 import { getApplicantProfileFromBackend } from "@/utils/syncApplicantProfile";
@@ -72,18 +72,7 @@ const DOC_TYPE_SUBTITLE: Record<string, string> = {
 const getDocSubtitle = (docType: string): string =>
   DOC_TYPE_SUBTITLE[docType] ?? "Verified";
 
-/** Icon component per document type for card left-side icon */
-const DOC_ICON_MAP: Record<string, ComponentType<{ className?: string }>> = {
-  DRIVING_LICENSE: Car,
-  AADHAAR_CARD: IdCard,
-  PAN_CARD: Receipt,
-  PASSPORT: Globe,
-  "Child 1 Aadhaar": IdCard,
-  "Child 2 Aadhaar": IdCard,
-  "Child 3 Aadhaar": IdCard,
-};
-
-/** Background color for document icon box (Tailwind classes) */
+/** Background color for document icon box (Tailwind classes). Official logos shown via DocumentTypeIcon. */
 const DOC_ICON_BG: Record<string, string> = {
   DRIVING_LICENSE: "bg-blue-100 text-blue-700",
   AADHAAR_CARD: "bg-rose-100 text-rose-700",
@@ -446,7 +435,7 @@ const Connections = () => {
 
   if (isCredentialsLoading || isRecipientLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-teal-50/50 to-white p-4 sm:p-6">
+      <div className="min-h-screen bg-slate-50 p-4 sm:p-6">
         <div className="max-w-2xl mx-auto">
           <LoadingScreen variant="cards" cardCount={4} showHeaderSkeletons />
         </div>
@@ -455,7 +444,7 @@ const Connections = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-teal-50/50 via-white to-slate-50/30 p-4 sm:p-6">
+    <div className="min-h-screen bg-slate-50 p-4 sm:p-6">
       <div className="max-w-2xl mx-auto space-y-6">
       {/* Header */}
       {/* <div className="flex items-center justify-between">
@@ -507,10 +496,10 @@ const Connections = () => {
 
       {/* Check In / Status card */}
       {code && (
-        <Card className="rounded-2xl border-teal-100 shadow-md overflow-hidden">
+        <Card className="rounded-lg border border-teal-100 shadow-sm overflow-hidden">
           <CardContent className="p-4 sm:p-6">
             {hasCredentials === false && (
-              <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-4 text-center">
+              <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 mb-4 text-center">
                 Verify at least one document to check in at{" "}
                 <span className="font-bold text-amber-900">
                   {recipientData?.data?.requests?.[0]?.recipients?.name ||
@@ -521,7 +510,7 @@ const Connections = () => {
             )}
             <div className="flex flex-col gap-3">
               <Button
-                className="flex-1 h-12 text-base font-semibold rounded-xl bg-teal-600 hover:bg-teal-700 text-white shadow-md shadow-teal-200 disabled:bg-slate-300 disabled:shadow-none disabled:cursor-not-allowed transition-all"
+                className="flex-1 h-12 text-base font-semibold rounded-lg bg-teal-600 hover:bg-teal-700 text-white shadow-sm disabled:bg-slate-300 disabled:shadow-none disabled:cursor-not-allowed transition-all"
                 onClick={() => handleCheckInOut("checkin")}
                 disabled={isCheckInDisabled}
               >
@@ -537,7 +526,7 @@ const Connections = () => {
                   : "Check In"}
               </Button>
               {currentConnection?.check_in_status === "pending" && !currentConnection?.check_in_time && (
-                <div className="rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 text-center">
+                <div className="rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 text-center">
                   <p className="text-sm font-medium text-amber-800">
                     Your check-in is pending. The hotel will approve it shortly.
                   </p>
@@ -562,10 +551,10 @@ const Connections = () => {
 
       {/* Document cards section label */}
       <div className="pt-2">
-        <h3 className="text-lg font-semibold text-slate-800 mb-1">Your documents</h3>
+        <h3 className="text-lg font-semibold text-slate-800 mb-1">Verified documents</h3>
         {code && (
           <p className="text-sm text-slate-500">
-            Verify and share to the property
+            Verify and share with the property
           </p>
         )}
       </div>
@@ -575,7 +564,6 @@ const Connections = () => {
         {DOCUMENT_TYPES.map((docType) => {
           const isVerified = !!verifiedCredentialsMap[docType];
           const isShareDisabled = !isVerified || isUpdating;
-          const DocIcon = DOC_ICON_MAP[docType] ?? FileText;
           const iconBg = DOC_ICON_BG[docType] ?? "bg-slate-100 text-slate-600";
           const title = docType.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
           const subtitle = getDocSubtitle(docType);
@@ -583,7 +571,7 @@ const Connections = () => {
           return (
             <Card
               key={docType}
-              className={`rounded-2xl border-2 transition-all duration-200 hover:shadow-lg ${
+              className={`rounded-lg border transition-all duration-200 hover:shadow-md ${
                 isVerified
                   ? "border-teal-200 bg-white shadow-sm hover:border-teal-300"
                   : "border-slate-200 bg-white shadow-sm hover:border-slate-300"
@@ -593,8 +581,8 @@ const Connections = () => {
             >
               <CardContent className="p-4 sm:p-5">
                 <div className="flex gap-4">
-                  <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${iconBg}`}>
-                    <DocIcon className="h-6 w-6" />
+                  <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-lg ${iconBg}`}>
+                    <DocumentTypeIcon documentType={docType} className="text-slate-700" />
                   </div>
                   <div className="min-w-0 flex-1">
                     <CardTitle className="text-base font-semibold text-slate-800">
@@ -618,7 +606,7 @@ const Connections = () => {
                       {code ? (
                         <Button
                           size="default"
-                          className="min-w-0 flex-1 rounded-xl bg-teal-600 hover:bg-teal-700 py-2.5 text-sm font-medium inline-flex w-full items-center justify-center"
+                          className="min-w-0 flex-1 rounded-lg bg-teal-600 hover:bg-teal-700 py-2.5 text-sm font-medium inline-flex w-full items-center justify-center"
                           disabled={isShareDisabled}
                           onClick={(e) => {
                             e.stopPropagation();
@@ -626,12 +614,12 @@ const Connections = () => {
                           }}
                         >
                           <Share2 className="h-4 w-4 mr-1.5" />
-                          Share
+                          Share with property
                         </Button>
                       ) : (
                         <Button
                           size="default"
-                          className="min-w-0 flex-1 rounded-xl bg-teal-600 hover:bg-teal-700 py-2.5 text-sm font-medium text-white inline-flex w-full items-center justify-center"
+                          className="min-w-0 flex-1 rounded-lg bg-teal-600 hover:bg-teal-700 py-2.5 text-sm font-medium text-white inline-flex w-full items-center justify-center"
                           onClick={(e) => {
                             e.stopPropagation();
                             navigate("/documents");
@@ -644,7 +632,7 @@ const Connections = () => {
                         type="button"
                         size="sm"
                         variant="outline"
-                        className="shrink-0 rounded-xl text-slate-600 hover:text-red-600 hover:border-red-200 hover:bg-red-50 inline-flex items-center justify-center"
+                        className="shrink-0 rounded-lg text-slate-600 hover:text-red-600 hover:border-red-200 hover:bg-red-50 inline-flex items-center justify-center"
                         onClick={(e) => {
                           e.stopPropagation();
                           const cred = verifiedCredentialsMap[docType];
@@ -659,7 +647,7 @@ const Connections = () => {
                   ) : (
                     <Button
                       variant="outline"
-                      className="w-full rounded-xl border-teal-300 text-teal-700 font-medium hover:bg-teal-50 hover:border-teal-400"
+                      className="w-full rounded-lg border-teal-300 text-teal-700 font-medium hover:bg-teal-50 hover:border-teal-400"
                       onClick={(e) => {
                         e.stopPropagation();
                         handleVerifyDocument(docType);
@@ -687,14 +675,13 @@ const Connections = () => {
             const isVerified = !!verifiedCredentialsMap[docType];
             const isShareDisabled = !isVerified || isUpdating;
             const childLabel = docType.replace(" Aadhaar", "");
-            const DocIcon = DOC_ICON_MAP[docType] ?? IdCard;
             const iconBg = DOC_ICON_BG[docType] ?? "bg-rose-100 text-rose-700";
             const subtitle = getDocSubtitle(docType);
 
             return (
               <Card
                 key={docType}
-                className={`rounded-2xl border-2 transition-all duration-200 hover:shadow-lg ${
+                className={`rounded-lg border transition-all duration-200 hover:shadow-md ${
                   isVerified
                     ? "border-teal-200 bg-white shadow-sm hover:border-teal-300"
                     : "border-slate-200 bg-white shadow-sm hover:border-slate-300"
@@ -704,8 +691,8 @@ const Connections = () => {
               >
                 <CardContent className="p-4 sm:p-5">
                   <div className="flex gap-4">
-                    <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${iconBg}`}>
-                      <DocIcon className="h-6 w-6" />
+                    <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-lg ${iconBg}`}>
+                      <DocumentTypeIcon documentType={docType} className="text-slate-700" />
                     </div>
                     <div className="min-w-0 flex-1">
                       <CardTitle className="text-base font-semibold text-slate-800">
@@ -729,7 +716,7 @@ const Connections = () => {
                         {code ? (
                           <Button
                             size="default"
-                            className="min-w-0 flex-1 rounded-xl bg-teal-600 hover:bg-teal-700 py-2.5 text-sm font-medium inline-flex w-full items-center justify-center"
+                            className="min-w-0 flex-1 rounded-lg bg-teal-600 hover:bg-teal-700 py-2.5 text-sm font-medium inline-flex w-full items-center justify-center"
                             disabled={isShareDisabled}
                             onClick={(e) => {
                               e.stopPropagation();
@@ -737,12 +724,12 @@ const Connections = () => {
                             }}
                           >
                             <Share2 className="h-4 w-4 mr-1.5" />
-                            Share
+                            Share with property
                           </Button>
                         ) : (
                           <Button
                             size="default"
-                            className="min-w-0 flex-1 rounded-xl bg-teal-600 hover:bg-teal-700 py-2.5 text-sm font-medium text-white inline-flex w-full items-center justify-center"
+                            className="min-w-0 flex-1 rounded-lg bg-teal-600 hover:bg-teal-700 py-2.5 text-sm font-medium text-white inline-flex w-full items-center justify-center"
                             onClick={(e) => {
                               e.stopPropagation();
                               navigate("/documents");
@@ -755,7 +742,7 @@ const Connections = () => {
                           type="button"
                           size="sm"
                           variant="outline"
-                          className="shrink-0 rounded-xl text-slate-600 hover:text-red-600 hover:border-red-200 hover:bg-red-50 inline-flex items-center justify-center"
+                          className="shrink-0 rounded-lg text-slate-600 hover:text-red-600 hover:border-red-200 hover:bg-red-50 inline-flex items-center justify-center"
                           onClick={(e) => {
                             e.stopPropagation();
                             const cred = verifiedCredentialsMap[docType];
@@ -770,7 +757,7 @@ const Connections = () => {
                     ) : (
                       <Button
                         variant="outline"
-                        className="w-full rounded-xl border-teal-300 text-teal-700 font-medium hover:bg-teal-50 hover:border-teal-400"
+                        className="w-full rounded-lg border-teal-300 text-teal-700 font-medium hover:bg-teal-50 hover:border-teal-400"
                         onClick={(e) => {
                           e.stopPropagation();
                           handleVerifyDocument(docType);
@@ -835,10 +822,10 @@ const Connections = () => {
       {/* Iframe Overlay */}
       {iframeUrl && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-2">
-          <div className="relative bg-white w-full max-w-3xl h-[88vh] rounded-2xl shadow-xl overflow-hidden">
+          <div className="relative bg-white w-full max-w-3xl h-[88vh] rounded-lg shadow-lg overflow-hidden">
             <button
               aria-label="Close"
-              className="absolute top-3 right-3 inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm hover:bg-teal-50 hover:border-teal-200 hover:text-teal-800 transition-colors"
+              className="absolute top-3 right-3 inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm hover:bg-teal-50 hover:border-teal-200 hover:text-teal-800 transition-colors"
               onClick={async () => {
                 setIframeUrl(null);
                 // setVerifyingDocType(null);
