@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LoadingScreen } from "@/components/loading-screen";
-import { auth, db } from "@/firebase/firebase_setup";
+import { auth } from "@/firebase/firebase_setup";
 import {
   useAddConnectionMutation,
   useGetCredentialsQuery,
@@ -12,7 +12,6 @@ import {
 } from "@/redux/api";
 import { determineConnectionType, isValidQRCode } from "@/utils/qr-code-utils";
 import { addDays, format } from "date-fns";
-import { collection, getDocs, query, where } from "firebase/firestore";
 import { CheckCircle, ExternalLink, Share2, X, Trash2, Loader2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
