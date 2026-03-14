@@ -22,7 +22,6 @@ const ProtectedLayout = () => {
             </div>
             <div className="hidden flex-col justify-center md:flex">
               <span className="text-sm font-semibold text-slate-800">iVerifi</span>
-              <span className="text-xs text-slate-500">Your Digital Identity</span>
             </div>
           </div>
           <div className="flex items-center shrink-0">

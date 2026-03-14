@@ -1,22 +1,19 @@
 import { Button } from "@/components/ui/button";
-import { QrCode, FilePlus } from "lucide-react";
+import { QrCode } from "lucide-react";
 
 interface WelcomeCardProps {
   /** User's first name for "Welcome back, {name}!" */
   userName?: string;
   onScanQR?: () => void;
-  onAddDocument?: () => void;
   className?: string;
 }
 
 /**
- * Hero welcome card matching the mobile app: gradient teal/green,
- * greeting, tagline, and primary CTAs (Scan QR Code, Add Document).
+ * Hero welcome card: gradient teal/green, greeting, tagline, and Scan QR Code CTA.
  */
 export function WelcomeCard({
   userName,
   onScanQR,
-  onAddDocument,
   className = "",
 }: WelcomeCardProps) {
   const greeting = userName ? `Welcome back, ${userName}!` : "Welcome back!";
@@ -32,6 +29,9 @@ export function WelcomeCard({
       <p className="mt-1 text-sm text-white/90 sm:text-base">
         Manage your verified documents securely.
       </p>
+      <p className="mt-2 text-sm text-white/80 sm:text-base">
+        Scan a QR code at your hotel to share your documents with them.
+      </p>
       <div className="mt-6 flex flex-wrap gap-3">
         {onScanQR && (
           <Button
@@ -42,16 +42,6 @@ export function WelcomeCard({
           >
             <QrCode className="mr-2 h-5 w-5" />
             Scan QR Code
-          </Button>
-        )}
-        {onAddDocument && (
-          <Button
-            type="button"
-            className="h-auto rounded-xl border-2 border-white/80 bg-white/20 px-4 py-3 text-white hover:bg-white/30"
-            onClick={onAddDocument}
-          >
-            <FilePlus className="mr-2 h-5 w-5" />
-            Add Document
           </Button>
         )}
       </div>

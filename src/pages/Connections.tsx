@@ -12,7 +12,7 @@ import {
 } from "@/redux/api";
 import { determineConnectionType, isValidQRCode } from "@/utils/qr-code-utils";
 import { addDays, format } from "date-fns";
-import { CheckCircle, Share2, Trash2, Loader2, IdCard, FileText, Briefcase, Globe, X } from "lucide-react";
+import { CheckCircle, Share2, Trash2, Loader2, IdCard, FileText, Receipt, Car, Globe, X } from "lucide-react";
 import type { ComponentType } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
@@ -26,8 +26,11 @@ import {
 } from "@/components/ui/dialog";
 import { VerifierBadge } from "@/components/verifier-badge";
 import { WelcomeCard } from "@/components/welcome-card";
+import { QRScannerModal } from "@/components/qr-scanner-modal";
 import { getApplicantProfileFromBackend } from "@/utils/syncApplicantProfile";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 const DOCUMENT_TYPES = ["DRIVING_LICENSE", "AADHAAR_CARD", "PAN_CARD", "PASSPORT"] as const;
 type DocumentType = (typeof DOCUMENT_TYPES)[number];
@@ -71,9 +74,9 @@ const getDocSubtitle = (docType: string): string =>
 
 /** Icon component per document type for card left-side icon */
 const DOC_ICON_MAP: Record<string, ComponentType<{ className?: string }>> = {
-  DRIVING_LICENSE: Briefcase,
+  DRIVING_LICENSE: Car,
   AADHAAR_CARD: IdCard,
-  PAN_CARD: FileText,
+  PAN_CARD: Receipt,
   PASSPORT: Globe,
   "Child 1 Aadhaar": IdCard,
   "Child 2 Aadhaar": IdCard,
@@ -137,6 +140,9 @@ const Connections = () => {
   // welcome card: first name for "Welcome back, {name}!"
   const [welcomeFirstName, setWelcomeFirstName] = useState<string>("");
 
+  // QR scanner modal (open camera when "Scan QR Code" is clicked)
+  const [scannerOpen, setScannerOpen] = useState(false);
+
   // code from query OR path (no normalization)
   const codeFromQuery = searchParams.get("code") || null;
   const codeFromPath = (params.code as string) || null;
@@ -172,6 +178,8 @@ const Connections = () => {
   const [deleteCredential, { isLoading: isDeleting }] = useDeleteCredentialMutation();
 
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; document_type: string } | null>(null);
+  /** Type-to-confirm for delete: user must type "DELETE" to enable the Delete button */
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
 
   /** Prevent double-submit: stays true until API settles; only cleared on error so user can retry */
   const [isCheckInOutInFlight, setCheckInOutInFlight] = useState(false);
@@ -305,14 +313,24 @@ const Connections = () => {
 
   const handleDeleteDoc = async () => {
     if (!deleteTarget) return;
+    if (deleteConfirmText.trim().toUpperCase() !== "DELETE") return;
     try {
       await deleteCredential({ credential_id: deleteTarget.id }).unwrap();
       toast.success("Document deleted successfully");
       setDeleteTarget(null);
+      setDeleteConfirmText("");
       await refetchCredentials();
       if (code) await refetchRecipient();
     } catch (e: any) {
       toast.error(e?.data?.message || e?.message || "Failed to delete document");
+    }
+  };
+
+  /** Reset type-to-confirm when dialog closes */
+  const handleDeleteDialogOpenChange = (open: boolean) => {
+    if (!open) {
+      setDeleteTarget(null);
+      setDeleteConfirmText("");
     }
   };
 
@@ -451,11 +469,23 @@ const Connections = () => {
 
       {/* Welcome hero when no venue code (mobile-style) */}
       {!code && (
-        <WelcomeCard
-          userName={welcomeFirstName || undefined}
-          onScanQR={() => navigate("/connections")}
-          onAddDocument={() => navigate("/documents")}
-        />
+        <>
+          <WelcomeCard
+            userName={welcomeFirstName || undefined}
+            onScanQR={() => setScannerOpen(true)}
+          />
+          <QRScannerModal
+            open={scannerOpen}
+            onOpenChange={setScannerOpen}
+            validateCode={isValidQRCode}
+            onScanSuccess={(scannedCode) => {
+              setScannerOpen(false);
+              const path = location.pathname || "/";
+              const separator = path.includes("?") ? "&" : "?";
+              navigate(`${path}${separator}code=${encodeURIComponent(scannedCode)}`);
+            }}
+          />
+        </>
       )}
 
       {/* Connection Info - Welcome */}
@@ -582,13 +612,13 @@ const Connections = () => {
                     </div>
                   </div>
                 </div>
-                <div className="mt-4 flex flex-wrap gap-2">
+                <div className="mt-4 flex items-center gap-2">
                   {isVerified ? (
                     <>
                       {code ? (
                         <Button
-                          size="sm"
-                          className="rounded-xl bg-teal-600 hover:bg-teal-700"
+                          size="default"
+                          className="min-w-0 flex-1 rounded-xl bg-teal-600 hover:bg-teal-700 py-2.5 text-sm font-medium inline-flex w-full items-center justify-center"
                           disabled={isShareDisabled}
                           onClick={(e) => {
                             e.stopPropagation();
@@ -600,9 +630,8 @@ const Connections = () => {
                         </Button>
                       ) : (
                         <Button
-                          size="sm"
-                          variant="outline"
-                          className="rounded-xl border-teal-300 text-teal-700"
+                          size="default"
+                          className="min-w-0 flex-1 rounded-xl bg-teal-600 hover:bg-teal-700 py-2.5 text-sm font-medium text-white inline-flex w-full items-center justify-center"
                           onClick={(e) => {
                             e.stopPropagation();
                             navigate("/documents");
@@ -615,7 +644,7 @@ const Connections = () => {
                         type="button"
                         size="sm"
                         variant="outline"
-                        className="rounded-xl text-slate-600 hover:text-red-600 hover:border-red-200 hover:bg-red-50"
+                        className="shrink-0 rounded-xl text-slate-600 hover:text-red-600 hover:border-red-200 hover:bg-red-50 inline-flex items-center justify-center"
                         onClick={(e) => {
                           e.stopPropagation();
                           const cred = verifiedCredentialsMap[docType];
@@ -629,7 +658,8 @@ const Connections = () => {
                     </>
                   ) : (
                     <Button
-                      className="w-full rounded-xl bg-teal-600 hover:bg-teal-700 font-medium"
+                      variant="outline"
+                      className="w-full rounded-xl border-teal-300 text-teal-700 font-medium hover:bg-teal-50 hover:border-teal-400"
                       onClick={(e) => {
                         e.stopPropagation();
                         handleVerifyDocument(docType);
@@ -693,13 +723,13 @@ const Connections = () => {
                       </div>
                     </div>
                   </div>
-                  <div className="mt-4 flex flex-wrap gap-2">
+                  <div className="mt-4 flex items-center gap-2">
                     {isVerified ? (
                       <>
                         {code ? (
                           <Button
-                            size="sm"
-                            className="rounded-xl bg-teal-600 hover:bg-teal-700"
+                            size="default"
+                            className="min-w-0 flex-1 rounded-xl bg-teal-600 hover:bg-teal-700 py-2.5 text-sm font-medium inline-flex w-full items-center justify-center"
                             disabled={isShareDisabled}
                             onClick={(e) => {
                               e.stopPropagation();
@@ -711,9 +741,8 @@ const Connections = () => {
                           </Button>
                         ) : (
                           <Button
-                            size="sm"
-                            variant="outline"
-                            className="rounded-xl border-teal-300 text-teal-700"
+                            size="default"
+                            className="min-w-0 flex-1 rounded-xl bg-teal-600 hover:bg-teal-700 py-2.5 text-sm font-medium text-white inline-flex w-full items-center justify-center"
                             onClick={(e) => {
                               e.stopPropagation();
                               navigate("/documents");
@@ -726,7 +755,7 @@ const Connections = () => {
                           type="button"
                           size="sm"
                           variant="outline"
-                          className="rounded-xl text-slate-600 hover:text-red-600 hover:border-red-200 hover:bg-red-50"
+                          className="shrink-0 rounded-xl text-slate-600 hover:text-red-600 hover:border-red-200 hover:bg-red-50 inline-flex items-center justify-center"
                           onClick={(e) => {
                             e.stopPropagation();
                             const cred = verifiedCredentialsMap[docType];
@@ -740,7 +769,8 @@ const Connections = () => {
                       </>
                     ) : (
                       <Button
-                        className="w-full rounded-xl bg-teal-600 hover:bg-teal-700 font-medium"
+                        variant="outline"
+                        className="w-full rounded-xl border-teal-300 text-teal-700 font-medium hover:bg-teal-50 hover:border-teal-400"
                         onClick={(e) => {
                           e.stopPropagation();
                           handleVerifyDocument(docType);
@@ -761,8 +791,8 @@ const Connections = () => {
       </div>
       {/* max-w-2xl end */}
 
-      {/* Delete document confirmation */}
-      <Dialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+      {/* Delete document confirmation — type DELETE to confirm */}
+      <Dialog open={!!deleteTarget} onOpenChange={handleDeleteDialogOpenChange}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Delete document</DialogTitle>
@@ -772,11 +802,30 @@ const Connections = () => {
             {deleteTarget?.document_type ? ` (${deleteTarget.document_type.replace(/_/g, " ")})` : ""}?
             You can add it again later.
           </p>
-          <div className="flex justify-end gap-2 pt-2">
-            <Button variant="outline" onClick={() => setDeleteTarget(null)} disabled={isDeleting}>
+          <div className="space-y-2 pt-2">
+            <Label htmlFor="delete-confirm" className="text-sm font-medium">
+              Type <kbd className="rounded border border-slate-300 bg-slate-100 px-1.5 py-0.5 font-mono text-xs">DELETE</kbd> to confirm
+            </Label>
+            <Input
+              id="delete-confirm"
+              type="text"
+              placeholder="DELETE"
+              value={deleteConfirmText}
+              onChange={(e) => setDeleteConfirmText(e.target.value)}
+              className="font-mono"
+              autoComplete="off"
+              disabled={isDeleting}
+            />
+          </div>
+          <div className="flex justify-end gap-2 pt-4">
+            <Button variant="outline" onClick={() => handleDeleteDialogOpenChange(false)} disabled={isDeleting}>
               Cancel
             </Button>
-            <Button variant="destructive" onClick={handleDeleteDoc} disabled={isDeleting}>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteDoc}
+              disabled={isDeleting || deleteConfirmText.trim().toUpperCase() !== "DELETE"}
+            >
               {isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Delete"}
             </Button>
           </div>
