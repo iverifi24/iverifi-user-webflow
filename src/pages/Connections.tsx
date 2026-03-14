@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardTitle } from "@/components/ui/card";
 import { LoadingScreen } from "@/components/loading-screen";
-import { auth, db } from "@/firebase/firebase_setup";
+import { auth } from "@/firebase/firebase_setup";
 import {
   useAddConnectionMutation,
   useGetCredentialsQuery,
@@ -12,8 +12,8 @@ import {
 } from "@/redux/api";
 import { determineConnectionType, isValidQRCode } from "@/utils/qr-code-utils";
 import { addDays, format } from "date-fns";
-import { collection, getDocs, query, where } from "firebase/firestore";
-import { CheckCircle, ExternalLink, Share2, X, Trash2, Loader2 } from "lucide-react";
+import { CheckCircle, Share2, Trash2, Loader2, IdCard, FileText, Briefcase, Globe, X } from "lucide-react";
+import type { ComponentType } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { clearPendingRecipientId } from "@/utils/connectionFlow";
@@ -25,6 +25,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { VerifierBadge } from "@/components/verifier-badge";
+import { WelcomeCard } from "@/components/welcome-card";
+import { getApplicantProfileFromBackend } from "@/utils/syncApplicantProfile";
+import { Badge } from "@/components/ui/badge";
 
 const DOCUMENT_TYPES = ["DRIVING_LICENSE", "AADHAAR_CARD", "PAN_CARD", "PASSPORT"] as const;
 type DocumentType = (typeof DOCUMENT_TYPES)[number];
@@ -51,6 +54,42 @@ const getProductCode = (docType: DocumentType | ChildAadhaarType): string =>
   docType in PRODUCT_CODE_MAP
     ? (PRODUCT_CODE_MAP as Record<string, string>)[docType]
     : (CHILD_PRODUCT_CODE_MAP as Record<string, string>)[docType];
+
+/** Subtitle under document name (e.g. "UIDAI Verified") */
+const DOC_TYPE_SUBTITLE: Record<string, string> = {
+  DRIVING_LICENSE: "State RTO Verified",
+  AADHAAR_CARD: "UIDAI Verified",
+  PAN_CARD: "Income Tax Department",
+  PASSPORT: "Passport Seva",
+  "Child 1 Aadhaar": "UIDAI Verified",
+  "Child 2 Aadhaar": "UIDAI Verified",
+  "Child 3 Aadhaar": "UIDAI Verified",
+};
+
+const getDocSubtitle = (docType: string): string =>
+  DOC_TYPE_SUBTITLE[docType] ?? "Verified";
+
+/** Icon component per document type for card left-side icon */
+const DOC_ICON_MAP: Record<string, ComponentType<{ className?: string }>> = {
+  DRIVING_LICENSE: Briefcase,
+  AADHAAR_CARD: IdCard,
+  PAN_CARD: FileText,
+  PASSPORT: Globe,
+  "Child 1 Aadhaar": IdCard,
+  "Child 2 Aadhaar": IdCard,
+  "Child 3 Aadhaar": IdCard,
+};
+
+/** Background color for document icon box (Tailwind classes) */
+const DOC_ICON_BG: Record<string, string> = {
+  DRIVING_LICENSE: "bg-blue-100 text-blue-700",
+  AADHAAR_CARD: "bg-rose-100 text-rose-700",
+  PAN_CARD: "bg-emerald-100 text-emerald-700",
+  PASSPORT: "bg-amber-100 text-amber-700",
+  "Child 1 Aadhaar": "bg-rose-100 text-rose-700",
+  "Child 2 Aadhaar": "bg-rose-100 text-rose-700",
+  "Child 3 Aadhaar": "bg-rose-100 text-rose-700",
+};
 
 interface Credential {
   id?: string;
@@ -95,10 +134,24 @@ const Connections = () => {
   // run-once guard for adding connection by code
   const processedCodeRef = useRef<string | null>(null);
 
+  // welcome card: first name for "Welcome back, {name}!"
+  const [welcomeFirstName, setWelcomeFirstName] = useState<string>("");
+
   // code from query OR path (no normalization)
   const codeFromQuery = searchParams.get("code") || null;
   const codeFromPath = (params.code as string) || null;
   const code = codeFromQuery || codeFromPath || null;
+
+  // Fetch profile for welcome greeting when no venue code
+  useEffect(() => {
+    if (code) return;
+    getApplicantProfileFromBackend()
+      .then((p) => {
+        const first = (p.firstName as string) || "";
+        if (first) setWelcomeFirstName(first);
+      })
+      .catch(() => {});
+  }, [code]);
 
   // api
   const {
@@ -396,13 +449,13 @@ const Connections = () => {
         )}
       </div> */}
 
-      {/* When no venue code: prompt to scan QR */}
+      {/* Welcome hero when no venue code (mobile-style) */}
       {!code && (
-        <div className="py-4 text-center">
-          <p className="text-slate-600 text-base">
-            Scan a QR at the venue to share your ID document.
-          </p>
-        </div>
+        <WelcomeCard
+          userName={welcomeFirstName || undefined}
+          onScanQR={() => navigate("/connections")}
+          onAddDocument={() => navigate("/documents")}
+        />
       )}
 
       {/* Connection Info - Welcome */}
@@ -487,62 +540,82 @@ const Connections = () => {
         )}
       </div>
 
-      {/* Document Cards */}
+      {/* Document Cards — mobile-style: icon, subtitle, status badge, actions */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {DOCUMENT_TYPES.map((docType) => {
           const isVerified = !!verifiedCredentialsMap[docType];
           const isShareDisabled = !isVerified || isUpdating;
+          const DocIcon = DOC_ICON_MAP[docType] ?? FileText;
+          const iconBg = DOC_ICON_BG[docType] ?? "bg-slate-100 text-slate-600";
+          const title = docType.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
+          const subtitle = getDocSubtitle(docType);
 
           return (
             <Card
               key={docType}
               className={`rounded-2xl border-2 transition-all duration-200 hover:shadow-lg ${
                 isVerified
-                  ? "border-teal-200 bg-teal-50/30 shadow-sm hover:border-teal-300"
-                  : "border-slate-200 bg-white shadow-sm hover:border-teal-200 hover:bg-teal-50/20"
+                  ? "border-teal-200 bg-white shadow-sm hover:border-teal-300"
+                  : "border-slate-200 bg-white shadow-sm hover:border-slate-300"
               } ${code && isVerified && !isShareDisabled ? "cursor-pointer" : ""}`}
               onClick={code && isVerified && !isShareDisabled ? () => handleShareCredentials(docType) : undefined}
               role={code && isVerified && !isShareDisabled ? "button" : undefined}
             >
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between gap-2 min-w-0">
-                  <CardTitle className="text-lg font-semibold text-slate-800 capitalize min-w-0 truncate">
-                    {docType.replace(/_/g, " ").toLowerCase()}
-                  </CardTitle>
-                  {isVerified && (
-                    <VerifierBadge documentType={docType} className="shrink-0" />
-                  )}
+              <CardContent className="p-4 sm:p-5">
+                <div className="flex gap-4">
+                  <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${iconBg}`}>
+                    <DocIcon className="h-6 w-6" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <CardTitle className="text-base font-semibold text-slate-800">
+                      {title}
+                    </CardTitle>
+                    <p className="mt-0.5 text-xs text-slate-500">{subtitle}</p>
+                    <div className="mt-2">
+                      {isVerified ? (
+                        <VerifierBadge documentType={docType} className="shrink-0" />
+                      ) : (
+                        <Badge variant="secondary" className="bg-amber-100 text-amber-800 border-0">
+                          Not Verified
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
                 </div>
-              </CardHeader>
-              <CardContent>
-                {isVerified ? (
-                  <div className="flex gap-2">
-                    {code ? (
-                      <Button
-                        className="flex-1 rounded-xl bg-teal-600 hover:bg-teal-700 font-medium"
-                        disabled={isShareDisabled}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleShareCredentials(docType);
-                        }}
-                      >
-                        <Share2 className="h-4 w-4 mr-2" />
-                        Share
-                      </Button>
-                    ) : (
-                      <Button
-                        className="flex-1 rounded-xl bg-teal-600 hover:bg-teal-700 font-medium"
-                        variant="outline"
-                        onClick={() => navigate("/documents")}
-                      >
-                        View documents
-                      </Button>
-                    )}
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {isVerified ? (
+                    <>
+                      {code ? (
+                        <Button
+                          size="sm"
+                          className="rounded-xl bg-teal-600 hover:bg-teal-700"
+                          disabled={isShareDisabled}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleShareCredentials(docType);
+                          }}
+                        >
+                          <Share2 className="h-4 w-4 mr-1.5" />
+                          Share
+                        </Button>
+                      ) : (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="rounded-xl border-teal-300 text-teal-700"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate("/documents");
+                          }}
+                        >
+                          View
+                        </Button>
+                      )}
                       <Button
                         type="button"
+                        size="sm"
                         variant="outline"
-                        size="icon"
-                        className="shrink-0 rounded-xl text-slate-500 hover:text-red-600 hover:border-red-200 hover:bg-red-50"
+                        className="rounded-xl text-slate-600 hover:text-red-600 hover:border-red-200 hover:bg-red-50"
                         onClick={(e) => {
                           e.stopPropagation();
                           const cred = verifiedCredentialsMap[docType];
@@ -551,19 +624,22 @@ const Connections = () => {
                         }}
                         aria-label="Delete document"
                       >
-                      <Trash2 className="h-4 w-4" />
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </>
+                  ) : (
+                    <Button
+                      className="w-full rounded-xl bg-teal-600 hover:bg-teal-700 font-medium"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleVerifyDocument(docType);
+                      }}
+                    >
+                      <CheckCircle className="h-4 w-4 mr-2" />
+                      Verify Document
                     </Button>
-                  </div>
-                ) : (
-                  <Button
-                    className="w-full rounded-xl border-2 border-teal-300 text-teal-700 hover:bg-teal-50 hover:border-teal-400 font-medium"
-                    variant="outline"
-                    onClick={() => handleVerifyDocument(docType)}
-                  >
-                    <ExternalLink className="h-4 w-4 mr-2" />
-                    Verify Document
-                  </Button>
-                )}
+                  )}
+                </div>
               </CardContent>
             </Card>
           );
@@ -580,79 +656,101 @@ const Connections = () => {
           {CHILD_AADHAAR_TYPES.map((docType) => {
             const isVerified = !!verifiedCredentialsMap[docType];
             const isShareDisabled = !isVerified || isUpdating;
-            const childLabel = docType.replace(" Aadhaar", ""); // "Child 1", "Child 2", "Child 3"
+            const childLabel = docType.replace(" Aadhaar", "");
+            const DocIcon = DOC_ICON_MAP[docType] ?? IdCard;
+            const iconBg = DOC_ICON_BG[docType] ?? "bg-rose-100 text-rose-700";
+            const subtitle = getDocSubtitle(docType);
 
             return (
               <Card
                 key={docType}
                 className={`rounded-2xl border-2 transition-all duration-200 hover:shadow-lg ${
                   isVerified
-                    ? "border-teal-200 bg-teal-50/30 shadow-sm hover:border-teal-300"
-                    : "border-slate-200 bg-white shadow-sm hover:border-teal-200 hover:bg-teal-50/20"
+                    ? "border-teal-200 bg-white shadow-sm hover:border-teal-300"
+                    : "border-slate-200 bg-white shadow-sm hover:border-slate-300"
                 } ${code && isVerified && !isShareDisabled ? "cursor-pointer" : ""}`}
                 onClick={code && isVerified && !isShareDisabled ? () => handleShareCredentials(docType) : undefined}
                 role={code && isVerified && !isShareDisabled ? "button" : undefined}
               >
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between gap-2 min-w-0">
-                    <CardTitle className="text-lg font-semibold text-slate-800 min-w-0 truncate">
-                      {childLabel}&apos;s Aadhaar
-                    </CardTitle>
-                    {isVerified && (
-                      <VerifierBadge documentType={docType} className="shrink-0" />
-                    )}
+                <CardContent className="p-4 sm:p-5">
+                  <div className="flex gap-4">
+                    <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${iconBg}`}>
+                      <DocIcon className="h-6 w-6" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <CardTitle className="text-base font-semibold text-slate-800">
+                        {childLabel}&apos;s Aadhaar
+                      </CardTitle>
+                      <p className="mt-0.5 text-xs text-slate-500">{subtitle}</p>
+                      <div className="mt-2">
+                        {isVerified ? (
+                          <VerifierBadge documentType={docType} className="shrink-0" />
+                        ) : (
+                          <Badge variant="secondary" className="bg-amber-100 text-amber-800 border-0">
+                            Not Verified
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                </CardHeader>
-                <CardContent>
-                  {isVerified ? (
-                    <div className="flex gap-2">
-                      {code ? (
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {isVerified ? (
+                      <>
+                        {code ? (
+                          <Button
+                            size="sm"
+                            className="rounded-xl bg-teal-600 hover:bg-teal-700"
+                            disabled={isShareDisabled}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleShareCredentials(docType);
+                            }}
+                          >
+                            <Share2 className="h-4 w-4 mr-1.5" />
+                            Share
+                          </Button>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="rounded-xl border-teal-300 text-teal-700"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate("/documents");
+                            }}
+                          >
+                            View
+                          </Button>
+                        )}
                         <Button
-                          className="flex-1 rounded-xl bg-teal-600 hover:bg-teal-700 font-medium"
-                          disabled={isShareDisabled}
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="rounded-xl text-slate-600 hover:text-red-600 hover:border-red-200 hover:bg-red-50"
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleShareCredentials(docType);
+                            const cred = verifiedCredentialsMap[docType];
+                            const id = cred?.credential_id || cred?.id || cred?.credentialId;
+                            if (id) setDeleteTarget({ id, document_type: docType });
                           }}
+                          aria-label={`Delete ${childLabel}'s Aadhaar`}
                         >
-                          <Share2 className="h-4 w-4 mr-2" />
-                          Share
+                          <Trash2 className="h-4 w-4" />
                         </Button>
-                      ) : (
-                        <Button
-                          className="flex-1 rounded-xl bg-teal-600 hover:bg-teal-700 font-medium"
-                          variant="outline"
-                          onClick={() => navigate("/documents")}
-                        >
-                          View documents
-                        </Button>
-                      )}
+                      </>
+                    ) : (
                       <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        className="shrink-0 rounded-xl text-slate-500 hover:text-red-600 hover:border-red-200 hover:bg-red-50"
+                        className="w-full rounded-xl bg-teal-600 hover:bg-teal-700 font-medium"
                         onClick={(e) => {
                           e.stopPropagation();
-                          const cred = verifiedCredentialsMap[docType];
-                          const id = cred?.credential_id || cred?.id || cred?.credentialId;
-                          if (id) setDeleteTarget({ id, document_type: docType });
+                          handleVerifyDocument(docType);
                         }}
-                        aria-label={`Delete ${childLabel}'s Aadhaar`}
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <CheckCircle className="h-4 w-4 mr-2" />
+                        Verify Document
                       </Button>
-                    </div>
-                  ) : (
-                    <Button
-                      className="w-full rounded-xl border-2 border-teal-300 text-teal-700 hover:bg-teal-50 hover:border-teal-400 font-medium"
-                      variant="outline"
-                      onClick={() => handleVerifyDocument(docType)}
-                    >
-                      <ExternalLink className="h-4 w-4 mr-2" />
-                      Verify Document
-                    </Button>
-                  )}
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             );
