@@ -15,7 +15,7 @@ import { CFormDialog } from "@/components/c-form-dialog";
 import type { CFormData, CFormPassportData } from "@/components/c-form-dialog";
 import { determineConnectionType, isValidQRCode } from "@/utils/qr-code-utils";
 import { addDays, format } from "date-fns";
-import { AlertTriangle, CheckCircle, ChevronRight, Loader2, Lock, Plus, Share2, X } from "lucide-react";
+import { CheckCircle, ChevronRight, Loader2, Lock, Plus, Share2, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { clearPendingRecipientId } from "@/utils/connectionFlow";
@@ -581,7 +581,11 @@ const Connections = () => {
   }, [code, isRecipientLoading, connectedRequestorName, firstShareableDocType]);
 
   const openHotelShareSheet = (docType?: DocumentType | ChildAadhaarType) => {
-    if (docType && verifiedDocTypesForShare.includes(docType)) {
+    if (
+      docType &&
+      docType !== "C-Form (Foreign Guest)" &&
+      verifiedDocTypesForShare.includes(docType)
+    ) {
       setShareSelectedDocType(docType);
     } else {
       setShareSelectedDocType(firstShareableDocType);
