@@ -151,48 +151,67 @@ export function PhoneLoginForm({
   };
 
   return (
-    <div className={cn("flex flex-col gap-4", className)}>
+    <div className={cn("flex flex-col gap-2 sm:gap-3", className)}>
       {!sessionId ? (
-        <form onSubmit={handleSendOtp} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="phone-country">Country</Label>
-            <select
-              id="phone-country"
-              value={countryCode}
-              onChange={(e) => setCountryCode(e.target.value)}
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-              disabled={isSendingOtp}
+        <form onSubmit={handleSendOtp} className="space-y-3">
+          <div className="space-y-1.5 sm:space-y-2">
+            <Label
+              htmlFor="phone-number"
+              className="text-[11px] text-slate-200 sm:text-xs md:text-sm"
             >
-              {COUNTRY_CODES.map(({ code, label }) => (
-                <option key={code} value={code}>
-                  {label}
-                </option>
-              ))}
-            </select>
+              Mobile number
+            </Label>
+            <div className="flex gap-1.5 sm:gap-2">
+              <select
+                id="phone-country"
+                value={countryCode}
+                onChange={(e) => setCountryCode(e.target.value)}
+                className="h-9 w-[5.5rem] shrink-0 rounded-lg border border-slate-800/80 bg-slate-900/80 px-2 text-[11px] text-slate-100 ring-offset-slate-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/70 focus-visible:ring-offset-2 sm:h-10 sm:w-28 sm:rounded-xl sm:px-3 sm:text-xs md:text-sm"
+                disabled={isSendingOtp}
+              >
+                {COUNTRY_CODES.map(({ code, label }) => (
+                  <option key={code} value={code}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+              <Input
+                id="phone-number"
+                type="tel"
+                inputMode="numeric"
+                placeholder="98765 43210"
+                value={phoneDigits}
+                onChange={(e) =>
+                  setPhoneDigits(
+                    e.target.value.replace(/\D/g, "").slice(0, 15)
+                  )
+                }
+                disabled={isSendingOtp}
+                className="h-9 flex-1 rounded-lg border-slate-800/80 bg-slate-900/80 text-slate-50 placeholder:text-slate-500 focus-visible:ring-sky-500/70 sm:h-10 sm:rounded-xl"
+              />
+            </div>
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="phone-number">Phone number</Label>
-            <Input
-              id="phone-number"
-              type="tel"
-              inputMode="numeric"
-              placeholder="9876543210"
-              value={phoneDigits}
-              onChange={(e) => setPhoneDigits(e.target.value.replace(/\D/g, "").slice(0, 15))}
-              disabled={isSendingOtp}
-            />
-          </div>
-          <Button type="submit" className="w-full" disabled={isSendingOtp}>
-            {isSendingOtp ? "Sending…" : "Send verification code"}
+          <Button
+            type="submit"
+            size="sm"
+            className="h-9 w-full rounded-lg bg-gradient-to-r from-[#00e0ff] to-[#7B5CF5] text-slate-950 shadow-[0_0_16px_rgba(0,224,255,0.35)] hover:from-[#40e8ff] hover:to-[#9274ff] sm:h-10 sm:rounded-xl"
+            disabled={isSendingOtp}
+          >
+            {isSendingOtp ? "Sending…" : "Send OTP →"}
           </Button>
         </form>
       ) : (
-        <form onSubmit={handleVerifyOtp} className="space-y-4">
-          <p className="text-sm text-muted-foreground">
+        <form onSubmit={handleVerifyOtp} className="space-y-2 sm:space-y-3">
+          <p className="text-[11px] leading-snug text-muted-foreground sm:text-sm">
             Enter the 6-digit code sent to {countryCode} {phoneDigits}
           </p>
-          <div className="space-y-2">
-            <Label htmlFor="otp">Verification code</Label>
+          <div className="space-y-1.5 sm:space-y-2">
+            <Label
+              htmlFor="otp"
+              className="text-[11px] text-slate-200 sm:text-xs md:text-sm"
+            >
+              Verification code
+            </Label>
             <Input
               id="otp"
               type="text"
@@ -202,14 +221,15 @@ export function PhoneLoginForm({
               value={otp}
               onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
               disabled={isVerifying}
-              className="text-center text-lg tracking-[0.5em]"
+              className="h-9 text-center text-base tracking-[0.35em] border-slate-800/80 bg-slate-900/80 text-slate-50 focus-visible:ring-sky-500/70 sm:h-10 sm:text-lg sm:tracking-[0.5em]"
             />
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-1.5 sm:gap-2">
             <Button
               type="button"
               variant="outline"
-              className="flex-1"
+              size="sm"
+              className="h-9 flex-1 border-slate-700/80 bg-slate-900/60 text-slate-50 hover:bg-slate-800 sm:h-10"
               disabled={isVerifying}
               onClick={() => {
                 setSessionId(null);
@@ -218,7 +238,12 @@ export function PhoneLoginForm({
             >
               Change number
             </Button>
-            <Button type="submit" className="flex-1" disabled={isVerifying || otp.length !== 6}>
+            <Button
+              type="submit"
+              size="sm"
+              className="h-9 flex-1 rounded-lg bg-gradient-to-r from-[#00e0ff] to-[#7B5CF5] text-slate-950 shadow-[0_0_16px_rgba(0,224,255,0.35)] hover:from-[#40e8ff] hover:to-[#9274ff] sm:h-10 sm:rounded-xl"
+              disabled={isVerifying || otp.length !== 6}
+            >
               {isVerifying ? "Verifying…" : "Verify"}
             </Button>
           </div>

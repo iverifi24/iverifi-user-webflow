@@ -4,11 +4,14 @@ import App from "./App.tsx";
 import "./index.css";
 import { store } from "./redux/store.ts";
 import { AuthProvider } from "./context/auth_context.tsx";
+import { ThemeProvider } from "./context/theme_context.tsx";
 
 createRoot(document.getElementById("root")!).render(
   <Provider store={store}>
-    <AuthProvider>
-      <App />
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <App />
+      </AuthProvider>
+    </ThemeProvider>
   </Provider>
 );

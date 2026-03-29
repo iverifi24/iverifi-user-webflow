@@ -40,9 +40,11 @@ export function VerifierBadge({
             : null;
 
   return (
-    <Badge className={`bg-teal-600 text-white gap-1 border-0 shadow-sm px-2 py-0.5 ${className}`}>
+    <Badge
+      className={`bg-[rgba(0,200,150,0.14)] text-[#00c896] border border-[rgba(0,200,150,0.35)] shadow-none gap-1 px-2 py-0.5 ${className}`}
+    >
       <CheckCircle className="h-3.5 w-3.5 shrink-0" />
-      <span className="text-xs font-medium">Verified</span>
+      <span className="text-xs font-semibold">Verified</span>
       {VerifierLogo ? (
         <VerifierLogo />
       ) : (

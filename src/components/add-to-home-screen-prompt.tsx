@@ -113,18 +113,18 @@ export function AddToHomeScreenPrompt() {
 
   return (
     <>
-      <div className="fixed inset-0 z-40 bg-black/20 sm:hidden" aria-hidden onClick={handleDismiss} />
+      <div className="fixed inset-0 z-[10000] bg-[var(--iverifi-overlay)] sm:hidden" aria-hidden onClick={handleDismiss} />
       <div
         className={cn(
-          "fixed left-0 right-0 bottom-0 z-50 sm:hidden",
-          "rounded-t-2xl bg-white shadow-[0_-4px_24px_rgba(0,0,0,0.12)]",
-          "pb-4"
+          "fixed left-0 right-0 bottom-0 z-[10001] sm:hidden",
+          "rounded-t-2xl bg-[var(--iverifi-sheet)] border-t border-[var(--iverifi-sheet-border)]",
+          "shadow-[0_-4px_24px_rgba(0,0,0,0.24)]"
         )}
         style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
       >
         <div className="flex flex-col gap-4 p-4 pt-3">
           <div className="flex items-start gap-3">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-teal-100">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[var(--iverifi-icon-box-bg)] border border-[var(--iverifi-icon-box-border)]">
               <img
                 src="/new_no_bg.png"
                 alt=""
@@ -132,15 +132,15 @@ export function AddToHomeScreenPrompt() {
               />
             </div>
             <div className="min-w-0 flex-1">
-              <h3 className="font-semibold text-slate-900">Add iVerifi to your home screen</h3>
-              <p className="mt-0.5 text-sm text-slate-500">
+              <h3 className="font-semibold text-[var(--iverifi-text-primary)]">Add iVerifi to your home screen</h3>
+              <p className="mt-0.5 text-sm text-[var(--iverifi-text-muted)]">
                 Open with one tap and use it like an app—no browser bar, quicker access.
               </p>
             </div>
             <button
               type="button"
               onClick={handleDismiss}
-              className="shrink-0 rounded-full p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+              className="shrink-0 rounded-full p-1.5 text-[var(--iverifi-close-text)] hover:bg-[var(--iverifi-close-bg)] hover:text-[var(--iverifi-text-secondary)]"
               aria-label="Dismiss"
             >
               <X className="h-5 w-5" />
@@ -148,9 +148,9 @@ export function AddToHomeScreenPrompt() {
           </div>
 
           {showIosInstructions ? (
-            <div className="flex items-start gap-2 rounded-xl bg-slate-100 p-3 text-left">
-              <Share className="h-5 w-5 shrink-0 text-teal-600 mt-0.5" />
-              <div className="text-sm text-slate-700">
+            <div className="flex items-start gap-2 rounded-xl bg-[var(--iverifi-surface-2)] border border-[var(--iverifi-border-subtle)] p-3 text-left">
+              <Share className="h-5 w-5 shrink-0 text-teal-500 mt-0.5" />
+              <div className="text-sm text-[var(--iverifi-text-secondary)]">
                 <p className="font-medium">On this device:</p>
                 <p className="mt-1">Tap the <strong>Share</strong> button (square with arrow) at the bottom of Safari, then choose <strong>Add to Home Screen</strong>.</p>
               </div>
@@ -167,7 +167,7 @@ export function AddToHomeScreenPrompt() {
               <button
                 type="button"
                 onClick={handleDismiss}
-                className="text-sm text-slate-500 hover:text-slate-700"
+                className="text-sm text-[var(--iverifi-text-muted)] hover:text-[var(--iverifi-text-secondary)]"
               >
                 Not now
               </button>

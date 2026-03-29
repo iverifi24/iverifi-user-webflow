@@ -1,7 +1,7 @@
 import { useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { cn } from "@/lib/utils";
 import { LoadingScreen } from "@/components/loading-screen";
 import { isAfter, parseISO, format, addDays } from "date-fns";
 import { Eye, Trash2, Loader2, CalendarCheck, CalendarX, ChevronDown, ChevronRight } from "lucide-react";
@@ -29,6 +29,17 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+
+const shell =
+  "min-h-0 w-full max-w-5xl mx-auto space-y-5 text-[var(--iverifi-text-primary)]";
+const panel =
+  "rounded-2xl border border-[color:var(--iverifi-card-border)] bg-[var(--iverifi-card)]";
+const dlgSurface =
+  "border border-[color:var(--iverifi-dialog-border)] bg-[var(--iverifi-dialog-bg)] text-[var(--iverifi-text-primary)] [&_[data-slot=dialog-close]]:text-[var(--iverifi-text-muted)] [&_[data-slot=dialog-close]]:hover:bg-white/10";
+const shareBtnClass =
+  "h-10 shrink-0 rounded-xl bg-gradient-to-r from-[#00e0ff] to-[#7B5CF5] px-4 font-semibold text-white hover:opacity-95";
+const selectTriggerThemed =
+  "w-full border-[color:var(--iverifi-dialog-border)] !bg-[var(--iverifi-muted-surface)] text-[var(--iverifi-text-primary)]";
 
 const ConnectionDetails = () => {
   const { id } = useParams();
@@ -189,12 +200,14 @@ const ConnectionDetails = () => {
   if (externalIntegration) {
     const activities = connectionData?.data?.activities ?? [];
     return (
-      <div className="p-4 space-y-4">
+      <div className={shell}>
         {/* Header + Share Documents */}
-        <div className="flex justify-between items-center">
-          <div>
-            <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Recipient</p>
-            <h2 className="text-xl font-semibold">
+        <div className="flex justify-between items-center gap-3">
+          <div className="min-w-0">
+            <p className="text-[11px] font-semibold uppercase tracking-widest text-[var(--iverifi-text-muted)]">
+              Recipient
+            </p>
+            <h2 className="text-xl font-bold text-[var(--iverifi-text-primary)] truncate">
               {connection?.recipients?.name ||
                 connection?.recipients?.firstName ||
                 connection?.recipients?.hotel_name ||
@@ -205,23 +218,27 @@ const ConnectionDetails = () => {
           {connection?.id && (
             <Dialog open={addDocsDialogOpen} onOpenChange={setAddDocsDialogOpen}>
               <DialogTrigger asChild>
-                <Button>Share Documents</Button>
+                <Button type="button" className={shareBtnClass}>
+                  Share Documents
+                </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-md">
+              <DialogContent className={cn("max-w-md", dlgSurface)}>
                 <DialogHeader>
-                  <DialogTitle>Select Documents to Share</DialogTitle>
+                  <DialogTitle className="text-[var(--iverifi-text-primary)]">
+                    Select documents to share
+                  </DialogTitle>
                 </DialogHeader>
 
                 {isCredsLoading ? (
-                  <p>Loading your verified documents...</p>
+                  <p className="text-sm text-[var(--iverifi-text-muted)]">Loading your verified documents…</p>
                 ) : docsAvailableToShare.length === 0 ? (
-                  <p className="text-muted-foreground">
+                  <p className="text-sm text-[var(--iverifi-text-muted)]">
                     {verifiedDocs.length === 0
                       ? "No verified documents found"
                       : "All your verified documents are already shared with this connection."}
                   </p>
                 ) : (
-                  <div className="space-y-4">
+                  <div className="space-y-3">
                     {docsAvailableToShare.map((doc: any) => (
                       <div key={doc.id} className="flex items-center justify-between gap-2">
                         <div className="flex items-center space-x-2 flex-1 min-w-0">
@@ -229,13 +246,15 @@ const ConnectionDetails = () => {
                             checked={selectedDocs.includes(doc.id)}
                             onCheckedChange={() => toggleDoc(doc.id)}
                           />
-                          <Label className="truncate">{formatDocType(doc.document_type)}</Label>
+                          <Label className="truncate text-[var(--iverifi-text-secondary)]">
+                            {formatDocType(doc.document_type)}
+                          </Label>
                         </div>
                         <Button
                           type="button"
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
+                          className="h-8 w-8 shrink-0 text-[var(--iverifi-text-muted)] hover:bg-red-500/15 hover:text-red-300"
                           onClick={() => setDeleteTarget({ id: doc.id, document_type: doc.document_type })}
                           aria-label="Delete document"
                         >
@@ -247,12 +266,12 @@ const ConnectionDetails = () => {
                 )}
 
                 <div className="mt-4 space-y-2">
-                  <Label>Share Period</Label>
+                  <Label className="text-[var(--iverifi-text-secondary)]">Share period</Label>
                   <Select onValueChange={setSharePeriod} value={sharePeriod}>
-                    <SelectTrigger>
+                    <SelectTrigger className={selectTriggerThemed}>
                       <SelectValue placeholder="Select period" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="border border-[color:var(--iverifi-dialog-border)] bg-[var(--iverifi-select-content)] text-[var(--iverifi-text-primary)]">
                       <SelectItem value="7">7 Days</SelectItem>
                       <SelectItem value="30">30 Days</SelectItem>
                       <SelectItem value="90">90 Days</SelectItem>
@@ -262,12 +281,19 @@ const ConnectionDetails = () => {
 
                 <div className="flex justify-end gap-2 mt-6">
                   <Button
-                    variant="secondary"
+                    type="button"
+                    variant="outline"
+                    className="border-white/15 bg-transparent text-[var(--iverifi-text-secondary)] hover:bg-white/10"
                     onClick={() => setAddDocsDialogOpen(false)}
                   >
                     Cancel
                   </Button>
-                  <Button onClick={handleShareDocs} disabled={isUpdating}>
+                  <Button
+                    type="button"
+                    className={shareBtnClass}
+                    onClick={handleShareDocs}
+                    disabled={isUpdating}
+                  >
                     Share
                   </Button>
                 </div>
@@ -276,23 +302,23 @@ const ConnectionDetails = () => {
           )}
         </div>
 
-        <Separator />
+        <Separator className="bg-[color:var(--iverifi-row-divider)]" />
 
         {isLoading ? (
           <LoadingScreen variant="cards" cardCount={3} gridCols="2" />
         ) : isError ? (
-          <p className="text-red-500">Failed to load connection details.</p>
-        ) : !connection ? (
-          <p className="text-muted-foreground text-sm border p-4 rounded-md bg-muted/50">
-            Connection not found.
+          <p className="rounded-2xl border border-red-500/25 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+            Failed to load connection details.
           </p>
+        ) : !connection ? (
+          <p className={`${panel} p-4 text-sm text-[var(--iverifi-text-muted)]`}>Connection not found.</p>
         ) : !connection.credentials || connection.credentials.length === 0 ? (
-          <p className="text-muted-foreground text-sm border p-4 rounded-md bg-muted/50">
+          <p className={`${panel} p-4 text-sm text-[var(--iverifi-text-muted)]`}>
             No documents shared with this connection.
           </p>
         ) : (
           <div className="space-y-3">
-            <h3 className="text-base font-semibold text-slate-800">
+            <h3 className="text-sm font-semibold text-[var(--iverifi-text-primary)]">
               Documents you&apos;ve shared with{" "}
               {connection?.recipients?.name ||
                 connection?.recipients?.firstName ||
@@ -308,52 +334,54 @@ const ConnectionDetails = () => {
                 const isDeleted = !cred.details;
 
                 return (
-                  <Card
+                  <div
                     key={cred.details?.id ?? cred.credential_id ?? cred.document_type}
-                    className="hover:shadow-md transition"
+                    className={`${panel} overflow-hidden transition-colors hover:bg-[var(--iverifi-card-hover)]`}
                   >
-                    <CardHeader className="flex justify-between items-start">
-                      <CardTitle className="capitalize">
+                    <div className="flex justify-between items-start gap-2 border-b border-[color:var(--iverifi-row-divider)] px-4 py-3">
+                      <h4 className="text-base font-semibold capitalize text-[var(--iverifi-text-primary)]">
                         {isDeleted
                           ? "Document deleted"
                           : cred.details?.document_type?.replace(/_/g, " ") ||
                             "Document"}
-                      </CardTitle>
+                      </h4>
                       {!isDeleted && imageUrl && (
                         <Button
+                          type="button"
                           size="icon"
                           variant="ghost"
+                          className="text-[var(--iverifi-text-muted)] hover:bg-white/10 hover:text-[var(--iverifi-text-primary)]"
                           onClick={() => setSelectedImage(imageUrl)}
                         >
                           <Eye className="h-5 w-5" />
                         </Button>
                       )}
-                    </CardHeader>
-                    <CardContent className="space-y-2 text-sm text-muted-foreground">
-                      <div className="flex justify-between">
-                        <span>Expiry Date:</span>
-                        <span>
+                    </div>
+                    <div className="space-y-2 px-4 py-3 text-sm text-[var(--iverifi-text-muted)]">
+                      <div className="flex justify-between gap-2">
+                        <span>Expiry date</span>
+                        <span className="text-right text-[var(--iverifi-text-secondary)]">
                           {expiry
                             ? format(parseISO(expiry), "MMM dd, yyyy")
                             : "N/A"}
                         </span>
                       </div>
-                      <div className="flex justify-between">
-                        <span>Status:</span>
+                      <div className="flex justify-between gap-2">
+                        <span>Status</span>
                         <span
                           className={
                             isDeleted
-                              ? "text-amber-600 font-medium"
+                              ? "font-medium text-amber-300"
                               : isActive
-                                ? "text-green-600 font-medium"
-                                : "text-red-500 font-medium"
+                                ? "font-medium text-[#5eead4]"
+                                : "font-medium text-red-400"
                           }
                         >
                           {isDeleted ? "Document deleted" : isActive ? "Active" : "Expired"}
                         </span>
                       </div>
-                    </CardContent>
-                  </Card>
+                    </div>
+                  </div>
                 );
               })}
             </div>
@@ -362,29 +390,31 @@ const ConnectionDetails = () => {
 
         {/* Activity: only document shared per activity (external integration) */}
         {connection && (
-          <Card>
-            <CardHeader
-              className="cursor-pointer pb-2 select-none"
+          <div className={panel}>
+            <div
+              className="cursor-pointer select-none border-b border-[color:var(--iverifi-row-divider)] px-4 py-3"
               onClick={() => setActivityOpen((o) => !o)}
             >
-              <div className="flex items-center justify-between gap-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
                   {activityOpen ? (
-                    <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    <ChevronDown className="h-4 w-4 shrink-0 text-[var(--iverifi-label)]" />
                   ) : (
-                    <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    <ChevronRight className="h-4 w-4 shrink-0 text-[var(--iverifi-label)]" />
                   )}
-                  <CardTitle className="text-base">Activity with this connection</CardTitle>
+                  <span className="text-base font-semibold text-[var(--iverifi-text-primary)]">
+                    Activity with this connection
+                  </span>
                 </div>
-                <p className="text-sm text-muted-foreground font-normal">
+                <p className="text-sm font-normal text-[var(--iverifi-label)]">
                   {activities.length} stay{activities.length !== 1 ? "s" : ""} at this property
                 </p>
               </div>
-            </CardHeader>
+            </div>
             {activityOpen && (
-              <CardContent className="space-y-4">
+              <div className="space-y-3 px-4 py-4">
                 {activities.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No stays or check-ins yet.</p>
+                  <p className="text-sm text-[var(--iverifi-label)]">No stays or check-ins yet.</p>
                 ) : (
                   activities.map((act: any, index: number) => {
                     const checkInTs = act.check_in_time
@@ -395,36 +425,39 @@ const ConnectionDetails = () => {
                     return (
                       <div
                         key={act.id || index}
-                        className="rounded-lg border border-slate-200 bg-slate-50/50 p-3 text-sm space-y-1"
+                        className="space-y-1 rounded-xl border border-[color:var(--iverifi-card-border)] bg-[var(--iverifi-muted-surface)] p-3 text-sm"
                       >
                         {checkInTs != null && (
-                          <div className="flex items-center gap-2 text-muted-foreground">
-                            <CalendarCheck className="h-4 w-4 shrink-0" />
+                          <div className="flex items-center gap-2 text-[var(--iverifi-text-muted)]">
+                            <CalendarCheck className="h-4 w-4 shrink-0 text-[#00c896]" />
                             <span>
                               Check-in: {format(new Date(checkInTs), "MMM d, yyyy · h:mm a")}
                             </span>
                           </div>
                         )}
                         {act.document ? (
-                          <span className="text-muted-foreground">
-                            Document shared: <span className="font-medium text-slate-800">{formatDocType(act.document)}</span>
+                          <span className="text-[var(--iverifi-text-muted)]">
+                            Document shared:{" "}
+                            <span className="font-medium text-[var(--iverifi-text-secondary)]">
+                              {formatDocType(act.document)}
+                            </span>
                           </span>
                         ) : (
-                          <span className="text-muted-foreground">Document shared: —</span>
+                          <span className="text-[var(--iverifi-label)]">Document shared: —</span>
                         )}
                       </div>
                     );
                   })
                 )}
-              </CardContent>
+              </div>
             )}
-          </Card>
+          </div>
         )}
 
         <Dialog open={!!selectedImage} onOpenChange={() => setSelectedImage(null)}>
-          <DialogContent className="max-w-3xl">
+          <DialogContent className={cn("max-w-3xl", dlgSurface)}>
             <DialogHeader>
-              <DialogTitle>Document Preview</DialogTitle>
+              <DialogTitle className="text-[var(--iverifi-text-primary)]">Document preview</DialogTitle>
             </DialogHeader>
             {selectedImage && (
               <img src={selectedImage} alt="Document" className="w-full rounded-md" />
@@ -434,20 +467,32 @@ const ConnectionDetails = () => {
 
         {/* Delete document confirmation */}
         <Dialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
-          <DialogContent>
+          <DialogContent className={cn("max-w-md", dlgSurface)}>
             <DialogHeader>
-              <DialogTitle>Delete document</DialogTitle>
+              <DialogTitle className="text-[var(--iverifi-text-primary)]">Delete document</DialogTitle>
             </DialogHeader>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-[var(--iverifi-text-muted)]">
               Are you sure you want to delete this verified document
               {deleteTarget?.document_type ? ` (${formatDocType(deleteTarget.document_type)})` : ""}?
               You can add it again later.
             </p>
             <div className="flex justify-end gap-2 pt-2">
-              <Button variant="outline" onClick={() => setDeleteTarget(null)} disabled={isDeleting}>
+              <Button
+                type="button"
+                variant="outline"
+                className="border-white/15 bg-transparent text-[var(--iverifi-text-secondary)] hover:bg-white/10"
+                onClick={() => setDeleteTarget(null)}
+                disabled={isDeleting}
+              >
                 Cancel
               </Button>
-              <Button variant="destructive" onClick={handleDeleteDoc} disabled={isDeleting}>
+              <Button
+                type="button"
+                variant="destructive"
+                className="bg-red-600 hover:bg-red-700"
+                onClick={handleDeleteDoc}
+                disabled={isDeleting}
+              >
                 {isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Delete"}
               </Button>
             </div>
@@ -458,12 +503,14 @@ const ConnectionDetails = () => {
   }
 
   return (
-    <div className="p-4 space-y-4">
+    <div className={shell}>
       {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Recipient</p>
-          <h2 className="text-xl font-semibold">
+      <div className="flex justify-between items-center gap-3">
+        <div className="min-w-0">
+          <p className="text-[11px] font-semibold uppercase tracking-widest text-[var(--iverifi-text-muted)]">
+            Recipient
+          </p>
+          <h2 className="text-xl font-bold text-[var(--iverifi-text-primary)] truncate">
             {connection?.recipients?.name ||
               connection?.recipients?.firstName ||
               connection?.recipients?.hotel_name ||
@@ -474,23 +521,27 @@ const ConnectionDetails = () => {
         {connection?.id && (
           <Dialog open={addDocsDialogOpen} onOpenChange={setAddDocsDialogOpen}>
             <DialogTrigger asChild>
-              <Button>Share Documents</Button>
+              <Button type="button" className={shareBtnClass}>
+                Share Documents
+              </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-md">
+            <DialogContent className={cn("max-w-md", dlgSurface)}>
               <DialogHeader>
-                <DialogTitle>Select Documents to Share</DialogTitle>
+                <DialogTitle className="text-[var(--iverifi-text-primary)]">
+                  Select documents to share
+                </DialogTitle>
               </DialogHeader>
 
               {isCredsLoading ? (
-                <p>Loading your verified documents...</p>
+                <p className="text-sm text-[var(--iverifi-text-muted)]">Loading your verified documents…</p>
               ) : docsAvailableToShare.length === 0 ? (
-                <p className="text-muted-foreground">
+                <p className="text-sm text-[var(--iverifi-text-muted)]">
                   {verifiedDocs.length === 0
                     ? "No verified documents found"
                     : "All your verified documents are already shared with this connection."}
                 </p>
               ) : (
-                <div className="space-y-4">
+                <div className="space-y-3">
                   {docsAvailableToShare.map((doc: any) => (
                     <div key={doc.id} className="flex items-center justify-between gap-2">
                       <div className="flex items-center space-x-2 flex-1 min-w-0">
@@ -498,13 +549,15 @@ const ConnectionDetails = () => {
                           checked={selectedDocs.includes(doc.id)}
                           onCheckedChange={() => toggleDoc(doc.id)}
                         />
-                        <Label className="truncate">{formatDocType(doc.document_type)}</Label>
+                        <Label className="truncate text-[var(--iverifi-text-secondary)]">
+                          {formatDocType(doc.document_type)}
+                        </Label>
                       </div>
                       <Button
                         type="button"
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
+                        className="h-8 w-8 shrink-0 text-[var(--iverifi-text-muted)] hover:bg-red-500/15 hover:text-red-300"
                         onClick={() => setDeleteTarget({ id: doc.id, document_type: doc.document_type })}
                         aria-label="Delete document"
                       >
@@ -516,12 +569,12 @@ const ConnectionDetails = () => {
               )}
 
               <div className="mt-4 space-y-2">
-                <Label>Share Period</Label>
+                <Label className="text-[var(--iverifi-text-secondary)]">Share period</Label>
                 <Select onValueChange={setSharePeriod} value={sharePeriod}>
-                  <SelectTrigger>
+                  <SelectTrigger className={selectTriggerThemed}>
                     <SelectValue placeholder="Select period" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="border border-[color:var(--iverifi-dialog-border)] bg-[var(--iverifi-select-content)] text-[var(--iverifi-text-primary)]">
                     <SelectItem value="7">7 Days</SelectItem>
                     <SelectItem value="30">30 Days</SelectItem>
                     <SelectItem value="90">90 Days</SelectItem>
@@ -531,12 +584,19 @@ const ConnectionDetails = () => {
 
               <div className="flex justify-end gap-2 mt-6">
                 <Button
-                  variant="secondary"
+                  type="button"
+                  variant="outline"
+                  className="border-white/15 bg-transparent text-[var(--iverifi-text-secondary)] hover:bg-white/10"
                   onClick={() => setAddDocsDialogOpen(false)}
                 >
                   Cancel
                 </Button>
-                <Button onClick={handleShareDocs} disabled={isUpdating}>
+                <Button
+                  type="button"
+                  className={shareBtnClass}
+                  onClick={handleShareDocs}
+                  disabled={isUpdating}
+                >
                   Share
                 </Button>
               </div>
@@ -545,24 +605,24 @@ const ConnectionDetails = () => {
         )}
       </div>
 
-      <Separator />
+      <Separator className="bg-[color:var(--iverifi-row-divider)]" />
 
       {/* Documents shared with this connection */}
       {isLoading ? (
         <LoadingScreen variant="cards" cardCount={3} gridCols="2" />
       ) : isError ? (
-        <p className="text-red-500">Failed to load connection details.</p>
-      ) : !connection ? (
-        <p className="text-muted-foreground text-sm border p-4 rounded-md bg-muted/50">
-          Connection not found.
+        <p className="rounded-2xl border border-red-500/25 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+          Failed to load connection details.
         </p>
+      ) : !connection ? (
+        <p className={`${panel} p-4 text-sm text-[var(--iverifi-text-muted)]`}>Connection not found.</p>
       ) : !connection.credentials || connection.credentials.length === 0 ? (
-        <p className="text-muted-foreground text-sm border p-4 rounded-md bg-muted/50">
+        <p className={`${panel} p-4 text-sm text-[var(--iverifi-text-muted)]`}>
           No documents shared with this connection.
         </p>
       ) : (
         <div className="space-y-3">
-          <h3 className="text-base font-semibold text-slate-800">
+          <h3 className="text-sm font-semibold text-[var(--iverifi-text-primary)]">
             Documents you&apos;ve shared with{" "}
             {connection?.recipients?.name ||
               connection?.recipients?.firstName ||
@@ -578,65 +638,59 @@ const ConnectionDetails = () => {
             const isDeleted = !cred.details;
 
             return (
-              <Card
+              <div
                 key={cred.details?.id ?? cred.credential_id ?? cred.document_type}
-                className="hover:shadow-md transition"
+                className={`${panel} overflow-hidden transition-colors hover:bg-[var(--iverifi-card-hover)]`}
               >
-                <CardHeader className="flex justify-between items-start">
-                  <CardTitle className="capitalize">
+                <div className="flex justify-between items-start gap-2 border-b border-[color:var(--iverifi-row-divider)] px-4 py-3">
+                  <h4 className="text-base font-semibold capitalize text-[var(--iverifi-text-primary)]">
                     {isDeleted
                       ? "Document deleted"
                       : cred.details?.document_type?.replace(/_/g, " ") ||
                         "Document"}
-                  </CardTitle>
+                  </h4>
                   {!isDeleted && imageUrl && (
                     <Button
+                      type="button"
                       size="icon"
                       variant="ghost"
+                      className="text-[var(--iverifi-text-muted)] hover:bg-white/10 hover:text-[var(--iverifi-text-primary)]"
                       onClick={() => setSelectedImage(imageUrl)}
                     >
                       <Eye className="h-5 w-5" />
                     </Button>
                   )}
-                </CardHeader>
-                <CardContent className="space-y-2 text-sm text-muted-foreground">
-                  <div className="flex justify-between">
-                    <span>Expiry Date:</span>
-                    <span>
+                </div>
+                <div className="space-y-2 px-4 py-3 text-sm text-[var(--iverifi-text-muted)]">
+                  <div className="flex justify-between gap-2">
+                    <span>Expiry date</span>
+                    <span className="text-right text-[var(--iverifi-text-secondary)]">
                       {expiry
                         ? format(parseISO(expiry), "MMM dd, yyyy")
                         : "N/A"}
                     </span>
                   </div>
-                  <div className="flex justify-between">
-                    <span>Status:</span>
+                  <div className="flex justify-between gap-2">
+                    <span>Status</span>
                     <span
                       className={
                         isDeleted
-                          ? "text-amber-600 font-medium"
+                          ? "font-medium text-amber-300"
                           : isActive
-                            ? "text-green-600 font-medium"
-                            : "text-red-500 font-medium"
+                            ? "font-medium text-[#5eead4]"
+                            : "font-medium text-red-400"
                       }
                     >
                       {isDeleted ? "Document deleted" : isActive ? "Active" : "Expired"}
                     </span>
                   </div>
                   {!isDeleted && (
-                    <div className="flex justify-end gap-2 pt-2">
-                      {/* Extend option commented for now
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled={isUpdating}
-                      onClick={() => setExtendDialog({ open: true, cred })}
-                    >
-                      Extend
-                    </Button>
-                    */}
+                    <div className="flex justify-end gap-2 border-t border-[color:var(--iverifi-row-divider)] pt-3">
                       <Button
+                        type="button"
                         size="sm"
-                        variant="destructive"
+                        variant="outline"
+                        className="border-red-500/40 bg-red-500/10 text-red-300 hover:bg-red-500/20 hover:text-red-200"
                         disabled={isUpdating}
                         onClick={() => handleRevoke(cred)}
                       >
@@ -644,43 +698,45 @@ const ConnectionDetails = () => {
                       </Button>
                     </div>
                   )}
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             );
           })}
           </div>
         </div>
       )}
 
-      <Separator />
+      <Separator className="bg-[color:var(--iverifi-row-divider)]" />
 
       {/* Activity with this connection */}
       {connection && (() => {
         const activities = connectionData?.data?.activities ?? [];
         return (
-          <Card>
-            <CardHeader
-              className="cursor-pointer pb-2 select-none"
+          <div className={panel}>
+            <div
+              className="cursor-pointer select-none border-b border-[color:var(--iverifi-row-divider)] px-4 py-3"
               onClick={() => setActivityOpen((o) => !o)}
             >
-              <div className="flex items-center justify-between gap-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
                   {activityOpen ? (
-                    <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    <ChevronDown className="h-4 w-4 shrink-0 text-[var(--iverifi-label)]" />
                   ) : (
-                    <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    <ChevronRight className="h-4 w-4 shrink-0 text-[var(--iverifi-label)]" />
                   )}
-                  <CardTitle className="text-base">Activity with this connection</CardTitle>
+                  <span className="text-base font-semibold text-[var(--iverifi-text-primary)]">
+                    Activity with this connection
+                  </span>
                 </div>
-                <p className="text-sm text-muted-foreground font-normal">
+                <p className="text-sm font-normal text-[var(--iverifi-label)]">
                   {activities.length} stay{activities.length !== 1 ? "s" : ""} at this property
                 </p>
               </div>
-            </CardHeader>
+            </div>
             {activityOpen && (
-            <CardContent className="space-y-4">
+            <div className="space-y-3 px-4 py-4">
               {activities.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No stays or check-ins yet.</p>
+                <p className="text-sm text-[var(--iverifi-label)]">No stays or check-ins yet.</p>
               ) : (
                 activities.map((act: any, index: number) => {
                   const checkInTs = act.check_in_time ? (typeof act.check_in_time === "number" ? act.check_in_time : new Date(act.check_in_time).getTime()) : null;
@@ -692,32 +748,32 @@ const ConnectionDetails = () => {
                       : "—";
                   const statusCls =
                     status === "Checked out"
-                      ? "text-slate-600"
+                      ? "text-[var(--iverifi-text-muted)]"
                       : status === "Checked in"
-                        ? "text-teal-600"
-                        : "text-slate-600";
+                        ? "text-[#5eead4]"
+                        : "text-[var(--iverifi-label)]";
                   return (
                     <div
                       key={act.id || index}
-                      className="rounded-lg border border-slate-200 bg-slate-50/50 p-3 text-sm"
+                      className="rounded-xl border border-[color:var(--iverifi-card-border)] bg-[var(--iverifi-muted-surface)] p-3 text-sm"
                     >
                       <div className="grid gap-2 sm:grid-cols-2">
-                        <div className="flex items-center gap-2 text-muted-foreground">
-                          <CalendarCheck className="h-4 w-4 shrink-0" />
+                        <div className="flex items-center gap-2 text-[var(--iverifi-text-muted)]">
+                          <CalendarCheck className="h-4 w-4 shrink-0 text-[#00c896]" />
                           <span>
                             Check-in:{" "}
                             {checkInTs ? format(new Date(checkInTs), "MMM d, yyyy · h:mm a") : "—"}
                           </span>
                         </div>
-                        <div className="flex items-center gap-2 text-muted-foreground">
-                          <CalendarX className="h-4 w-4 shrink-0" />
+                        <div className="flex items-center gap-2 text-[var(--iverifi-text-muted)]">
+                          <CalendarX className="h-4 w-4 shrink-0 text-[var(--iverifi-label)]" />
                           <span>
                             Check-out:{" "}
                             {checkOutTs ? format(new Date(checkOutTs), "MMM d, yyyy · h:mm a") : "—"}
                           </span>
                         </div>
                         {(act.room_number || act.booking_ref || act.document) && (
-                          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-muted-foreground sm:col-span-2">
+                          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[var(--iverifi-label)] sm:col-span-2">
                             {act.room_number && <span>Room: {act.room_number}</span>}
                             {act.booking_ref && <span>Ref: {act.booking_ref}</span>}
                             {act.document && <span>Doc: {formatDocType(act.document)}</span>}
@@ -725,16 +781,16 @@ const ConnectionDetails = () => {
                         )}
                       </div>
                       <div className="pt-1.5">
-                        <span className="text-muted-foreground">Status: </span>
+                        <span className="text-[var(--iverifi-label)]">Status: </span>
                         <span className={`font-medium ${statusCls}`}>{status}</span>
                       </div>
                     </div>
                   );
                 })
               )}
-            </CardContent>
+            </div>
             )}
-          </Card>
+          </div>
         );
       })()}
 
@@ -743,9 +799,9 @@ const ConnectionDetails = () => {
         open={!!selectedImage}
         onOpenChange={() => setSelectedImage(null)}
       >
-        <DialogContent className="max-w-3xl">
+        <DialogContent className={cn("max-w-3xl", dlgSurface)}>
           <DialogHeader>
-            <DialogTitle>Document Preview</DialogTitle>
+            <DialogTitle className="text-[var(--iverifi-text-primary)]">Document preview</DialogTitle>
           </DialogHeader>
           {selectedImage && (
             <img
@@ -759,20 +815,32 @@ const ConnectionDetails = () => {
 
       {/* Delete document confirmation */}
       <Dialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
-        <DialogContent>
+        <DialogContent className={cn("max-w-md", dlgSurface)}>
           <DialogHeader>
-            <DialogTitle>Delete document</DialogTitle>
+            <DialogTitle className="text-[var(--iverifi-text-primary)]">Delete document</DialogTitle>
           </DialogHeader>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-[var(--iverifi-text-muted)]">
             Are you sure you want to delete this verified document
             {deleteTarget?.document_type ? ` (${formatDocType(deleteTarget.document_type)})` : ""}?
             You can add it again later.
           </p>
           <div className="flex justify-end gap-2 pt-2">
-            <Button variant="outline" onClick={() => setDeleteTarget(null)} disabled={isDeleting}>
+            <Button
+              type="button"
+              variant="outline"
+              className="border-white/15 bg-transparent text-[var(--iverifi-text-secondary)] hover:bg-white/10"
+              onClick={() => setDeleteTarget(null)}
+              disabled={isDeleting}
+            >
               Cancel
             </Button>
-            <Button variant="destructive" onClick={handleDeleteDoc} disabled={isDeleting}>
+            <Button
+              type="button"
+              variant="destructive"
+              className="bg-red-600 hover:bg-red-700"
+              onClick={handleDeleteDoc}
+              disabled={isDeleting}
+            >
               {isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Delete"}
             </Button>
           </div>

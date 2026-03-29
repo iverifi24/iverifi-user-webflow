@@ -136,8 +136,12 @@ export function HeaderProfileMenu() {
 
   const handleLogout = async () => {
     try {
+      const savedTheme = localStorage.getItem("iverifi-theme");
       await signOut(auth);
       localStorage.clear();
+      if (savedTheme === "light" || savedTheme === "dark") {
+        localStorage.setItem("iverifi-theme", savedTheme);
+      }
       navigate("/login");
     } catch (error) {
       console.error("Logout failed:", error);
@@ -146,11 +150,15 @@ export function HeaderProfileMenu() {
 
   const handleDeleteProfile = async () => {
     try {
+      const savedTheme = localStorage.getItem("iverifi-theme");
       await deleteProfile().unwrap();
       toast.success("Profile deleted. You have been signed out.");
       setDeleteProfileOpen(false);
       await signOut(auth);
       localStorage.clear();
+      if (savedTheme === "light" || savedTheme === "dark") {
+        localStorage.setItem("iverifi-theme", savedTheme);
+      }
       navigate("/login");
     } catch (err: any) {
       toast.error(err?.data?.message || err?.message || "Failed to delete profile");
@@ -163,11 +171,11 @@ export function HeaderProfileMenu() {
       <DropdownMenuTrigger asChild>
         <Button
           variant="ghost"
-          className="relative h-10 gap-2 px-2 data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+          className="relative h-10 gap-2 px-2 text-foreground hover:bg-accent hover:text-accent-foreground data-[state=open]:bg-accent data-[state=open]:text-accent-foreground"
         >
-          <Avatar className="h-8 w-8 rounded-lg">
+          <Avatar className="h-8 w-8 rounded-lg border border-border">
             <AvatarImage src={userAvatar} alt={userName} />
-            <AvatarFallback className="rounded-lg">
+            <AvatarFallback className="rounded-lg bg-sky-500/20 text-foreground">
               {getInitials(userName)}
             </AvatarFallback>
           </Avatar>
@@ -177,19 +185,19 @@ export function HeaderProfileMenu() {
               {userEmail}
             </span>
           </div>
-          <ChevronsUpDown className="ml-auto size-4 shrink-0 opacity-50" />
+          <ChevronsUpDown className="ml-auto size-4 shrink-0 text-muted-foreground" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent
-        className="min-w-56 rounded-lg"
+        className="min-w-56 rounded-xl border border-border bg-popover text-popover-foreground"
         align="end"
         sideOffset={4}
       >
         <DropdownMenuLabel className="p-0 font-normal">
           <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
-            <Avatar className="h-8 w-8 rounded-lg">
+            <Avatar className="h-8 w-8 rounded-lg border border-border">
               <AvatarImage src={userAvatar} alt={userName} />
-              <AvatarFallback className="rounded-lg">
+              <AvatarFallback className="rounded-lg bg-sky-500/20 text-foreground">
                 {getInitials(userName)}
               </AvatarFallback>
             </Avatar>
@@ -207,35 +215,31 @@ export function HeaderProfileMenu() {
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => navigate("/connections")}>
+        <DropdownMenuItem className="focus:bg-accent focus:text-accent-foreground" onClick={() => navigate("/connections")}>
           <Home className="size-4" />
           Connections
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => navigate("/documents")}>
-          <FileText className="size-4" />
-          Documents
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => navigate("/my-activity")}>
+        <DropdownMenuItem className="focus:bg-accent focus:text-accent-foreground" onClick={() => navigate("/my-activity")}>
           <History className="size-4" />
           My Activity
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         {!hasGoogleLinked && (
-          <DropdownMenuItem onClick={handleLinkGoogle}>
+          <DropdownMenuItem className="focus:bg-accent focus:text-accent-foreground" onClick={handleLinkGoogle}>
             <FileText className="size-4" />
             Link Google account
           </DropdownMenuItem>
         )}
         <DropdownMenuSeparator />
         <DropdownMenuItem
-          className="text-destructive focus:text-destructive"
+          className="text-red-600 focus:bg-accent focus:text-red-600 dark:text-red-400 dark:focus:text-red-400"
           onClick={() => setDeleteProfileOpen(true)}
         >
           <Trash2 className="size-4" />
           Delete profile
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={handleLogout}>
+        <DropdownMenuItem className="focus:bg-accent focus:text-accent-foreground" onClick={handleLogout}>
           <LogOut className="size-4" />
           Log out
         </DropdownMenuItem>
@@ -243,12 +247,12 @@ export function HeaderProfileMenu() {
     </DropdownMenu>
 
     <Dialog open={deleteProfileOpen} onOpenChange={onDeleteProfileOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md border-border bg-card text-card-foreground">
         <DialogHeader>
-          <DialogTitle className="text-destructive">Delete your account</DialogTitle>
+          <DialogTitle className="text-red-400">Delete your account</DialogTitle>
           <DialogDescription asChild>
-            <div className="space-y-3 text-sm text-muted-foreground">
-              <p className="font-medium text-foreground">This action is permanent and cannot be undone.</p>
+            <div className="space-y-3 text-sm text-slate-400">
+              <p className="font-medium text-slate-100">This action is permanent and cannot be undone.</p>
               <p>The following will be permanently removed:</p>
               <ul className="list-disc list-inside space-y-1 pl-1">
                 <li>Your profile and personal information</li>
@@ -258,14 +262,14 @@ export function HeaderProfileMenu() {
                 <li>Your Firebase authentication account (you will not be able to sign in with this email or phone again)</li>
               </ul>
               <p>If you have shared credentials with any property, they will no longer have access to your documents.</p>
-              <p className="pt-2 text-foreground">
-                To confirm, type <strong className="font-mono text-destructive">DELETE</strong> below.
+              <p className="pt-2 text-slate-100">
+                To confirm, type <strong className="font-mono text-red-400">DELETE</strong> below.
               </p>
             </div>
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-2 py-2">
-          <Label htmlFor="delete-confirm" className="text-muted-foreground">
+          <Label htmlFor="delete-confirm" className="text-slate-400">
             Type DELETE to confirm
           </Label>
           <Input
@@ -273,18 +277,19 @@ export function HeaderProfileMenu() {
             placeholder="DELETE"
             value={deleteConfirmText}
             onChange={(e) => setDeleteConfirmText(e.target.value)}
-            className="font-mono placeholder:font-mono"
+            className="font-mono placeholder:font-mono border-slate-700 bg-slate-900/80 text-slate-100 placeholder:text-slate-500"
             disabled={isDeletingProfile}
             autoComplete="off"
             aria-describedby="delete-confirm-hint"
           />
-          <p id="delete-confirm-hint" className="text-xs text-muted-foreground">
+          <p id="delete-confirm-hint" className="text-xs text-slate-500">
             This helps prevent accidental deletion.
           </p>
         </div>
         <DialogFooter className="gap-2 sm:gap-0">
           <Button
             variant="outline"
+            className="border-slate-700 bg-transparent text-slate-200 hover:bg-slate-800"
             onClick={() => onDeleteProfileOpenChange(false)}
             disabled={isDeletingProfile}
           >

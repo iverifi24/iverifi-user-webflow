@@ -82,7 +82,7 @@ export const api = createApi({
       invalidatesTags: ["connections", "activity"],
     }),
     updateCheckInStatus: builder.mutation({
-      query: ({ credential_request_id, credentials, status, credential_id }) => ({
+      query: ({ credential_request_id, credentials, status, credential_id, cform_data }) => ({
         url: "/users/updateCheckInStatus",
         method: "POST",
         body: {
@@ -90,6 +90,7 @@ export const api = createApi({
           ...(credentials != null && { credentials }),
           status,
           ...(credential_id != null && credential_id !== "" && { credential_id }),
+          ...(cform_data != null && { cform_data }),
         },
       }),
       invalidatesTags: ["connections", "activity"],
@@ -98,6 +99,16 @@ export const api = createApi({
       query: () => ({
         url: "/users/deleteProfile",
         method: "POST",
+      }),
+    }),
+    saveCForm: builder.mutation<
+      { success: boolean; message: string },
+      { credential_request_id: string; cform_data: Record<string, any> }
+    >({
+      query: ({ credential_request_id, cform_data }) => ({
+        url: "/users/saveCForm",
+        method: "POST",
+        body: { credential_request_id, cform_data },
       }),
     }),
     login: builder.mutation({
@@ -305,6 +316,7 @@ export const api = createApi({
 export const {
   useGetCredentialsQuery,
   useDeleteCredentialMutation,
+  useSaveCFormMutation,
   useGetConnectionsQuery,
   useGetRecipientCredentialsQuery,
   useGetMyActivityQuery,

@@ -3,7 +3,13 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { db } from "@/firebase/firebase_setup";
 import { doc, setDoc } from "firebase/firestore";
 import { toast } from "sonner";
@@ -11,6 +17,7 @@ import { getRecipientIdFromStorage } from "@/utils/connectionFlow";
 import { syncApplicantProfileToBackend } from "@/utils/syncApplicantProfile";
 import { useAuth } from "@/context/auth_context";
 import { LoadingScreen } from "@/components/loading-screen";
+import { IverifiLogo } from "@/components/iverifi-logo";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_REGEX = /^[0-9]{10}$/;
@@ -105,96 +112,110 @@ export default function ProfileCompletion() {
   };
 
   return (
-    <div className="bg-muted flex min-h-svh flex-col items-center justify-center gap-6 p-6 md:p-10">
-      <div className="flex w-full max-w-md flex-col gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Complete Your Profile</CardTitle>
-            <CardDescription>
-              {isPhoneUser
-                ? "You signed up with your phone number. Please add your email and name to continue."
-                : "All fields are required. Please provide your details to continue."}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid gap-3">
-                <Label htmlFor="firstName">
-                  First Name <span className="text-destructive">*</span>
-                </Label>
-                <Input
-                  id="firstName"
-                  type="text"
-                  value={firstName}
-                  onChange={(e) => setFirstName(e.target.value)}
-                  placeholder="Enter your first name"
-                  required
-                  aria-required="true"
-                  disabled={isSubmitting}
-                />
-              </div>
+    <div className="flex min-h-0 flex-1 flex-col items-center justify-center overflow-hidden px-4">
+      <div className="w-full max-w-xl mx-auto flex flex-col items-center justify-center gap-5">
+        {/* Logo only – no extra page headings */}
+        <div className="w-full max-w-sm flex shrink-0 items-center justify-center">
+          <IverifiLogo />
+        </div>
 
-              <div className="grid gap-3">
-                <Label htmlFor="lastName">
-                  Last Name <span className="text-destructive">*</span>
-                </Label>
-                <Input
-                  id="lastName"
-                  type="text"
-                  value={lastName}
-                  onChange={(e) => setLastName(e.target.value)}
-                  placeholder="Enter your last name"
-                  required
-                  aria-required="true"
-                  disabled={isSubmitting}
-                />
-              </div>
-
-              {isPhoneUser ? (
+        {/* Form card */}
+        <div className="w-full max-w-md shrink-0">
+          <Card className="border-[rgba(255,255,255,0.08)] bg-[rgba(10,16,30,0.98)] text-slate-50 shadow-[0_18px_45px_rgba(0,0,0,0.85)]">
+            <CardHeader>
+              <CardTitle className="text-lg md:text-xl text-slate-50">
+                Complete your profile
+              </CardTitle>
+              <CardDescription className="text-xs md:text-sm text-slate-400">
+                {isPhoneUser
+                  ? "You signed up with your phone number. Please add your email and name to continue."
+                  : "All fields are required. Please provide your details to continue."}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="grid gap-3">
-                  <Label htmlFor="email">
-                    Email <span className="text-destructive">*</span>
+                  <Label htmlFor="firstName">
+                    First Name <span className="text-destructive">*</span>
                   </Label>
                   <Input
-                    id="email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="you@example.com"
+                    id="firstName"
+                    type="text"
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    placeholder="Enter your first name"
                     required
                     aria-required="true"
                     disabled={isSubmitting}
+                    className="border-slate-800/80 bg-slate-900/60 text-slate-50 placeholder:text-slate-500 focus-visible:ring-sky-500/70"
                   />
                 </div>
-              ) : (
-              <div className="grid gap-3">
-                <Label htmlFor="mobileNumber">
-                  Mobile Number <span className="text-destructive">*</span>
-                </Label>
-                <Input
-                  id="mobileNumber"
-                  type="tel"
-                  value={mobileNumber}
-                  onChange={(e) => setMobileNumber(e.target.value)}
-                  placeholder="Enter your 10-digit mobile number"
-                  maxLength={10}
-                  required
-                  aria-required="true"
-                  disabled={isSubmitting}
-                />
-              </div>
-              )}
 
-              <Button
-                type="submit"
-                className="w-full"
-                disabled={isSubmitting}
-              >
-                {isSubmitting ? "Saving..." : "Continue"}
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
+                <div className="grid gap-3">
+                  <Label htmlFor="lastName">
+                    Last Name <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    id="lastName"
+                    type="text"
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    placeholder="Enter your last name"
+                    required
+                    aria-required="true"
+                    disabled={isSubmitting}
+                    className="border-slate-800/80 bg-slate-900/60 text-slate-50 placeholder:text-slate-500 focus-visible:ring-sky-500/70"
+                  />
+                </div>
+
+                {isPhoneUser ? (
+                  <div className="grid gap-3">
+                    <Label htmlFor="email">
+                      Email <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="you@example.com"
+                      required
+                      aria-required="true"
+                      disabled={isSubmitting}
+                      className="border-slate-800/80 bg-slate-900/60 text-slate-50 placeholder:text-slate-500 focus-visible:ring-sky-500/70"
+                    />
+                  </div>
+                ) : (
+                  <div className="grid gap-3">
+                    <Label htmlFor="mobileNumber">
+                      Mobile Number <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      id="mobileNumber"
+                      type="tel"
+                      value={mobileNumber}
+                      onChange={(e) => setMobileNumber(e.target.value)}
+                      placeholder="Enter your 10-digit mobile number"
+                      maxLength={10}
+                      required
+                      aria-required="true"
+                      disabled={isSubmitting}
+                      className="border-slate-800/80 bg-slate-900/60 text-slate-50 placeholder:text-slate-500 focus-visible:ring-sky-500/70"
+                    />
+                  </div>
+                )}
+
+                <Button
+                  type="submit"
+                  className="w-full bg-gradient-to-r from-[#00e0ff] to-[#7B5CF5] text-slate-950 shadow-[0_0_40px_rgba(0,224,255,0.55)] hover:from-[#40e8ff] hover:to-[#9274ff]"
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? "Saving..." : "Continue"}
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );

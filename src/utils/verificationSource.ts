@@ -17,9 +17,17 @@ const SOURCE_MAP: Record<string, string> = {
   DRIVING_LICENSE: "Parivahan",
   voter_id: "Election Commission",
   VOTER_ID: "Election Commission",
+  "C-Form (Foreign Guest)": "Passport Upload",
 };
 
-export type VerifierKey = "DigiLocker" | "e-Filing" | "Parivahan" | "Passport Seva" | "Election Commission" | "Manual";
+export type VerifierKey =
+  | "DigiLocker"
+  | "e-Filing"
+  | "Parivahan"
+  | "Passport Seva"
+  | "Passport Upload"
+  | "Election Commission"
+  | "Manual";
 
 /**
  * Returns the display verifier name for a document type.

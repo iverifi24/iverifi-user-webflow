@@ -43,8 +43,9 @@
 
 :root {
   --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
+  /* Light app shell (vault-style) */
+  --background: oklch(0.98 0.008 250);
+  --foreground: oklch(0.2 0.02 250);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);
@@ -74,10 +75,47 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+
+  /* Shared “iVerifi” surfaces (used by vault, sheets, lists) */
+  --iverifi-page: #f1f5f9;
+  --iverifi-card: #ffffff;
+  --iverifi-card-border: rgba(15, 23, 42, 0.1);
+  --iverifi-card-hover: rgba(15, 23, 42, 0.04);
+  --iverifi-stat-bg: #ffffff;
+  --iverifi-stat-border: rgba(15, 23, 42, 0.08);
+  --iverifi-muted-surface: rgba(15, 23, 42, 0.04);
+  --iverifi-icon-border: rgba(15, 23, 42, 0.12);
+  --iverifi-text-primary: #0f172a;
+  --iverifi-text-secondary: #334155;
+  --iverifi-text-muted: #64748b;
+  --iverifi-label: #64748b;
+  --iverifi-nav-bg: #ffffff;
+  --iverifi-nav-border: rgba(15, 23, 42, 0.12);
+  --iverifi-nav-shadow: rgba(15, 23, 42, 0.12);
+  --iverifi-overlay: rgba(15, 23, 42, 0.45);
+  --iverifi-sheet: #ffffff;
+  --iverifi-sheet-border: rgba(15, 23, 42, 0.12);
+  --iverifi-sheet-handle: rgba(15, 23, 42, 0.2);
+  --iverifi-surface-1: #f8fafc;
+  --iverifi-surface-2: #f1f5f9;
+  --iverifi-border-subtle: rgba(15, 23, 42, 0.1);
+  --iverifi-row-divider: rgba(15, 23, 42, 0.08);
+  --iverifi-icon-box-bg: rgba(14, 165, 233, 0.1);
+  --iverifi-icon-box-border: rgba(14, 165, 233, 0.25);
+  --iverifi-hint-bg: rgba(14, 165, 233, 0.06);
+  --iverifi-hint-border: rgba(14, 165, 233, 0.15);
+  --iverifi-hint-text: #475569;
+  --iverifi-close-bg: rgba(15, 23, 42, 0.04);
+  --iverifi-close-border: rgba(15, 23, 42, 0.12);
+  --iverifi-close-text: #64748b;
+  --iverifi-dialog-bg: #ffffff;
+  --iverifi-dialog-border: rgba(15, 23, 42, 0.12);
+  --iverifi-select-content: #ffffff;
+  --iverifi-ring-muted: rgba(15, 23, 42, 0.18);
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
+  --background: #050816;
   --foreground: oklch(0.985 0 0);
   --card: oklch(0.205 0 0);
   --card-foreground: oklch(0.985 0 0);
@@ -108,6 +146,42 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
+
+  --iverifi-page: #050816;
+  --iverifi-card: rgba(15, 23, 42, 0.55);
+  --iverifi-card-border: rgba(255, 255, 255, 0.08);
+  --iverifi-card-hover: rgba(15, 23, 42, 0.72);
+  --iverifi-stat-bg: rgba(255, 255, 255, 0.03);
+  --iverifi-stat-border: rgba(255, 255, 255, 0.08);
+  --iverifi-muted-surface: rgba(255, 255, 255, 0.03);
+  --iverifi-icon-border: rgba(255, 255, 255, 0.1);
+  --iverifi-text-primary: #f8fafc;
+  --iverifi-text-secondary: #cbd5e1;
+  --iverifi-text-muted: #94a3b8;
+  --iverifi-label: #727892;
+  --iverifi-nav-bg: #0b1222;
+  --iverifi-nav-border: rgba(148, 163, 184, 0.25);
+  --iverifi-nav-shadow: rgba(2, 6, 23, 0.6);
+  --iverifi-overlay: rgba(0, 0, 0, 0.65);
+  --iverifi-sheet: rgba(15, 17, 25, 0.98);
+  --iverifi-sheet-border: rgba(255, 255, 255, 0.1);
+  --iverifi-sheet-handle: rgba(255, 255, 255, 0.12);
+  --iverifi-surface-1: rgba(255, 255, 255, 0.03);
+  --iverifi-surface-2: rgba(255, 255, 255, 0.06);
+  --iverifi-border-subtle: rgba(255, 255, 255, 0.09);
+  --iverifi-row-divider: rgba(255, 255, 255, 0.05);
+  --iverifi-icon-box-bg: rgba(0, 224, 255, 0.08);
+  --iverifi-icon-box-border: rgba(0, 224, 255, 0.2);
+  --iverifi-hint-bg: rgba(0, 224, 255, 0.05);
+  --iverifi-hint-border: rgba(0, 224, 255, 0.1);
+  --iverifi-hint-text: #a8adc0;
+  --iverifi-close-bg: rgba(255, 255, 255, 0.04);
+  --iverifi-close-border: rgba(255, 255, 255, 0.09);
+  --iverifi-close-text: #727892;
+  --iverifi-dialog-bg: #0b1220;
+  --iverifi-dialog-border: rgba(255, 255, 255, 0.12);
+  --iverifi-select-content: #0b1220;
+  --iverifi-ring-muted: rgba(255, 255, 255, 0.2);
 }
 
 @layer base {
@@ -116,5 +190,17 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+/* Bottom sheets (vault document view, share flow) */
+@keyframes slide-up {
+  from {
+    transform: translateY(100%);
+    opacity: 0.85;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
   }
 }

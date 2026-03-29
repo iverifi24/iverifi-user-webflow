@@ -1,4 +1,4 @@
-import { FileText } from "lucide-react";
+import { FileText, Globe } from "lucide-react";
 import { DigiLockerIcon } from "@/components/digilocker-icon";
 import { ParivahanIcon } from "@/components/parivahan-icon";
 import { IncomeTaxIcon } from "@/components/income-tax-icon";
@@ -37,6 +37,10 @@ export function DocumentTypeIcon({
   }
   if (source === "Passport Seva") {
     return <PassportSevaIcon size={size} className={`object-contain ${className}`} />;
+  }
+
+  if (source === "Passport Upload") {
+    return <Globe className={`h-6 w-6 shrink-0 ${className}`} />;
   }
 
   // Election Commission, Manual, etc.: fallback
