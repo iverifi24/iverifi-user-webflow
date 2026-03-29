@@ -81,7 +81,7 @@ export function QRScannerModal({
           return;
         }
 
-        // Prefer "user" (front camera) so laptop webcams work; "environment" is often only on phones
+        // Prefer "environment" (rear camera) for scanning QR codes on phones; falls back if unavailable
         const scanner = new QrScanner(
           video,
           (result) => {
@@ -99,7 +99,7 @@ export function QRScannerModal({
             onOpenChange(false);
           },
           {
-            preferredCamera: "user",
+            preferredCamera: "environment",
             highlightScanRegion: true,
             returnDetailedScanResult: true,
           }
