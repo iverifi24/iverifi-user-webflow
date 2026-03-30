@@ -6,29 +6,36 @@ import { HeaderProfileMenu } from "@/components/header-profile-menu";
 import { BottomNav } from "@/components/bottom-nav";
 import { Sun, Moon } from "lucide-react";
 import { useTheme } from "@/context/theme_context";
-import { useInactivityLogout } from "@/hooks/use-inactivity-logout";
-import { logoutUser } from "@/firebase_auth_service";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+import { useAuth } from "@/context/auth_context";
+import { PinLockScreen } from "@/components/pin-lock-screen";
+import { useEffect } from "react";
+
+// Routes where PIN lock should not block the user (onboarding)
+const PIN_EXCLUDED_PATHS = ["/accept-terms", "/complete-profile", "/aadhaar-test"];
 
 const ProtectedLayout = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { theme, setTheme } = useTheme();
-  const showBottomNav = location.pathname !== "/complete-profile";
+  const { user, pinLocked, needsPinSetup, pinHash, setPinLocked, setNeedsPinSetup } = useAuth();
 
-  const { showWarning, secondsLeft, stayLoggedIn, logoutNow } =
-    useInactivityLogout(async () => {
-      await logoutUser();
-      navigate("/login", { replace: true });
-    });
+  const showBottomNav = location.pathname !== "/complete-profile";
+  const isOnboardingPath = PIN_EXCLUDED_PATHS.some((p) =>
+    location.pathname.startsWith(p)
+  );
+
+  // Lock screen when user returns to the app (tab becomes visible again)
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (!document.hidden && user && pinHash !== null) {
+        setPinLocked(true);
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
+  }, [user, pinHash, setPinLocked]);
+
+  const showPinScreen = !isOnboardingPath && (pinLocked || needsPinSetup);
 
   return (
     <SidebarProvider>
@@ -72,27 +79,20 @@ const ProtectedLayout = () => {
           <Toaster />
         </main>
       </SidebarInset>
+
       {showBottomNav && <BottomNav />}
 
-      <Dialog open={showWarning} onOpenChange={(open) => { if (!open) stayLoggedIn(); }}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Session Expiring Soon</DialogTitle>
-            <DialogDescription>
-              You've been inactive for a while. You'll be logged out automatically in{" "}
-              <span className="font-semibold text-foreground">{secondsLeft}s</span>.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="flex gap-2 sm:flex-row">
-            <Button variant="outline" className="flex-1" onClick={logoutNow}>
-              Log Out
-            </Button>
-            <Button className="flex-1" onClick={stayLoggedIn}>
-              Stay Logged In
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* PIN lock / setup overlay */}
+      {showPinScreen && user && (
+        <PinLockScreen
+          uid={user.uid}
+          mode={needsPinSetup ? "setup" : "lock"}
+          onUnlocked={() => {
+            setPinLocked(false);
+            setNeedsPinSetup(false);
+          }}
+        />
+      )}
     </SidebarProvider>
   );
 };

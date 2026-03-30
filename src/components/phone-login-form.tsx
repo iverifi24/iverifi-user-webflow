@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { auth } from "@/firebase/firebase_setup";
 import { syncApplicantProfileToBackend } from "@/utils/syncApplicantProfile";
+import { recordLoginSession } from "@/utils/pin";
 
 const COUNTRY_CODES: { code: string; label: string }[] = [
   { code: "+91", label: "India (+91)" },
@@ -126,6 +127,11 @@ export function PhoneLoginForm({
       // Ensure Firebase auth.currentUser is loaded
       await auth.currentUser?.getIdToken(true);
 
+      // Record login timestamp for 30-day session enforcement
+      if (auth.currentUser) {
+        recordLoginSession(auth.currentUser.uid);
+      }
+
       // Persist phone into applicant profile (and link it to this Firebase user).
       try {
         await syncApplicantProfileToBackend({
@@ -157,7 +163,7 @@ export function PhoneLoginForm({
           <div className="space-y-1.5 sm:space-y-2">
             <Label
               htmlFor="phone-number"
-              className="text-[11px] text-slate-200 sm:text-xs md:text-sm"
+              className="text-[11px] text-foreground/90 sm:text-xs md:text-sm"
             >
               Mobile number
             </Label>
@@ -166,7 +172,7 @@ export function PhoneLoginForm({
                 id="phone-country"
                 value={countryCode}
                 onChange={(e) => setCountryCode(e.target.value)}
-                className="h-9 w-[5.5rem] shrink-0 rounded-lg border border-slate-800/80 bg-slate-900/80 px-2 text-[11px] text-slate-100 ring-offset-slate-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/70 focus-visible:ring-offset-2 sm:h-10 sm:w-28 sm:rounded-xl sm:px-3 sm:text-xs md:text-sm"
+                className="h-9 w-[5.5rem] shrink-0 rounded-lg border border-border bg-card px-2 text-[11px] text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/70 focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:h-10 sm:w-28 sm:rounded-xl sm:px-3 sm:text-xs md:text-sm"
                 disabled={isSendingOtp}
               >
                 {COUNTRY_CODES.map(({ code, label }) => (
@@ -187,7 +193,7 @@ export function PhoneLoginForm({
                   )
                 }
                 disabled={isSendingOtp}
-                className="h-9 flex-1 rounded-lg border-slate-800/80 bg-slate-900/80 text-slate-50 placeholder:text-slate-500 focus-visible:ring-sky-500/70 sm:h-10 sm:rounded-xl"
+                className="h-9 flex-1 rounded-lg border-border bg-card text-foreground placeholder:text-muted-foreground focus-visible:ring-sky-500/70 sm:h-10 sm:rounded-xl"
               />
             </div>
           </div>
@@ -208,7 +214,7 @@ export function PhoneLoginForm({
           <div className="space-y-1.5 sm:space-y-2">
             <Label
               htmlFor="otp"
-              className="text-[11px] text-slate-200 sm:text-xs md:text-sm"
+              className="text-[11px] text-foreground/90 sm:text-xs md:text-sm"
             >
               Verification code
             </Label>
@@ -221,7 +227,7 @@ export function PhoneLoginForm({
               value={otp}
               onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
               disabled={isVerifying}
-              className="h-9 text-center text-base tracking-[0.35em] border-slate-800/80 bg-slate-900/80 text-slate-50 focus-visible:ring-sky-500/70 sm:h-10 sm:text-lg sm:tracking-[0.5em]"
+              className="h-9 text-center text-base tracking-[0.35em] border-border bg-card text-foreground focus-visible:ring-sky-500/70 sm:h-10 sm:text-lg sm:tracking-[0.5em]"
             />
           </div>
           <div className="flex gap-1.5 sm:gap-2">
@@ -229,7 +235,7 @@ export function PhoneLoginForm({
               type="button"
               variant="outline"
               size="sm"
-              className="h-9 flex-1 border-slate-700/80 bg-slate-900/60 text-slate-50 hover:bg-slate-800 sm:h-10"
+              className="h-9 flex-1 border-border bg-card text-foreground hover:bg-accent sm:h-10"
               disabled={isVerifying}
               onClick={() => {
                 setSessionId(null);
