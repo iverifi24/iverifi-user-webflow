@@ -471,14 +471,8 @@ const Connections = () => {
     }
 
     if (selectedDocType === "PAN_CARD") {
-      const dob = pickFirst(selectedDetails, ["dob", "dateOfBirth", "Date of Birth", "date_of_birth"]);
-      const isAbove18Raw = pickFirst(selectedDetails, ["isAbove18", "is_above_18", "isAbove18Verified"]);
-      const isAbove18 = typeof isAbove18Raw === "boolean" ? isAbove18Raw : String(isAbove18Raw).toLowerCase() === "true";
-      const base = [
-        { label: "DOB", value: String(dob ?? "—") },
-      ];
-      if (isAbove18) base.push({ label: "Age", value: "Above 18" });
-      return base.filter((field) => field.value !== "—");
+      // Age is already shown in the summary card (selectedIdentityInfo.age), so no extra fields needed
+      return [];
     }
 
     if (selectedDocType === "DRIVING_LICENSE") {
@@ -525,7 +519,7 @@ const Connections = () => {
         { label: "Nationality", value: String(nationality ?? "—") },
         { label: "Passport No.", value: String(passportNo ?? "—") },
         { label: "Passport Expiry", value: String(passportExpiry ?? "—") },
-        { label: "Date of Birth", value: String(dateOfBirth ?? "—") },
+        { label: "Age", value: (() => { const d = dateOfBirth ? new Date(String(dateOfBirth)) : null; if (!d || Number.isNaN(d.getTime())) return "—"; return Math.floor((Date.now() - d.getTime()) / (365.25 * 24 * 60 * 60 * 1000)) >= 18 ? "Above 18" : "Below 18"; })() },
         { label: "Sex", value: String(sex ?? "—") },
         { label: "Arrival Date", value: String(arrivalDate ?? "—") },
         { label: "Port of Arrival", value: String(portOfArrival ?? "—") },

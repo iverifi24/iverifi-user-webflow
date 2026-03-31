@@ -121,13 +121,20 @@ export function CFormDialog({ open, passportData, onSave, onClose }: CFormDialog
     }
   };
 
+  const dobToAgeLabel = (dob: string): string => {
+    if (!dob) return "";
+    const d = new Date(dob);
+    if (Number.isNaN(d.getTime())) return "";
+    return Math.floor((Date.now() - d.getTime()) / (365.25 * 24 * 60 * 60 * 1000)) >= 18 ? "Above 18" : "Below 18";
+  };
+
   const passportRows: [string, string][] = [
     ["Surname", passportData.surname],
     ["Given name", passportData.givenName],
     ["Nationality", passportData.nationality],
     ["Passport No.", passportData.passportNo],
     ["Expiry", passportData.passportExpiry],
-    ["Date of birth", passportData.dateOfBirth],
+    ["Age", dobToAgeLabel(passportData.dateOfBirth)],
   ].filter(([, v]) => Boolean(v)) as [string, string][];
 
   const allFields: [string, string][] = [
@@ -135,7 +142,7 @@ export function CFormDialog({ open, passportData, onSave, onClose }: CFormDialog
     ["Given name", passportData.givenName],
     ["Nationality", passportData.nationality],
     ["Passport No.", passportData.passportNo],
-    ["Date of birth", passportData.dateOfBirth],
+    ["Age", dobToAgeLabel(passportData.dateOfBirth)],
     ["Sex", manual.sex],
     ["Arrival date", manual.arrivalDate],
     ["Port of arrival", manual.portOfArrival],
