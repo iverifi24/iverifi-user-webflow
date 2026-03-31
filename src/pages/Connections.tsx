@@ -352,17 +352,15 @@ const Connections = () => {
       ...flattenSources(selectedCredential as Record<string, any>),
       ...extractKwikOcr(selectedCredential as Record<string, any>),
     };
-    const directPhoto = pickFirst(details, ["photo", "profile_photo", "image_url"]);
-    if (typeof directPhoto === "string" && directPhoto.trim()) return directPhoto;
-    const ocrFace = pickFirst(details, ["face_url", "ps_face_url", "selfie_url"]);
-    if (typeof ocrFace === "string" && ocrFace.trim()) return ocrFace;
-    const images = (selectedCredential as any)?.images;
-    if (Array.isArray(images) && images.length > 0) {
-      const first = images[0];
-      if (typeof first === "string" && first.trim()) return first;
-      const objectUrl = first?.url_org || first?.url_original || first?.url || null;
-      if (typeof objectUrl === "string" && objectUrl.trim()) return objectUrl;
-    }
+    const isEncrypted = (v: unknown) => typeof v === "string" && v.startsWith("enc:v1:");
+    // Our S3 face_url first (decrypted server-side), then Kwik's ps_face_url as fallback
+    const rootFace = pickFirst(details, ["face_url"]);
+    if (typeof rootFace === "string" && rootFace.trim() && !isEncrypted(rootFace)) return rootFace;
+    const faceSpecific = pickFirst(details, ["ps_face_url", "selfie_url"]);
+    if (typeof faceSpecific === "string" && faceSpecific.trim() && !isEncrypted(faceSpecific)) return faceSpecific;
+    // Generic photo fields (not image_url — that's usually the document scan)
+    const directPhoto = pickFirst(details, ["photo", "profile_photo"]);
+    if (typeof directPhoto === "string" && directPhoto.trim() && !isEncrypted(directPhoto)) return directPhoto;
     return null;
   }, [selectedCredential]);
 
