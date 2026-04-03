@@ -179,6 +179,19 @@ const extractKwikOcr = (credential: Record<string, any>): Record<string, any> =>
   return { ...ocr, ...images };
 };
 
+const parseDob = (raw: unknown): Date | null => {
+  if (!raw) return null;
+  const s = String(raw).trim();
+  // DD/MM/YYYY or DD-MM-YYYY
+  const dmy = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+  if (dmy) return new Date(`${dmy[3]}-${dmy[2].padStart(2, "0")}-${dmy[1].padStart(2, "0")}`);
+  // YYYY/MM/DD or YYYY-MM-DD
+  const ymd = s.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/);
+  if (ymd) return new Date(`${ymd[1]}-${ymd[2].padStart(2, "0")}-${ymd[3].padStart(2, "0")}`);
+  const d = new Date(s);
+  return Number.isNaN(d.getTime()) ? null : d;
+};
+
 const pickByIncludes = (obj: Record<string, any>, includes: string[]): any => {
   const entries = Object.entries(obj);
   for (const [key, value] of entries) {
@@ -379,9 +392,9 @@ const Connections = () => {
       ]) ?? pickByIncludes(selectedDetails, ["fullname", "holdername", "applicantname", "name"]);
     const isAbove18Raw = pickFirst(selectedDetails, ["isAbove18", "is_above_18", "isAbove18Verified", "age_verified"]);
     const dobRaw =
-      pickFirst(selectedDetails, ["dob", "dateOfBirth", "date_of_birth", "birth_date"]) ??
+      pickFirst(selectedDetails, ["dob", "dateOfBirth", "date_of_birth", "birth_date", "Dob", "DOB"]) ??
       pickByIncludes(selectedDetails, ["dateofbirth", "birthdate", "dob"]);
-    const parsedDob = dobRaw ? new Date(String(dobRaw)) : null;
+    const parsedDob = parseDob(dobRaw);
     const computedAge =
       parsedDob && !Number.isNaN(parsedDob.getTime())
         ? Math.floor((Date.now() - parsedDob.getTime()) / (365.25 * 24 * 60 * 60 * 1000))
@@ -517,7 +530,7 @@ const Connections = () => {
         { label: "Nationality", value: String(nationality ?? "—") },
         { label: "Passport No.", value: String(passportNo ?? "—") },
         { label: "Passport Expiry", value: String(passportExpiry ?? "—") },
-        { label: "Age", value: (() => { const d = dateOfBirth ? new Date(String(dateOfBirth)) : null; if (!d || Number.isNaN(d.getTime())) return "—"; return Math.floor((Date.now() - d.getTime()) / (365.25 * 24 * 60 * 60 * 1000)) >= 18 ? "Above 18" : "Below 18"; })() },
+        { label: "Age", value: (() => { const d = parseDob(dateOfBirth); if (!d) return "—"; return Math.floor((Date.now() - d.getTime()) / (365.25 * 24 * 60 * 60 * 1000)) >= 18 ? "Above 18" : "Below 18"; })() },
         { label: "Sex", value: String(sex ?? "—") },
         { label: "Arrival Date", value: String(arrivalDate ?? "—") },
         { label: "Port of Arrival", value: String(portOfArrival ?? "—") },

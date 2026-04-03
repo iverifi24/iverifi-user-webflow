@@ -123,8 +123,16 @@ export function CFormDialog({ open, passportData, onSave, onClose }: CFormDialog
 
   const dobToAgeLabel = (dob: string): string => {
     if (!dob) return "";
-    const d = new Date(dob);
-    if (Number.isNaN(d.getTime())) return "";
+    const s = dob.trim();
+    let d: Date | null = null;
+    const dmy = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+    if (dmy) d = new Date(`${dmy[3]}-${dmy[2].padStart(2, "0")}-${dmy[1].padStart(2, "0")}`);
+    else {
+      const ymd = s.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/);
+      if (ymd) d = new Date(`${ymd[1]}-${ymd[2].padStart(2, "0")}-${ymd[3].padStart(2, "0")}`);
+      else d = new Date(s);
+    }
+    if (!d || Number.isNaN(d.getTime())) return "";
     return Math.floor((Date.now() - d.getTime()) / (365.25 * 24 * 60 * 60 * 1000)) >= 18 ? "Above 18" : "Below 18";
   };
 
