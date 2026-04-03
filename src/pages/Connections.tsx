@@ -878,10 +878,15 @@ const Connections = () => {
     const productCode = getProductCode(documentType);
     const origin = window.location.origin;
 
+    const sessionId = (typeof crypto !== "undefined" && crypto.randomUUID)
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
     const verificationUrl =
       `${IVERIFI_ORIGIN}/user/home?client_id=iverifi&api_key=iverifi&process=U` +
       `&productCode=${encodeURIComponent(productCode)}` +
       `&user_id=${encodeURIComponent(userId)}` +
+      `&session_id=${encodeURIComponent(sessionId)}` +
       `&redirect_origin=${encodeURIComponent(origin)}`;
 
     setIframeUrl(verificationUrl);
