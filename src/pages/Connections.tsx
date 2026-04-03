@@ -1337,10 +1337,10 @@ const Connections = () => {
                     borderBottom: "1px solid var(--iverifi-row-divider)",
                   }}
                 >
-                  <span style={{ fontSize: 12, color: "var(--iverifi-label)" }}>{field.label}</span>
+                  <span style={{ fontSize: 14, color: "var(--iverifi-label)" }}>{field.label}</span>
                   <span
                     style={{
-                      fontSize: 13,
+                      fontSize: 15,
                       color: "var(--iverifi-text-primary)",
                       fontFamily: "monospace",
                       textAlign: "right",
@@ -1362,10 +1362,10 @@ const Connections = () => {
                     borderBottom: index === selectedDocFields.length - 1 ? "none" : "1px solid var(--iverifi-row-divider)",
                   }}
                 >
-                  <span style={{ fontSize: 12, color: "var(--iverifi-label)" }}>{field.label}</span>
+                  <span style={{ fontSize: 14, color: "var(--iverifi-label)" }}>{field.label}</span>
                   <span
                     style={{
-                      fontSize: 13,
+                      fontSize: 15,
                       color: "var(--iverifi-text-primary)",
                       fontFamily: "monospace",
                       textAlign: "right",
@@ -2187,7 +2187,7 @@ const Connections = () => {
 
       {/* Iframe Overlay */}
       {iframeUrl && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-2">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-2" style={{ zIndex: 2147483647 }}>
           <div className="relative bg-white w-full max-w-3xl h-[88vh] rounded-lg shadow-lg overflow-hidden">
             <button
               aria-label="Close"
