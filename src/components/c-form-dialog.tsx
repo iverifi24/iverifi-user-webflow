@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
+import { auth } from "@/firebase/firebase_setup";
+import { getIdToken } from "firebase/auth";
 
 export interface CFormPassportData {
   surname: string;
@@ -8,6 +10,7 @@ export interface CFormPassportData {
   passportNo: string;
   passportExpiry: string;
   dateOfBirth: string;
+  passportImageUrl?: string;
 }
 
 export interface CFormManualData {
@@ -21,13 +24,14 @@ export interface CFormManualData {
 
 export type CFormData = CFormPassportData & CFormManualData;
 
-type Step = "passport_preview" | "manual" | "preview";
+type Step = "passport_preview" | "passport_upload" | "passport_manual" | "manual" | "preview";
 
 interface CFormDialogProps {
   open: boolean;
   passportData: CFormPassportData;
   onSave: (data: CFormData) => Promise<void>;
   onClose: () => void;
+  mode?: "kwik" | "manual";
 }
 
 const SEX_OPTIONS = ["Male", "Female", "Other"] as const;
@@ -79,8 +83,10 @@ const BTN_SECONDARY: React.CSSProperties = {
   cursor: "pointer",
 };
 
-export function CFormDialog({ open, passportData, onSave, onClose }: CFormDialogProps) {
-  const [step, setStep] = useState<Step>("passport_preview");
+export function CFormDialog({ open, passportData, onSave, onClose, mode = "kwik" }: CFormDialogProps) {
+  const initialStep: Step = mode === "manual" ? "passport_upload" : "passport_preview";
+
+  const [step, setStep] = useState<Step>(initialStep);
   const [saving, setSaving] = useState(false);
   const [manual, setManual] = useState<CFormManualData>({
     sex: "",
@@ -91,10 +97,22 @@ export function CFormDialog({ open, passportData, onSave, onClose }: CFormDialog
     addressInIndia: "",
   });
 
+  // Manual mode passport fields
+  const [manualPassport, setManualPassport] = useState<CFormPassportData>({
+    surname: "", givenName: "", nationality: "",
+    passportNo: "", passportExpiry: "", dateOfBirth: "", passportImageUrl: "",
+  });
+  const [uploadedImageUrl, setUploadedImageUrl] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState("");
+
   if (!open) return null;
 
   const updateManual = (key: keyof CFormManualData, value: string) =>
     setManual((prev) => ({ ...prev, [key]: value }));
+
+  const updateManualPassport = (key: keyof CFormPassportData, value: string) =>
+    setManualPassport((prev) => ({ ...prev, [key]: value }));
 
   const canSubmit =
     manual.sex.trim() !== "" &&
@@ -102,12 +120,47 @@ export function CFormDialog({ open, passportData, onSave, onClose }: CFormDialog
     manual.visaNo.trim() !== "" &&
     manual.addressInIndia.trim() !== "";
 
+  const canProceedFromPassportManual =
+    manualPassport.surname.trim() !== "" &&
+    manualPassport.givenName.trim() !== "" &&
+    manualPassport.passportNo.trim() !== "";
+
+  const handlePassportImageSelect = async (file: File) => {
+    setUploading(true);
+    setUploadError("");
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("fileType", "passport");
+      const currentUser = auth.currentUser;
+      if (!currentUser) throw new Error("Not authenticated");
+      const token = await getIdToken(currentUser);
+      const baseUrl = (import.meta.env.VITE_BASE_URL as string || "").replace(/\/$/, "");
+      const resp = await fetch(`${baseUrl}/users/uploadImage`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      });
+      const json = await resp.json();
+      if (!resp.ok || !json?.data?.s3url) throw new Error(json?.message || "Upload failed");
+      setUploadedImageUrl(json.data.s3url);
+    } catch (e: any) {
+      setUploadError(e?.message || "Upload failed. Please try again.");
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const handleSave = async () => {
     setSaving(true);
     try {
-      await onSave({ ...passportData, ...manual });
+      const passportPayload: CFormPassportData =
+        mode === "manual"
+          ? { ...manualPassport, passportImageUrl: uploadedImageUrl }
+          : passportData;
+      await onSave({ ...passportPayload, ...manual });
       // reset for next time
-      setStep("passport_preview");
+      setStep(initialStep);
       setManual({
         sex: "",
         arrivalDate: new Date().toISOString().split("T")[0],
@@ -116,6 +169,9 @@ export function CFormDialog({ open, passportData, onSave, onClose }: CFormDialog
         visaType: "Tourist",
         addressInIndia: "",
       });
+      setManualPassport({ surname: "", givenName: "", nationality: "", passportNo: "", passportExpiry: "", dateOfBirth: "", passportImageUrl: "" });
+      setUploadedImageUrl("");
+      setUploadError("");
     } finally {
       setSaving(false);
     }
@@ -136,21 +192,24 @@ export function CFormDialog({ open, passportData, onSave, onClose }: CFormDialog
     return Math.floor((Date.now() - d.getTime()) / (365.25 * 24 * 60 * 60 * 1000)) >= 18 ? "Above 18" : "Below 18";
   };
 
+  // Source of truth for passport data depending on mode
+  const activePassport = mode === "manual" ? manualPassport : passportData;
+
   const passportRows: [string, string][] = [
-    ["Surname", passportData.surname],
-    ["Given name", passportData.givenName],
-    ["Nationality", passportData.nationality],
-    ["Passport No.", passportData.passportNo],
-    ["Expiry", passportData.passportExpiry],
-    ["Age", dobToAgeLabel(passportData.dateOfBirth)],
+    ["Surname", activePassport.surname],
+    ["Given name", activePassport.givenName],
+    ["Nationality", activePassport.nationality],
+    ["Passport No.", activePassport.passportNo],
+    ["Expiry", activePassport.passportExpiry],
+    ["Age", dobToAgeLabel(activePassport.dateOfBirth)],
   ].filter(([, v]) => Boolean(v)) as [string, string][];
 
   const allFields: [string, string][] = [
-    ["Surname", passportData.surname],
-    ["Given name", passportData.givenName],
-    ["Nationality", passportData.nationality],
-    ["Passport No.", passportData.passportNo],
-    ["Age", dobToAgeLabel(passportData.dateOfBirth)],
+    ["Surname", activePassport.surname],
+    ["Given name", activePassport.givenName],
+    ["Nationality", activePassport.nationality],
+    ["Passport No.", activePassport.passportNo],
+    ["Age", dobToAgeLabel(activePassport.dateOfBirth)],
     ["Sex", manual.sex],
     ["Arrival date", manual.arrivalDate],
     ["Port of arrival", manual.portOfArrival],
@@ -196,7 +255,174 @@ export function CFormDialog({ open, passportData, onSave, onClose }: CFormDialog
           }}
         />
 
-        {/* ── STEP 1: passport_preview ── */}
+        {/* ── STEP: passport_upload (manual mode only) ── */}
+        {step === "passport_upload" && (
+          <div>
+            <div style={{ fontSize: 19, fontWeight: 800, color: "var(--iverifi-text-primary)", marginBottom: 6 }}>
+              Upload passport photo
+            </div>
+            <div style={{ fontSize: 13, color: "var(--iverifi-label)", marginBottom: 20, lineHeight: 1.5 }}>
+              Take a clear photo of your passport's data page. Required for FRRO compliance.
+            </div>
+
+            {/* Upload area */}
+            <label
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 12,
+                minHeight: 160,
+                borderRadius: 16,
+                border: `2px dashed ${uploadedImageUrl ? "rgba(0,200,150,0.4)" : "rgba(0,224,255,0.25)"}`,
+                background: uploadedImageUrl ? "rgba(0,200,150,0.06)" : "rgba(0,224,255,0.04)",
+                cursor: uploading ? "not-allowed" : "pointer",
+                position: "relative",
+                overflow: "hidden",
+              }}
+            >
+              <input
+                type="file"
+                accept="image/*"
+                capture="environment"
+                style={{ display: "none" }}
+                disabled={uploading}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handlePassportImageSelect(file);
+                  e.target.value = "";
+                }}
+              />
+              {uploading ? (
+                <div style={{ textAlign: "center" }}>
+                  <div style={{ fontSize: 28, marginBottom: 8 }}>⏳</div>
+                  <div style={{ fontSize: 13, color: "var(--iverifi-label)" }}>Uploading…</div>
+                </div>
+              ) : uploadedImageUrl ? (
+                <div style={{ textAlign: "center", width: "100%", padding: "12px 0" }}>
+                  <img
+                    src={uploadedImageUrl}
+                    alt="Passport"
+                    style={{ maxHeight: 140, maxWidth: "90%", borderRadius: 10, objectFit: "cover", margin: "0 auto", display: "block" }}
+                  />
+                  <div style={{ fontSize: 12, color: "#00c896", marginTop: 10, fontWeight: 600 }}>✓ Uploaded — tap to change</div>
+                </div>
+              ) : (
+                <div style={{ textAlign: "center" }}>
+                  <div style={{ fontSize: 36, marginBottom: 8 }}>📷</div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: "var(--iverifi-text-primary)" }}>Tap to take photo or choose file</div>
+                  <div style={{ fontSize: 12, color: "var(--iverifi-label)", marginTop: 4 }}>JPG, PNG accepted</div>
+                </div>
+              )}
+            </label>
+
+            {uploadError && (
+              <div style={{ marginTop: 10, fontSize: 13, color: "#f87171", background: "rgba(248,113,113,0.08)", borderRadius: 10, padding: "8px 12px" }}>
+                {uploadError}
+              </div>
+            )}
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 20 }}>
+              <button
+                type="button"
+                style={{ ...BTN_PRIMARY, opacity: uploadedImageUrl ? 1 : 0.4, cursor: uploadedImageUrl ? "pointer" : "not-allowed" }}
+                disabled={!uploadedImageUrl || uploading}
+                onClick={() => setStep("passport_manual")}
+              >
+                Continue — fill passport details →
+              </button>
+              <button type="button" style={BTN_SECONDARY} onClick={onClose}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── STEP: passport_manual (manual mode only) ── */}
+        {step === "passport_manual" && (
+          <div>
+            <div style={{ fontSize: 19, fontWeight: 800, color: "var(--iverifi-text-primary)", marginBottom: 6 }}>
+              Passport details
+            </div>
+            <div style={{ fontSize: 13, color: "var(--iverifi-label)", marginBottom: 18, lineHeight: 1.5 }}>
+              Enter the details exactly as they appear on your passport. Fields marked * are required.
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              <div>
+                <span style={LABEL_STYLE}>SURNAME *</span>
+                <Input
+                  style={FIELD_STYLE}
+                  placeholder="Family name / last name"
+                  value={manualPassport.surname}
+                  onChange={(e) => updateManualPassport("surname", e.target.value)}
+                />
+              </div>
+              <div>
+                <span style={LABEL_STYLE}>GIVEN NAME *</span>
+                <Input
+                  style={FIELD_STYLE}
+                  placeholder="First / given name"
+                  value={manualPassport.givenName}
+                  onChange={(e) => updateManualPassport("givenName", e.target.value)}
+                />
+              </div>
+              <div>
+                <span style={LABEL_STYLE}>PASSPORT NO. *</span>
+                <Input
+                  style={FIELD_STYLE}
+                  placeholder="e.g. A1234567"
+                  value={manualPassport.passportNo}
+                  onChange={(e) => updateManualPassport("passportNo", e.target.value.toUpperCase())}
+                />
+              </div>
+              <div>
+                <span style={LABEL_STYLE}>NATIONALITY</span>
+                <Input
+                  style={FIELD_STYLE}
+                  placeholder="e.g. American, British"
+                  value={manualPassport.nationality}
+                  onChange={(e) => updateManualPassport("nationality", e.target.value)}
+                />
+              </div>
+              <div>
+                <span style={LABEL_STYLE}>EXPIRY DATE</span>
+                <input
+                  type="date"
+                  style={FIELD_STYLE}
+                  value={manualPassport.passportExpiry}
+                  onChange={(e) => updateManualPassport("passportExpiry", e.target.value)}
+                />
+              </div>
+              <div>
+                <span style={LABEL_STYLE}>DATE OF BIRTH</span>
+                <input
+                  type="date"
+                  style={FIELD_STYLE}
+                  value={manualPassport.dateOfBirth}
+                  onChange={(e) => updateManualPassport("dateOfBirth", e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 20 }}>
+              <button
+                type="button"
+                style={{ ...BTN_PRIMARY, opacity: canProceedFromPassportManual ? 1 : 0.4, cursor: canProceedFromPassportManual ? "pointer" : "not-allowed" }}
+                disabled={!canProceedFromPassportManual}
+                onClick={() => setStep("manual")}
+              >
+                Continue — travel details →
+              </button>
+              <button type="button" style={BTN_SECONDARY} onClick={() => setStep("passport_upload")}>
+                Back
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── STEP: passport_preview (kwik mode) ── */}
         {step === "passport_preview" && (
           <div>
             <div style={{ fontSize: 19, fontWeight: 800, color: "var(--iverifi-text-primary)", marginBottom: 6 }}>
@@ -256,14 +482,14 @@ export function CFormDialog({ open, passportData, onSave, onClose }: CFormDialog
           </div>
         )}
 
-        {/* ── STEP 2: manual ── */}
+        {/* ── STEP: manual (travel fields — both modes) ── */}
         {step === "manual" && (
           <div>
             <div style={{ fontSize: 19, fontWeight: 800, color: "var(--iverifi-text-primary)", marginBottom: 6 }}>
               Complete C-Form
             </div>
             <div style={{ fontSize: 13, color: "var(--iverifi-label)", marginBottom: 18, lineHeight: 1.5 }}>
-              Passport details are pre-filled. Please complete the remaining fields.
+              {mode === "manual" ? "Fill in your travel details for FRRO compliance." : "Passport details are pre-filled. Please complete the remaining fields."}
             </div>
 
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -374,14 +600,18 @@ export function CFormDialog({ open, passportData, onSave, onClose }: CFormDialog
               >
                 Save C-Form →
               </button>
-              <button type="button" style={BTN_SECONDARY} onClick={() => setStep("passport_preview")}>
+              <button
+                type="button"
+                style={BTN_SECONDARY}
+                onClick={() => setStep(mode === "manual" ? "passport_manual" : "passport_preview")}
+              >
                 Back
               </button>
             </div>
           </div>
         )}
 
-        {/* ── STEP 3: preview ── */}
+        {/* ── STEP: preview ── */}
         {step === "preview" && (
           <div>
             <div style={{ fontSize: 19, fontWeight: 800, color: "var(--iverifi-text-primary)", marginBottom: 4 }}>
@@ -404,6 +634,20 @@ export function CFormDialog({ open, passportData, onSave, onClose }: CFormDialog
             >
               ✓ All fields complete
             </div>
+
+            {/* Passport image thumbnail (manual mode) */}
+            {mode === "manual" && uploadedImageUrl && (
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--iverifi-label)", marginBottom: 8 }}>
+                  Passport scan
+                </div>
+                <img
+                  src={uploadedImageUrl}
+                  alt="Passport"
+                  style={{ height: 72, width: 72, borderRadius: 10, objectFit: "cover", border: "1px solid rgba(255,255,255,0.1)" }}
+                />
+              </div>
+            )}
 
             <div
               style={{

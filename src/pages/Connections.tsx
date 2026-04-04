@@ -2072,11 +2072,6 @@ const Connections = () => {
                       if (!shareSelectedDocType) return;
                       // C-Form: require passport first, then open fill dialog
                       if (shareSelectedDocType === "C-Form (Foreign Guest)") {
-                        if (!verifiedCredentialsMap["PASSPORT"]) {
-                          toast.error("Please verify your Passport first to fill the C-Form.");
-                          handleVerifyDocument("PASSPORT");
-                          return;
-                        }
                         setCformDialogOpen(true);
                         return;
                       }
@@ -2188,6 +2183,7 @@ const Connections = () => {
         passportData={passportDataForCform}
         onSave={handleCFormSave}
         onClose={() => setCformDialogOpen(false)}
+        mode={verifiedCredentialsMap["PASSPORT"] ? "kwik" : "manual"}
       />
 
       {/* Iframe Overlay */}
