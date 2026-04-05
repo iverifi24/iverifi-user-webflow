@@ -317,11 +317,11 @@ const Connections = () => {
     credentialsData.data.credential.forEach((cred: Credential) => {
       const docType = cred.document_type || cred.details?.document_type;
       if (!docType) return;
-      // Child Aadhaar credentials have document_type AADHAAR_CARD + minor_slot 1/2/3.
-      // Map them to virtual keys "Child 1 Aadhaar" etc. so the rest of the UI is unchanged.
-      const slot = (cred as any).minor_slot;
-      if (docType === 'AADHAAR_CARD' && slot) {
-        map[`Child ${slot} Aadhaar`] = cred;
+      // Child Aadhaar credentials are stored as AADHAAR_CARD_CHILD_1/2/3.
+      // Map them to virtual keys "Child N Aadhaar" so the rest of the UI is unchanged.
+      const childMatch = String(docType).match(/^AADHAAR_CARD_CHILD_(\d+)$/);
+      if (childMatch) {
+        map[`Child ${childMatch[1]} Aadhaar`] = cred;
       } else {
         map[docType] = cred;
       }
