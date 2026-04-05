@@ -324,7 +324,15 @@ const Connections = () => {
     const map: Record<string, Credential> = {};
     credentialsData.data.credential.forEach((cred: Credential) => {
       const docType = cred.document_type || cred.details?.document_type;
-      if (docType) map[docType] = cred;
+      if (!docType) return;
+      // Child Aadhaar credentials have document_type AADHAAR_CARD + minor_slot 1/2/3.
+      // Map them to virtual keys "Child 1 Aadhaar" etc. so the rest of the UI is unchanged.
+      const slot = (cred as any).minor_slot;
+      if (docType === 'AADHAAR_CARD' && slot) {
+        map[`Child ${slot} Aadhaar`] = cred;
+      } else {
+        map[docType] = cred;
+      }
     });
     return map;
   }, [credentialsData]);
@@ -374,6 +382,11 @@ const Connections = () => {
     // Generic photo fields (not image_url — that's usually the document scan)
     const directPhoto = pickFirst(details, ["photo", "profile_photo"]);
     if (typeof directPhoto === "string" && directPhoto.trim() && !isEncrypted(directPhoto)) return directPhoto;
+    // Child Aadhaar XML provides photo as base64 — convert to data URI for display
+    const photoBase64 = pickFirst(details, ["photo_base64"]);
+    if (typeof photoBase64 === "string" && photoBase64.trim() && !isEncrypted(photoBase64)) {
+      return `data:image/jpeg;base64,${photoBase64}`;
+    }
     return null;
   }, [selectedCredential]);
 
@@ -1509,7 +1522,7 @@ const Connections = () => {
           >
             <div style={{ width: 36, height: 4, borderRadius: 2, background: "var(--iverifi-sheet-handle)", margin: "0 auto 20px" }} />
 
-            {verifiedDocTypesForShare.length === 0 ? (
+            {verifiedDocTypesForShare.length === 0 && !(code && isValidQRCode(code)) ? (
               <div style={{ textAlign: "center", padding: "16px 0 8px" }}>
                 <div style={{ fontSize: 40, marginBottom: 12 }}>🪪</div>
                 <div id="share-sheet-title" style={{ fontSize: 19, fontWeight: 800, color: "var(--iverifi-text-primary)", marginBottom: 8 }}>
@@ -1864,7 +1877,7 @@ const Connections = () => {
                   })}
                 </div>
 
-                {/* C-Form — always visible; disabled (no interaction) when no QR scanned */}
+                {/* C-Form — always enabled regardless of verified documents */}
                 {(() => {
                   const qrActive = !!(code && isValidQRCode(code));
                   const isSelected = shareSelectedDocType === "C-Form (Foreign Guest)";
@@ -1872,8 +1885,7 @@ const Connections = () => {
                     <button
                       key="C-Form (Foreign Guest)"
                       type="button"
-                      disabled={!qrActive}
-                      onClick={() => qrActive && setShareSelectedDocType("C-Form (Foreign Guest)")}
+                      onClick={() => setShareSelectedDocType("C-Form (Foreign Guest)")}
                       style={{
                         width: "100%",
                         display: "flex",
@@ -1883,10 +1895,9 @@ const Connections = () => {
                         border: "none",
                         borderTop: verifiedDocTypesForShare.length > 0 ? "1px solid var(--iverifi-row-divider)" : "none",
                         background: isSelected ? "rgba(0,224,255,0.06)" : "transparent",
-                        cursor: qrActive ? "pointer" : "not-allowed",
+                        cursor: "pointer",
                         textAlign: "left",
                         borderRadius: isSelected ? 8 : 0,
-                        opacity: qrActive ? 1 : 0.45,
                       }}
                     >
                       <div
@@ -1907,7 +1918,7 @@ const Connections = () => {
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: 14, fontWeight: 700, color: isSelected ? "#00e0ff" : "var(--iverifi-text-primary)" }}>C-Form (Foreign Guest)</div>
                         <div style={{ fontSize: 11, color: "var(--iverifi-label)" }}>
-                          {qrActive ? "FRRO compliance · Fill & submit on check-in" : "Scan hotel QR to fill & submit C-Form"}
+                          FRRO compliance · Fill &amp; submit on check-in
                         </div>
                       </div>
                       <div

@@ -21,12 +21,12 @@ type BottomNavItem =
     };
 
 function VaultIcon({ active }: { active: boolean }) {
-  return <Lock className="h-5 w-5" color={active ? "#00e0ff" : "#94a3b8"} />;
+  return <Lock className="h-6 w-6" color={active ? "#00e0ff" : "#94a3b8"} />;
 }
 function ScanIcon({ active }: { active: boolean }) {
   return (
     <ScanLine
-      className="h-5 w-5"
+      className="h-6 w-6"
       color={active ? "#00e0ff" : "#94a3b8"}
     />
   );
@@ -34,7 +34,7 @@ function ScanIcon({ active }: { active: boolean }) {
 function AgeIcon({ active }: { active: boolean }) {
   return (
     <BadgeCheck
-      className="h-5 w-5"
+      className="h-6 w-6"
       color={active ? "#00e0ff" : "#94a3b8"}
     />
   );
@@ -42,7 +42,7 @@ function AgeIcon({ active }: { active: boolean }) {
 function ActivityIcon({ active }: { active: boolean }) {
   return (
     <Activity
-      className="h-5 w-5"
+      className="h-6 w-6"
       color={active ? "#00e0ff" : "#94a3b8"}
     />
   );
@@ -151,8 +151,8 @@ export function BottomNav() {
                         <span
                           className={
                             active
-                              ? "text-[10px] font-semibold text-[#00e0ff]"
-                              : "text-[10px] font-semibold text-muted-foreground"
+                              ? "text-xs font-semibold text-[#00e0ff]"
+                              : "text-xs font-semibold text-muted-foreground"
                           }
                         >
                           {item.label}
