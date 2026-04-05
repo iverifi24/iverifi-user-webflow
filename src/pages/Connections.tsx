@@ -56,17 +56,9 @@ const PRODUCT_CODE_MAP: Record<DocumentType, string> = {
   "C-Form (Foreign Guest)": "PP",
 };
 
-/** Kwik product codes for child Aadhaar (minor XML flow) */
-const CHILD_PRODUCT_CODE_MAP: Record<ChildAadhaarType, string> = {
-  "Child 1 Aadhaar": "XMLM1",
-  "Child 2 Aadhaar": "XMLM2",
-  "Child 3 Aadhaar": "XMLM3",
-};
-
+// Child Aadhaar uses the same KYC product code as main Aadhaar — same Kwik flow.
 const getProductCode = (docType: DocumentType | ChildAadhaarType): string =>
-  docType in PRODUCT_CODE_MAP
-    ? (PRODUCT_CODE_MAP as Record<string, string>)[docType]
-    : (CHILD_PRODUCT_CODE_MAP as Record<string, string>)[docType];
+  (PRODUCT_CODE_MAP as Record<string, string>)[docType] ?? "KYC";
 
 /** Subtitle under document name (e.g. "UIDAI Verified") */
 const DOC_TYPE_SUBTITLE: Record<string, string> = {
@@ -891,9 +883,14 @@ const Connections = () => {
     const productCode = getProductCode(documentType);
     const origin = window.location.origin;
 
-    const sessionId = (typeof crypto !== "undefined" && crypto.randomUUID)
+    const baseId = (typeof crypto !== "undefined" && crypto.randomUUID)
       ? crypto.randomUUID()
       : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+    // For child Aadhaar, embed the slot number in the session_id so the webhook
+    // can set minor_slot without needing a separate API field.
+    const childSlotMatch = documentType.match(/^Child (\d+) Aadhaar$/);
+    const sessionId = childSlotMatch ? `${baseId}__minor${childSlotMatch[1]}` : baseId;
 
     const verificationUrl =
       `${IVERIFI_ORIGIN}/user/home?client_id=iverifi&api_key=iverifi&process=U` +
@@ -1879,7 +1876,6 @@ const Connections = () => {
 
                 {/* C-Form — always enabled regardless of verified documents */}
                 {(() => {
-                  const qrActive = !!(code && isValidQRCode(code));
                   const isSelected = shareSelectedDocType === "C-Form (Foreign Guest)";
                   return (
                     <button
