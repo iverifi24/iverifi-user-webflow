@@ -56,9 +56,17 @@ const PRODUCT_CODE_MAP: Record<DocumentType, string> = {
   "C-Form (Foreign Guest)": "PP",
 };
 
-// Child Aadhaar uses the same KYC product code as main Aadhaar — same Kwik flow.
+/** Kwik product codes for child Aadhaar (minor XML flow) */
+const CHILD_PRODUCT_CODE_MAP: Record<ChildAadhaarType, string> = {
+  "Child 1 Aadhaar": "XMLM1",
+  "Child 2 Aadhaar": "XMLM2",
+  "Child 3 Aadhaar": "XMLM3",
+};
+
 const getProductCode = (docType: DocumentType | ChildAadhaarType): string =>
-  (PRODUCT_CODE_MAP as Record<string, string>)[docType] ?? "KYC";
+  docType in PRODUCT_CODE_MAP
+    ? (PRODUCT_CODE_MAP as Record<string, string>)[docType]
+    : (CHILD_PRODUCT_CODE_MAP as Record<string, string>)[docType];
 
 /** Subtitle under document name (e.g. "UIDAI Verified") */
 const DOC_TYPE_SUBTITLE: Record<string, string> = {
@@ -317,14 +325,7 @@ const Connections = () => {
     credentialsData.data.credential.forEach((cred: Credential) => {
       const docType = cred.document_type || cred.details?.document_type;
       if (!docType) return;
-      // Child Aadhaar credentials are stored as AADHAAR_CARD_CHILD_1/2/3.
-      // Map them to virtual keys "Child N Aadhaar" so the rest of the UI is unchanged.
-      const childMatch = String(docType).match(/^AADHAAR_CARD_CHILD_(\d+)$/);
-      if (childMatch) {
-        map[`Child ${childMatch[1]} Aadhaar`] = cred;
-      } else {
-        map[docType] = cred;
-      }
+      map[docType] = cred;
     });
     return map;
   }, [credentialsData]);
@@ -883,14 +884,9 @@ const Connections = () => {
     const productCode = getProductCode(documentType);
     const origin = window.location.origin;
 
-    const baseId = (typeof crypto !== "undefined" && crypto.randomUUID)
+    const sessionId = (typeof crypto !== "undefined" && crypto.randomUUID)
       ? crypto.randomUUID()
       : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-
-    // For child Aadhaar, embed the slot number in the session_id so the webhook
-    // can set minor_slot without needing a separate API field.
-    const childSlotMatch = documentType.match(/^Child (\d+) Aadhaar$/);
-    const sessionId = childSlotMatch ? `${baseId}__minor${childSlotMatch[1]}` : baseId;
 
     const verificationUrl =
       `${IVERIFI_ORIGIN}/user/home?client_id=iverifi&api_key=iverifi&process=U` +
@@ -1813,6 +1809,46 @@ const Connections = () => {
                     border: "1px solid var(--iverifi-border-subtle)",
                   }}
                 >
+                  {verifiedDocTypesForShare.length === 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setShareSheetOpen(false)}
+                      style={{
+                        width: "100%",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 12,
+                        padding: "14px 4px",
+                        border: "none",
+                        background: "transparent",
+                        cursor: "pointer",
+                        textAlign: "left",
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: 40,
+                          height: 40,
+                          flexShrink: 0,
+                          borderRadius: 12,
+                          border: "1px solid rgba(0,200,150,0.25)",
+                          background: "rgba(0,200,150,0.12)",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontSize: 18,
+                        }}
+                      >
+                        +
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: "#00c896" }}>Add a document</div>
+                        <div style={{ fontSize: 11, color: "var(--iverifi-label)", marginTop: 2 }}>
+                          Verify your Aadhaar, PAN, or other ID to check in
+                        </div>
+                      </div>
+                    </button>
+                  )}
                   {verifiedDocTypesForShare.map((docType, idx) => {
                     const selected = shareSelectedDocType === docType;
                     const label = docType.includes("_") ? titleCase(docType) : docType;
