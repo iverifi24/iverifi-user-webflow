@@ -579,6 +579,10 @@ const Connections = () => {
     );
   }, [recipientData]);
 
+  const connectedRequestorLogo = useMemo(() => {
+    return (recipientData?.data?.requests?.[0]?.recipients?.logo as string) || null;
+  }, [recipientData]);
+
   // QR scan / deep link: show the same "Share now" sheet as vault share, without extra taps
   useEffect(() => {
     if (!code || !isValidQRCode(code)) return;
@@ -936,7 +940,7 @@ const Connections = () => {
                   : connectedRequestorName || "Property"}
               </div>
               <p className="text-xs text-[var(--iverifi-text-muted)] mt-1">
-                Pick a document in the sheet and confirm once — we share it and send your check-in request together.
+                Select an ID below and tap Share — your check-in request will be sent automatically.
               </p>
             </div>
             <Button
@@ -1085,18 +1089,31 @@ const Connections = () => {
               })}
             </div>
 
-            <div className="flex items-center justify-between gap-3 rounded-2xl border border-[color:var(--iverifi-card-border)] bg-[var(--iverifi-card)] px-4 py-3 opacity-50">
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[color:var(--iverifi-icon-border)] bg-[var(--iverifi-muted-surface)]">
-                  <DocumentTypeIcon documentType="C-Form (Foreign Guest)" className="text-[var(--iverifi-text-secondary)]" />
+            {(() => {
+              const qrActive = !!(code && isValidQRCode(code));
+              return (
+                <div
+                  className={`flex items-center justify-between gap-3 rounded-2xl border border-[color:var(--iverifi-card-border)] bg-[var(--iverifi-card)] px-4 py-3 ${qrActive ? "cursor-pointer hover:bg-[var(--iverifi-card-hover)]" : "opacity-50"}`}
+                  role={qrActive ? "button" : undefined}
+                  onClick={() => {
+                    if (!qrActive) return;
+                    setShareSelectedDocType("C-Form (Foreign Guest)");
+                    setShareSheetOpen(true);
+                  }}
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[color:var(--iverifi-icon-border)] bg-[var(--iverifi-muted-surface)]">
+                      <DocumentTypeIcon documentType="C-Form (Foreign Guest)" className="text-[var(--iverifi-text-secondary)]" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="truncate text-sm font-semibold text-[var(--iverifi-text-primary)]">{"C-Form (Foreign Guest)"}</div>
+                      <div className="truncate text-xs text-[var(--iverifi-text-muted)]">{qrActive ? "Fill & submit on check-in" : "Scan hotel QR to fill & submit"}</div>
+                    </div>
+                  </div>
+                  {qrActive ? <ChevronRight className="h-4 w-4 shrink-0 text-[var(--iverifi-text-muted)]" /> : <Lock className="h-4 w-4 shrink-0 text-[var(--iverifi-text-muted)]" />}
                 </div>
-                <div className="min-w-0">
-                  <div className="truncate text-sm font-semibold text-[var(--iverifi-text-primary)]">{"C-Form (Foreign Guest)"}</div>
-                  <div className="truncate text-xs text-[var(--iverifi-text-muted)]">{"Scan hotel QR to fill & submit"}</div>
-                </div>
-              </div>
-              <Lock className="h-4 w-4 shrink-0 text-[var(--iverifi-text-muted)]" />
-            </div>
+              );
+            })()}
           </div>
 
           {/* Child Aadhaar — progressive slots (max 3); teal "+ Add child", gold Verify */}
@@ -1747,9 +1764,18 @@ const Connections = () => {
                       justifyContent: "center",
                       background: "rgba(0,224,255,0.08)",
                       border: "1px solid rgba(0,224,255,0.2)",
+                      overflow: "hidden",
                     }}
                   >
-                    <Share2 className="h-6 w-6 text-[var(--iverifi-text-primary)]" strokeWidth={2} />
+                    {connectedRequestorLogo ? (
+                      <img
+                        src={connectedRequestorLogo}
+                        alt="Hotel Logo"
+                        style={{ width: "80%", height: "80%", objectFit: "contain" }}
+                      />
+                    ) : (
+                      <Share2 className="h-6 w-6 text-[var(--iverifi-text-primary)]" strokeWidth={2} />
+                    )}
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div
@@ -1792,7 +1818,7 @@ const Connections = () => {
 
                 <div style={{ fontSize: 13, color: "var(--iverifi-label)", marginBottom: 14, lineHeight: 1.5 }}>
                   {code && isValidQRCode(code)
-                    ? `Choose what to send. We’ll share it and submit your check-in request in one go.`
+                    ? `Select an ID below and tap Share — your check-in request will be sent automatically.`
                     : `Choose which document to share with ${connectedRequestorName}.`}
                 </div>
 
@@ -1910,14 +1936,16 @@ const Connections = () => {
                   })}
                 </div>
 
-                {/* C-Form — always enabled regardless of verified documents */}
+                {/* C-Form — only enabled when a hotel QR has been scanned */}
                 {(() => {
                   const isSelected = shareSelectedDocType === "C-Form (Foreign Guest)";
+                  const qrActive = !!(code && isValidQRCode(code));
                   return (
                     <button
                       key="C-Form (Foreign Guest)"
                       type="button"
-                      onClick={() => setShareSelectedDocType("C-Form (Foreign Guest)")}
+                      disabled={!qrActive}
+                      onClick={() => qrActive && setShareSelectedDocType("C-Form (Foreign Guest)")}
                       style={{
                         width: "100%",
                         display: "flex",
@@ -1927,9 +1955,10 @@ const Connections = () => {
                         border: "none",
                         borderTop: verifiedDocTypesForShare.length > 0 ? "1px solid var(--iverifi-row-divider)" : "none",
                         background: isSelected ? "rgba(0,224,255,0.06)" : "transparent",
-                        cursor: "pointer",
+                        cursor: qrActive ? "pointer" : "not-allowed",
                         textAlign: "left",
                         borderRadius: isSelected ? 8 : 0,
+                        opacity: qrActive ? 1 : 0.4,
                       }}
                     >
                       <div
@@ -1950,7 +1979,7 @@ const Connections = () => {
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: 14, fontWeight: 700, color: isSelected ? "#00e0ff" : "var(--iverifi-text-primary)" }}>C-Form (Foreign Guest)</div>
                         <div style={{ fontSize: 11, color: "var(--iverifi-label)" }}>
-                          FRRO compliance · Fill &amp; submit on check-in
+                          {qrActive ? "FRRO compliance · Fill & submit on check-in" : "Scan a hotel QR to use C-Form"}
                         </div>
                       </div>
                       <div
