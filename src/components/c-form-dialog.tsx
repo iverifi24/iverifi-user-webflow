@@ -32,6 +32,7 @@ interface CFormDialogProps {
   onSave: (data: CFormData) => Promise<void>;
   onClose: () => void;
   mode?: "kwik" | "manual";
+  referenceNumber?: string;
 }
 
 const SEX_OPTIONS = ["Male", "Female", "Other"] as const;
@@ -83,7 +84,7 @@ const BTN_SECONDARY: React.CSSProperties = {
   cursor: "pointer",
 };
 
-export function CFormDialog({ open, passportData, onSave, onClose, mode = "kwik" }: CFormDialogProps) {
+export function CFormDialog({ open, passportData, onSave, onClose, mode = "kwik", referenceNumber }: CFormDialogProps) {
   const initialStep: Step = mode === "manual" ? "passport_upload" : "passport_preview";
 
   const [step, setStep] = useState<Step>(initialStep);
@@ -617,22 +618,42 @@ export function CFormDialog({ open, passportData, onSave, onClose, mode = "kwik"
             <div style={{ fontSize: 19, fontWeight: 800, color: "var(--iverifi-text-primary)", marginBottom: 4 }}>
               C-Form ready
             </div>
-            <div
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 6,
-                borderRadius: 999,
-                border: "1px solid rgba(0,200,150,0.2)",
-                background: "rgba(0,200,150,0.1)",
-                padding: "4px 12px",
-                fontSize: 12,
-                fontWeight: 700,
-                color: "#00c896",
-                marginBottom: 16,
-              }}
-            >
-              ✓ All fields complete
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
+              <div
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  borderRadius: 999,
+                  border: "1px solid rgba(0,200,150,0.2)",
+                  background: "rgba(0,200,150,0.1)",
+                  padding: "4px 12px",
+                  fontSize: 12,
+                  fontWeight: 700,
+                  color: "#00c896",
+                }}
+              >
+                ✓ All fields complete
+              </div>
+              {referenceNumber && (
+                <div
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    borderRadius: 999,
+                    border: "1px solid rgba(0,224,255,0.25)",
+                    background: "rgba(0,224,255,0.08)",
+                    padding: "4px 12px",
+                    fontSize: 12,
+                    fontWeight: 700,
+                    color: "#00e0ff",
+                    fontFamily: "monospace",
+                    letterSpacing: "0.04em",
+                  }}
+                >
+                  {referenceNumber}
+                </div>
+              )}
             </div>
 
             {/* Passport image thumbnail (manual mode) */}
@@ -658,7 +679,7 @@ export function CFormDialog({ open, passportData, onSave, onClose, mode = "kwik"
                 marginBottom: 16,
               }}
             >
-              {allFields.map(([label, value], idx) => (
+              {(referenceNumber ? [["Ref. No.", referenceNumber] as [string, string], ...allFields] : allFields).map(([label, value], idx, arr) => (
                 <div
                   key={label}
                   style={{
@@ -667,7 +688,7 @@ export function CFormDialog({ open, passportData, onSave, onClose, mode = "kwik"
                     alignItems: "center",
                     padding: "12px 0",
                     borderBottom:
-                      idx === allFields.length - 1 ? "none" : "1px solid var(--iverifi-row-divider)",
+                      idx === arr.length - 1 ? "none" : "1px solid var(--iverifi-row-divider)",
                   }}
                 >
                   <span style={{ fontSize: 12, color: "var(--iverifi-label)" }}>{label}</span>

@@ -47,6 +47,25 @@ type ChildAadhaarType = (typeof CHILD_AADHAAR_TYPES)[number];
 
 const HOME_DOCUMENT_TYPES = ["DRIVING_LICENSE", "AADHAAR_CARD", "PAN_CARD", "PASSPORT"] as const;
 
+/** Derive a 3-char hotel code from the hotel name for C-Form reference numbers. */
+function hotelCodeFromName(name: string): string {
+  const stops = new Set(["the", "a", "an", "and", "&", "hotel", "inn", "resort", "lodge", "suites", "palace"]);
+  const words = name.trim().split(/\s+/).filter((w) => !stops.has(w.toLowerCase()));
+  if (words.length === 0) return "HTL";
+  if (words.length === 1) return words[0].slice(0, 3).toUpperCase().padEnd(3, "X");
+  return words.slice(0, 3).map((w) => w[0].toUpperCase()).join("").padEnd(3, "X");
+}
+
+/** Generate a sequential C-Form reference: CF-YYYY-XXX-NNN (counter persisted in localStorage). */
+function generateCFormRef(hotelName: string): string {
+  const code = hotelCodeFromName(hotelName);
+  const year = new Date().getFullYear();
+  const key = `cf_seq_${code}_${year}`;
+  const seq = (parseInt(localStorage.getItem(key) || "0", 10)) + 1;
+  localStorage.setItem(key, String(seq));
+  return `CF-${year}-${code}-${String(seq).padStart(3, "0")}`;
+}
+
 const PRODUCT_CODE_MAP: Record<DocumentType, string> = {
   AADHAAR_CARD: "KYC",
   PASSPORT: "PP",
@@ -277,6 +296,7 @@ const Connections = () => {
 
   // C-Form dialog
   const [cformDialogOpen, setCformDialogOpen] = useState(false);
+  const [cformRef, setCformRef] = useState("");
 
   /** Prevent double-submit: stays true until API settles; only cleared on error so user can retry */
   const [isCheckInOutInFlight, setCheckInOutInFlight] = useState(false);
@@ -738,7 +758,7 @@ const Connections = () => {
     if (isCheckInOutInFlight || isCheckInUpdating) return;
     setCheckInOutInFlight(true);
     try {
-      await saveCForm({ credential_request_id: derivedConnectionId, cform_data: data }).unwrap();
+      await saveCForm({ credential_request_id: derivedConnectionId, cform_data: { ...data, ref_number: cformRef } }).unwrap();
 
       // Use passport credential for check-in if available
       const passportCred = verifiedCredentialsMap["PASSPORT"];
@@ -756,7 +776,7 @@ const Connections = () => {
         credentials: [],
         status: "checkin",
         credential_id: credentialId,
-        cform_data: data,
+        cform_data: { ...data, ref_number: cformRef },
       }).unwrap();
 
       setCformDialogOpen(false);
@@ -2144,6 +2164,7 @@ const Connections = () => {
                       if (!shareSelectedDocType) return;
                       // C-Form: require passport first, then open fill dialog
                       if (shareSelectedDocType === "C-Form (Foreign Guest)") {
+                        setCformRef(generateCFormRef(connectedRequestorName || "Hotel"));
                         setCformDialogOpen(true);
                         return;
                       }
@@ -2256,6 +2277,7 @@ const Connections = () => {
         onSave={handleCFormSave}
         onClose={() => setCformDialogOpen(false)}
         mode={verifiedCredentialsMap["PASSPORT"] ? "kwik" : "manual"}
+        referenceNumber={cformRef}
       />
 
       {/* Iframe Overlay */}
