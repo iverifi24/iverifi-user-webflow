@@ -50,10 +50,10 @@ export default function AgeCheckScreen() {
         <div
           className={`w-[132px] h-[132px] rounded-full flex items-center justify-center ${
             ok
-              ? "bg-[rgba(0,200,150,0.08)] border-[4px] border-[rgba(0,200,150,0.55)]"
+              ? "bg-[var(--iverifi-success-soft)] border-[4px] border-[var(--iverifi-success-border)]"
               : under18
-                ? "bg-[rgba(255,77,109,0.08)] border-[4px] border-[rgba(255,77,109,0.5)]"
-                : "bg-[rgba(245,166,35,0.08)] border-[4px] border-[rgba(245,166,35,0.45)]"
+                ? "bg-[var(--iverifi-danger-soft)] border-[4px] border-[rgba(220,38,38,0.5)] dark:border-[rgba(255,77,109,0.5)]"
+                : "bg-[var(--iverifi-warning-soft)] border-[4px] border-[var(--iverifi-warning-border)]"
           }`}
         >
           <div className="flex flex-col items-center justify-center">
@@ -61,10 +61,10 @@ export default function AgeCheckScreen() {
               className="text-[42px] leading-none"
               style={{
                 color: ok
-                  ? "rgba(0,200,150,1)"
+                  ? "var(--iverifi-success)"
                   : under18
-                    ? "rgba(255,77,109,1)"
-                    : "rgba(245,166,35,1)",
+                    ? "var(--iverifi-danger)"
+                    : "var(--iverifi-warning)",
               }}
             >
               {ok ? "✓" : under18 ? "✗" : "!"}
@@ -73,10 +73,10 @@ export default function AgeCheckScreen() {
               className="text-[34px] font-extrabold tracking-tight"
               style={{
                 color: ok
-                  ? "rgba(0,200,150,1)"
+                  ? "var(--iverifi-success)"
                   : under18
-                    ? "rgba(255,77,109,1)"
-                    : "rgba(245,166,35,1)",
+                    ? "var(--iverifi-danger)"
+                    : "var(--iverifi-warning)",
                 marginTop: -4,
               }}
             >
@@ -94,9 +94,9 @@ export default function AgeCheckScreen() {
             <div
               className="inline-block rounded-full px-6 py-2 text-[13px] font-extrabold"
               style={{
-                background: "rgba(0,200,150,0.12)",
-                border: "1px solid rgba(0,200,150,0.35)",
-                color: "rgba(0,200,150,1)",
+                background: "var(--iverifi-success-soft)",
+                border: "1px solid var(--iverifi-success-border)",
+                color: "var(--iverifi-success)",
               }}
             >
               Confirmed above 18 years
@@ -128,9 +128,8 @@ export default function AgeCheckScreen() {
           <div
             className="w-full px-4 py-4 rounded-2xl border"
             style={{
-              background: "rgba(255,77,109,0.08)",
-              borderColor: "rgba(255,77,109,0.25)",
-              color: "rgba(255,180,190,1)",
+              background: "var(--iverifi-danger-soft)",
+              borderColor: "rgba(220,38,38,0.25)",
             }}
           >
             <div className="text-[15px] font-extrabold text-[var(--iverifi-text-primary)] mb-2">Under 18</div>
@@ -146,9 +145,9 @@ export default function AgeCheckScreen() {
           <div
             className="w-full px-4 py-4 rounded-2xl border"
             style={{
-              background: "rgba(245,166,35,0.08)",
-              borderColor: "rgba(245,166,35,0.2)",
-              color: "rgba(245,166,35,1)",
+              background: "var(--iverifi-warning-soft)",
+              borderColor: "var(--iverifi-warning-border)",
+              color: "var(--iverifi-warning)",
             }}
           >
             We found a verified ID but couldn&apos;t read a date of birth. Add or re-verify a document
@@ -159,9 +158,9 @@ export default function AgeCheckScreen() {
                 onClick={() => navigate("/add-documents")}
                 className="inline-flex items-center justify-center rounded-xl px-4 py-2 text-[13px] font-bold"
                 style={{
-                  background: "rgba(0,224,255,0.12)",
-                  border: "1px solid rgba(0,224,255,0.28)",
-                  color: "rgba(0,224,255,1)",
+                  background: "var(--iverifi-accent-soft)",
+                  border: "1px solid var(--iverifi-accent-border)",
+                  color: "var(--iverifi-accent)",
                 }}
               >
                 Add / verify document
@@ -172,9 +171,9 @@ export default function AgeCheckScreen() {
           <div
             className="w-full px-4 py-4 rounded-2xl border"
             style={{
-              background: "rgba(245,166,35,0.08)",
-              borderColor: "rgba(245,166,35,0.2)",
-              color: "rgba(245,166,35,1)",
+              background: "var(--iverifi-warning-soft)",
+              borderColor: "var(--iverifi-warning-border)",
+              color: "var(--iverifi-warning)",
             }}
           >
             Verify at least one ID (Aadhaar, PAN, passport, or driving licence) to check age.
@@ -184,9 +183,9 @@ export default function AgeCheckScreen() {
                 onClick={() => navigate("/add-documents")}
                 className="inline-flex items-center justify-center rounded-xl px-4 py-2 text-[13px] font-bold"
                 style={{
-                  background: "rgba(0,224,255,0.12)",
-                  border: "1px solid rgba(0,224,255,0.28)",
-                  color: "rgba(0,224,255,1)",
+                  background: "var(--iverifi-accent-soft)",
+                  border: "1px solid var(--iverifi-accent-border)",
+                  color: "var(--iverifi-accent)",
                 }}
               >
                 Verify document

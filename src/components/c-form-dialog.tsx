@@ -42,8 +42,8 @@ const FIELD_STYLE: React.CSSProperties = {
   width: "100%",
   padding: "12px 14px",
   borderRadius: 12,
-  background: "rgba(255,255,255,0.04)",
-  border: "1.5px solid rgba(255,255,255,0.08)",
+  background: "var(--iverifi-muted-surface)",
+  border: "1.5px solid var(--iverifi-border-subtle)",
   color: "var(--iverifi-text-primary)",
   fontSize: 16,
   outline: "none",
@@ -77,7 +77,7 @@ const BTN_SECONDARY: React.CSSProperties = {
   marginTop: 2,
   padding: "14px",
   borderRadius: 12,
-  background: "rgba(255,255,255,0.04)",
+  background: "var(--iverifi-muted-surface)",
   border: "1px solid var(--iverifi-border-subtle)",
   color: "var(--iverifi-label)",
   fontSize: 14,
@@ -276,8 +276,8 @@ export function CFormDialog({ open, passportData, onSave, onClose, mode = "kwik"
                 gap: 12,
                 minHeight: 160,
                 borderRadius: 16,
-                border: `2px dashed ${uploadedImageUrl ? "rgba(0,200,150,0.4)" : "rgba(0,224,255,0.25)"}`,
-                background: uploadedImageUrl ? "rgba(0,200,150,0.06)" : "rgba(0,224,255,0.04)",
+                border: `2px dashed ${uploadedImageUrl ? "var(--iverifi-success-border)" : "var(--iverifi-accent-border)"}`,
+                background: uploadedImageUrl ? "var(--iverifi-success-soft)" : "var(--iverifi-accent-soft)",
                 cursor: uploading ? "not-allowed" : "pointer",
                 position: "relative",
                 overflow: "hidden",
@@ -307,7 +307,7 @@ export function CFormDialog({ open, passportData, onSave, onClose, mode = "kwik"
                     alt="Passport"
                     style={{ maxHeight: 140, maxWidth: "90%", borderRadius: 10, objectFit: "cover", margin: "0 auto", display: "block" }}
                   />
-                  <div style={{ fontSize: 12, color: "#00c896", marginTop: 10, fontWeight: 600 }}>✓ Uploaded — tap to change</div>
+                  <div style={{ fontSize: 12, color: "var(--iverifi-success)", marginTop: 10, fontWeight: 600 }}>✓ Uploaded — tap to change</div>
                 </div>
               ) : (
                 <div style={{ textAlign: "center" }}>
@@ -319,7 +319,7 @@ export function CFormDialog({ open, passportData, onSave, onClose, mode = "kwik"
             </label>
 
             {uploadError && (
-              <div style={{ marginTop: 10, fontSize: 13, color: "#f87171", background: "rgba(248,113,113,0.08)", borderRadius: 10, padding: "8px 12px" }}>
+              <div style={{ marginTop: 10, fontSize: 13, color: "var(--iverifi-danger)", background: "var(--iverifi-danger-soft)", borderRadius: 10, padding: "8px 12px" }}>
                 {uploadError}
               </div>
             )}
@@ -435,8 +435,8 @@ export function CFormDialog({ open, passportData, onSave, onClose, mode = "kwik"
 
             <div
               style={{
-                background: "rgba(0,224,255,0.04)",
-                border: "1px solid rgba(0,224,255,0.15)",
+                background: "var(--iverifi-accent-soft)",
+                border: "1px solid var(--iverifi-accent-border)",
                 borderRadius: 14,
                 padding: "0 16px",
                 marginBottom: 16,
@@ -453,7 +453,7 @@ export function CFormDialog({ open, passportData, onSave, onClose, mode = "kwik"
                     borderBottom:
                       idx === passportRows.length - 1
                         ? "none"
-                        : "1px solid rgba(255,255,255,0.05)",
+                        : "1px solid var(--iverifi-row-divider)",
                   }}
                 >
                   <span style={{ fontSize: 12, color: "var(--iverifi-label)" }}>{label}</span>
@@ -507,9 +507,9 @@ export function CFormDialog({ open, passportData, onSave, onClose, mode = "kwik"
                         flex: 1,
                         padding: "10px 0",
                         borderRadius: 12,
-                        border: manual.sex === s ? "1.5px solid var(--iverifi-accent, #00e0ff)" : "1.5px solid rgba(255,255,255,0.1)",
-                        background: manual.sex === s ? "rgba(0,224,255,0.1)" : "rgba(255,255,255,0.04)",
-                        color: manual.sex === s ? "#00e0ff" : "var(--iverifi-text-primary)",
+                        border: manual.sex === s ? "1.5px solid var(--iverifi-accent-border)" : "1.5px solid var(--iverifi-border-subtle)",
+                        background: manual.sex === s ? "var(--iverifi-accent-soft)" : "var(--iverifi-muted-surface)",
+                        color: manual.sex === s ? "var(--iverifi-accent)" : "var(--iverifi-text-primary)",
                         fontSize: 14,
                         fontWeight: 600,
                         cursor: "pointer",
@@ -566,9 +566,9 @@ export function CFormDialog({ open, passportData, onSave, onClose, mode = "kwik"
                       style={{
                         padding: "8px 14px",
                         borderRadius: 12,
-                        border: manual.visaType === t ? "1.5px solid var(--iverifi-accent, #00e0ff)" : "1.5px solid rgba(255,255,255,0.1)",
-                        background: manual.visaType === t ? "rgba(0,224,255,0.1)" : "rgba(255,255,255,0.04)",
-                        color: manual.visaType === t ? "#00e0ff" : "var(--iverifi-text-primary)",
+                        border: manual.visaType === t ? "1.5px solid var(--iverifi-accent-border)" : "1.5px solid var(--iverifi-border-subtle)",
+                        background: manual.visaType === t ? "var(--iverifi-accent-soft)" : "var(--iverifi-muted-surface)",
+                        color: manual.visaType === t ? "var(--iverifi-accent)" : "var(--iverifi-text-primary)",
                         fontSize: 13,
                         fontWeight: 600,
                         cursor: "pointer",
@@ -625,12 +625,12 @@ export function CFormDialog({ open, passportData, onSave, onClose, mode = "kwik"
                   alignItems: "center",
                   gap: 6,
                   borderRadius: 999,
-                  border: "1px solid rgba(0,200,150,0.2)",
-                  background: "rgba(0,200,150,0.1)",
+                  border: "1px solid var(--iverifi-success-border)",
+                  background: "var(--iverifi-success-soft)",
                   padding: "4px 12px",
                   fontSize: 12,
                   fontWeight: 700,
-                  color: "#00c896",
+                  color: "var(--iverifi-success)",
                 }}
               >
                 ✓ All fields complete
@@ -641,12 +641,12 @@ export function CFormDialog({ open, passportData, onSave, onClose, mode = "kwik"
                     display: "inline-flex",
                     alignItems: "center",
                     borderRadius: 999,
-                    border: "1px solid rgba(0,224,255,0.25)",
-                    background: "rgba(0,224,255,0.08)",
+                    border: "1px solid var(--iverifi-accent-border)",
+                    background: "var(--iverifi-accent-soft)",
                     padding: "4px 12px",
                     fontSize: 12,
                     fontWeight: 700,
-                    color: "#00e0ff",
+                    color: "var(--iverifi-accent)",
                     fontFamily: "monospace",
                     letterSpacing: "0.04em",
                   }}
@@ -665,14 +665,14 @@ export function CFormDialog({ open, passportData, onSave, onClose, mode = "kwik"
                 <img
                   src={uploadedImageUrl}
                   alt="Passport"
-                  style={{ height: 72, width: 72, borderRadius: 10, objectFit: "cover", border: "1px solid rgba(255,255,255,0.1)" }}
+                  style={{ height: 72, width: 72, borderRadius: 10, objectFit: "cover", border: "1px solid var(--iverifi-border-subtle)" }}
                 />
               </div>
             )}
 
             <div
               style={{
-                background: "rgba(255,255,255,0.03)",
+                background: "var(--iverifi-surface-1)",
                 border: "1px solid var(--iverifi-border-subtle)",
                 borderRadius: 14,
                 padding: "0 16px",
@@ -710,8 +710,8 @@ export function CFormDialog({ open, passportData, onSave, onClose, mode = "kwik"
             <div
               style={{
                 padding: 12,
-                background: "rgba(0,224,255,0.05)",
-                border: "1px solid rgba(0,224,255,0.1)",
+                background: "var(--iverifi-hint-bg)",
+                border: "1px solid var(--iverifi-hint-border)",
                 borderRadius: 12,
                 fontSize: 12,
                 color: "var(--iverifi-hint-text)",

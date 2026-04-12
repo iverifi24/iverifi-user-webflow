@@ -33,14 +33,14 @@ const getActivityIcon = (item: {
   if (type.includes("document")) {
     if (activityType === "deleted" || msg.includes("deleted"))
       return <FileX className="h-5 w-5 shrink-0 text-red-400" />;
-    return <FileCheck className="h-5 w-5 shrink-0 text-[#00c896]" />;
+    return <FileCheck className="h-5 w-5 shrink-0 text-emerald-600 dark:text-[#00c896]" />;
   }
   if (type.includes("connection")) {
     if (msg.includes("check-in") || msg.includes("check-in"))
-      return <CalendarCheck className="h-5 w-5 shrink-0 text-[#f5a623]" />;
+      return <CalendarCheck className="h-5 w-5 shrink-0 text-amber-500 dark:text-[#f5a623]" />;
     if (msg.includes("check-out") || msg.includes("checked out"))
       return <Calendar className="h-5 w-5 shrink-0 text-slate-400" />;
-    return <Link2 className="h-5 w-5 shrink-0 text-[#00e0ff]" />;
+    return <Link2 className="h-5 w-5 shrink-0 text-teal-600 dark:text-[#00e0ff]" />;
   }
   return <Shield className="h-5 w-5 shrink-0 text-slate-500" />;
 };

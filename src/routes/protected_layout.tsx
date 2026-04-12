@@ -44,9 +44,6 @@ const ProtectedLayout = () => {
                 className="h-[56px] w-[90px] min-w-[90px] shrink-0 object-contain object-left align-bottom md:w-[75px] md:min-w-[75px]"
               />
             </div>
-            <div className="hidden flex-col justify-center md:flex">
-              <span className="text-sm font-semibold text-foreground">iVerifi</span>
-            </div>
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <button

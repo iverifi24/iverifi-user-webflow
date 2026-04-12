@@ -29,6 +29,7 @@ import {
 import { VerifierBadge } from "@/components/verifier-badge";
 import { DocumentTypeIcon } from "@/components/document-type-icon";
 import { QRScannerModal } from "@/components/qr-scanner-modal";
+import { FeedbackModal } from "@/components/feedback-modal";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
@@ -297,6 +298,10 @@ const Connections = () => {
   // C-Form dialog
   const [cformDialogOpen, setCformDialogOpen] = useState(false);
   const [cformRef, setCformRef] = useState("");
+
+  // Feedback modal — shown after successful check-in
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const [feedbackRequestId, setFeedbackRequestId] = useState<string | null>(null);
 
   /** Prevent double-submit: stays true until API settles; only cleared on error so user can retry */
   const [isCheckInOutInFlight, setCheckInOutInFlight] = useState(false);
@@ -569,13 +574,20 @@ const Connections = () => {
     return fallbackEntries;
   }, [selectedDocType, selectedDetails]);
 
+  const isCompanyRecipient = (recipientData?.data?.requests?.[0] as any)?.type === "Company";
+
   const verifiedDocTypesForShare = useMemo(() => {
     const order = [
       ...HOME_DOCUMENT_TYPES,
       ...CHILD_AADHAAR_TYPES,
     ];
-    return order.filter((docType) => !!verifiedCredentialsMap[docType]);
-  }, [verifiedCredentialsMap]);
+    return order.filter((docType) => {
+      if (!verifiedCredentialsMap[docType]) return false;
+      // Hotels (Company) don't accept PAN as valid ID proof
+      if (isCompanyRecipient && docType === "PAN_CARD") return false;
+      return true;
+    });
+  }, [verifiedCredentialsMap, isCompanyRecipient]);
 
   const firstShareableDocType = verifiedDocTypesForShare[0] ?? null;
 
@@ -786,6 +798,8 @@ const Connections = () => {
       navigate(location.pathname, { replace: true });
       toast.success("C-Form submitted. Check-in request sent to the property.");
       await refetchCredentials();
+      setFeedbackRequestId(derivedConnectionId);
+      setFeedbackOpen(true);
     } catch (error: any) {
       toast.error(
         error?.data?.message ? String(error.data.message) : "Could not submit C-Form. Please try again."
@@ -887,6 +901,8 @@ const Connections = () => {
       toast.success("Document shared. Check-in request sent to the property.");
 
       await refetchCredentials();
+      setFeedbackRequestId(derivedConnectionId);
+      setFeedbackOpen(true);
     } catch (error: any) {
       toast.error(
         error?.data?.message
@@ -948,10 +964,10 @@ const Connections = () => {
 
       {/* Vault home always; QR scan only adds this strip + share popup */}
       {code && isValidQRCode(code) && (
-        <div className="rounded-2xl border border-[rgba(0,224,255,0.18)] bg-[rgba(0,224,255,0.06)] px-4 py-3 space-y-3 mb-1">
+        <div className="rounded-2xl border border-[var(--iverifi-accent-border)] bg-[var(--iverifi-accent-soft)] px-4 py-3 space-y-3 mb-1">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div className="min-w-0">
-              <div className="text-[10px] font-semibold tracking-widest uppercase text-[#00e0ff]/80">
+              <div className="text-[10px] font-semibold tracking-widest uppercase text-teal-600/80 dark:text-[#00e0ff]/80">
                 Active property
               </div>
               <div className="truncate text-sm font-semibold text-[var(--iverifi-text-primary)]">
@@ -998,7 +1014,7 @@ const Connections = () => {
           <div className="grid grid-cols-3 gap-3">
             <div className="rounded-2xl border border-[color:var(--iverifi-stat-border)] bg-[var(--iverifi-stat-bg)] p-4">
               <div className="text-center">
-                <div className="text-xl font-semibold text-[#00e0ff]">
+                <div className="text-xl font-semibold text-teal-600 dark:text-[#00e0ff]">
                   {
                     HOME_DOCUMENT_TYPES.filter(
                       (t) => !!verifiedCredentialsMap[t]
@@ -1012,7 +1028,7 @@ const Connections = () => {
             </div>
             <div className="rounded-2xl border border-[color:var(--iverifi-stat-border)] bg-[var(--iverifi-stat-bg)] p-4">
               <div className="text-center">
-                <div className="text-xl font-semibold text-[#00e0ff]">
+                <div className="text-xl font-semibold text-teal-600 dark:text-[#00e0ff]">
                   {connectionsData?.data?.requests?.length ?? 0}
                 </div>
                 <div className="mt-1 text-center text-[11px] font-semibold tracking-widest uppercase text-[var(--iverifi-text-muted)]">
@@ -1022,7 +1038,7 @@ const Connections = () => {
             </div>
             <div className="rounded-2xl border border-[color:var(--iverifi-stat-border)] bg-[var(--iverifi-stat-bg)] p-4">
               <div className="text-center">
-                <div className="text-xl font-semibold text-[#00e0ff]">
+                <div className="text-xl font-semibold text-teal-600 dark:text-[#00e0ff]">
                   {
                     (connectionsData?.data?.requests ?? []).filter(
                       (r: any) => r?.check_in_status === "pending"
@@ -1087,7 +1103,7 @@ const Connections = () => {
                     <div className="flex items-center gap-2 shrink-0">
                       {isVerified ? (
                         <>
-                          <CheckCircle className="h-4 w-4 text-[#00c896]" />
+                          <CheckCircle className="h-4 w-4 text-emerald-600 dark:text-[#00c896]" />
                           <ChevronRight className="h-4 w-4 text-[var(--iverifi-text-muted)]" />
                         </>
                       ) : (
@@ -1095,7 +1111,7 @@ const Connections = () => {
                           <Button
                             type="button"
                             variant="outline"
-                            className="h-9 rounded-xl border border-[#f5a623] bg-transparent text-[#f5a623] hover:bg-[rgba(245,166,35,0.12)]"
+                            className="h-9 rounded-xl border border-amber-400 bg-transparent text-amber-600 hover:bg-amber-50 dark:border-[#f5a623] dark:text-[#f5a623] dark:hover:bg-[rgba(245,166,35,0.12)]"
                             onClick={(e) => { e.stopPropagation(); handleVerifyDocument(docType); }}
                           >
                             Verify
@@ -1153,7 +1169,7 @@ const Connections = () => {
                   type="button"
                   variant="outline"
                   size="sm"
-                  className="h-8 shrink-0 gap-1 rounded-full border-0 bg-[rgba(0,200,180,0.22)] px-3 text-xs font-semibold text-[#5eead4] hover:bg-[rgba(0,200,180,0.32)]"
+                  className="h-8 shrink-0 gap-1 rounded-full border-0 bg-teal-100 px-3 text-xs font-semibold text-teal-700 hover:bg-teal-200 dark:bg-[rgba(0,200,180,0.22)] dark:text-[#5eead4] dark:hover:bg-[rgba(0,200,180,0.32)]"
                   onClick={() =>
                     setChildAadhaarSlotsVisible((n) => Math.min(3, n + 1))
                   }
@@ -1183,7 +1199,7 @@ const Connections = () => {
                       className="flex cursor-pointer items-center justify-between gap-3 rounded-2xl border border-[color:var(--iverifi-card-border)] bg-[var(--iverifi-card)] px-4 py-3"
                     >
                       <div className="flex min-w-0 items-center gap-3">
-                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[rgba(245,166,35,0.35)] bg-[rgba(245,166,35,0.18)]">
+                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-amber-300 bg-amber-50 dark:border-[rgba(245,166,35,0.35)] dark:bg-[rgba(245,166,35,0.18)]">
                           <DocumentTypeIcon
                             documentType={docType}
                             className="h-6 w-6 text-amber-100"
@@ -1204,7 +1220,7 @@ const Connections = () => {
                       <div className="flex shrink-0 items-center gap-2">
                         {isVerified ? (
                           <>
-                            <CheckCircle className="h-4 w-4 text-[#00c896]" />
+                            <CheckCircle className="h-4 w-4 text-emerald-600 dark:text-[#00c896]" />
                             <ChevronRight className="h-4 w-4 text-[var(--iverifi-text-muted)]" />
                           </>
                         ) : (
@@ -1212,7 +1228,7 @@ const Connections = () => {
                             <Button
                               type="button"
                               variant="outline"
-                              className="h-9 rounded-xl border border-[#f5a623] bg-transparent text-[#f5a623] hover:bg-[rgba(245,166,35,0.12)]"
+                              className="h-9 rounded-xl border border-amber-400 bg-transparent text-amber-600 hover:bg-amber-50 dark:border-[#f5a623] dark:text-[#f5a623] dark:hover:bg-[rgba(245,166,35,0.12)]"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleVerifyDocument(docType);
@@ -1347,9 +1363,9 @@ const Connections = () => {
                         borderRadius: 20,
                         fontSize: 12,
                         fontWeight: 700,
-                        background: isAbove18 ? "rgba(0,200,150,0.1)" : "rgba(245,166,35,0.1)",
-                        color: isAbove18 ? "#00c896" : "#f5a623",
-                        border: `1px solid ${isAbove18 ? "rgba(0,200,150,0.2)" : "rgba(245,166,35,0.2)"}`,
+                        background: isAbove18 ? "var(--iverifi-success-soft)" : "var(--iverifi-warning-soft)",
+                        color: isAbove18 ? "var(--iverifi-success)" : "var(--iverifi-warning)",
+                        border: `1px solid ${isAbove18 ? "var(--iverifi-success-border)" : "var(--iverifi-warning-border)"}`,
                       }}
                     >
                       {isAbove18 ? "✓ Age 18+" : "Under 18"}
@@ -1456,9 +1472,9 @@ const Connections = () => {
                   width: "100%",
                   padding: "15px",
                   borderRadius: 14,
-                  background: "rgba(0,200,150,0.12)",
-                  border: "1px solid rgba(0,200,150,0.25)",
-                  color: "#00c896",
+                  background: "var(--iverifi-success-soft)",
+                  border: "1px solid var(--iverifi-success-border)",
+                  color: "var(--iverifi-success)",
                   fontSize: 15,
                   fontWeight: 700,
                   cursor: "pointer",
@@ -1489,7 +1505,7 @@ const Connections = () => {
                   borderRadius: 14,
                   background: "rgba(255,77,109,0.08)",
                   border: "1px solid rgba(255,77,109,0.2)",
-                  color: "#ff4d6d",
+                  color: "var(--iverifi-danger)",
                   fontSize: 15,
                   fontWeight: 700,
                   cursor: "pointer",
@@ -1505,7 +1521,7 @@ const Connections = () => {
                   marginTop: 2,
                   padding: "14px",
                   borderRadius: 12,
-                  background: "rgba(255,255,255,0.04)",
+                  background: "var(--iverifi-muted-surface)",
                   border: "1px solid var(--iverifi-border-subtle)",
                   color: "var(--iverifi-label)",
                   fontSize: 14,
@@ -1570,9 +1586,9 @@ const Connections = () => {
                     width: "100%",
                     padding: "15px",
                     borderRadius: 14,
-                    background: "rgba(0,200,150,0.12)",
-                    border: "1px solid rgba(0,200,150,0.25)",
-                    color: "#00c896",
+                    background: "var(--iverifi-success-soft)",
+                    border: "1px solid var(--iverifi-success-border)",
+                    color: "var(--iverifi-success)",
                     fontSize: 15,
                     fontWeight: 700,
                     cursor: "pointer",
@@ -1585,7 +1601,7 @@ const Connections = () => {
               code ? (
                 isRecipientLoading ? (
                   <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "40px 0", gap: 16 }}>
-                    <Loader2 className="h-10 w-10 animate-spin text-[#00e0ff]" aria-hidden />
+                    <Loader2 className="h-10 w-10 animate-spin text-teal-600 dark:text-[#00e0ff]" aria-hidden />
                     <div id="share-sheet-title" style={{ fontSize: 15, color: "var(--iverifi-hint-text)", textAlign: "center" }}>
                       Loading property…
                     </div>
@@ -1607,7 +1623,7 @@ const Connections = () => {
                         borderRadius: 14,
                         background: "rgba(0,200,150,0.12)",
                         border: "1px solid rgba(0,200,150,0.25)",
-                        color: "#00c896",
+                        color: "var(--iverifi-success)",
                         fontSize: 15,
                         fontWeight: 700,
                         cursor: "pointer",
@@ -1624,7 +1640,7 @@ const Connections = () => {
                         marginTop: 2,
                         padding: "14px",
                         borderRadius: 12,
-                        background: "rgba(255,255,255,0.04)",
+                        background: "var(--iverifi-muted-surface)",
                         border: "1px solid var(--iverifi-border-subtle)",
                         color: "var(--iverifi-label)",
                         fontSize: 14,
@@ -1643,14 +1659,14 @@ const Connections = () => {
                       width: 80,
                       height: 80,
                       borderRadius: 20,
-                      border: "1px solid rgba(0,224,255,0.3)",
-                      background: "linear-gradient(135deg, rgba(0,224,255,0.12), rgba(123,92,245,0.12))",
+                      border: "1px solid var(--iverifi-accent-border)",
+                      background: "linear-gradient(135deg, var(--iverifi-accent-soft), rgba(123,92,245,0.12))",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
                     }}
                   >
-                    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#00e0ff" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true">
+                    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--iverifi-accent)" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true">
                       <path d="M4 7V5a1 1 0 0 1 1-1h2M4 17v2a1 1 0 0 0 1 1h2M20 7V5a1 1 0 0 0-1-1h-2M20 17v2a1 1 0 0 1-1 1h-2" />
                       <rect x="9" y="9" width="6" height="6" rx="1" />
                     </svg>
@@ -1682,8 +1698,8 @@ const Connections = () => {
                             height: 32,
                             flexShrink: 0,
                             borderRadius: 10,
-                            border: "1px solid rgba(0,224,255,0.2)",
-                            background: "rgba(0,224,255,0.08)",
+                            border: "1px solid var(--iverifi-accent-border)",
+                            background: "var(--iverifi-accent-soft)",
                             display: "flex",
                             alignItems: "center",
                             justifyContent: "center",
@@ -1714,8 +1730,8 @@ const Connections = () => {
                       <div
                         style={{
                           width: 40, height: 40, flexShrink: 0, borderRadius: 12,
-                          border: "1px solid rgba(0,224,255,0.18)",
-                          background: "rgba(0,224,255,0.08)",
+                          border: "1px solid var(--iverifi-accent-border)",
+                          background: "var(--iverifi-accent-soft)",
                           display: "flex", alignItems: "center", justifyContent: "center",
                         }}
                       >
@@ -1742,7 +1758,7 @@ const Connections = () => {
                         borderRadius: 14,
                         background: "rgba(0,200,150,0.12)",
                         border: "1px solid rgba(0,200,150,0.25)",
-                        color: "#00c896",
+                        color: "var(--iverifi-success)",
                         fontSize: 15,
                         fontWeight: 700,
                         cursor: "pointer",
@@ -1758,7 +1774,7 @@ const Connections = () => {
                         marginTop: 2,
                         padding: "14px",
                         borderRadius: 12,
-                        background: "rgba(255,255,255,0.04)",
+                        background: "var(--iverifi-muted-surface)",
                         border: "1px solid var(--iverifi-border-subtle)",
                         color: "var(--iverifi-label)",
                         fontSize: 14,
@@ -1782,8 +1798,8 @@ const Connections = () => {
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
-                      background: "rgba(0,224,255,0.08)",
-                      border: "1px solid rgba(0,224,255,0.2)",
+                      background: "var(--iverifi-accent-soft)",
+                      border: "1px solid var(--iverifi-accent-border)",
                       overflow: "hidden",
                     }}
                   >
@@ -1819,12 +1835,12 @@ const Connections = () => {
                           display: "inline-flex",
                           alignItems: "center",
                           borderRadius: 999,
-                          border: "1px solid rgba(0,200,150,0.2)",
-                          background: "rgba(0,200,150,0.12)",
+                          border: "1px solid var(--iverifi-success-border)",
+                          background: "var(--iverifi-success-soft)",
                           padding: "2px 8px",
                           fontSize: 10,
                           fontWeight: 700,
-                          color: "#00c896",
+                          color: "var(--iverifi-success)",
                         }}
                       >
                         {code && isValidQRCode(code) ? "✓ Verified" : `✓ ${connectedRequestorName}`}
@@ -1877,8 +1893,8 @@ const Connections = () => {
                           height: 40,
                           flexShrink: 0,
                           borderRadius: 12,
-                          border: "1px solid rgba(0,200,150,0.25)",
-                          background: "rgba(0,200,150,0.12)",
+                          border: "1px solid var(--iverifi-success-border)",
+                          background: "var(--iverifi-success-soft)",
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
@@ -1888,9 +1904,9 @@ const Connections = () => {
                         +
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 14, fontWeight: 700, color: "#00c896" }}>Add a document</div>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: "var(--iverifi-success)" }}>Add a document</div>
                         <div style={{ fontSize: 11, color: "var(--iverifi-label)", marginTop: 2 }}>
-                          Verify your Aadhaar, PAN, or other ID to check in
+                          Verify your Aadhaar, Driving Licence, or Passport to check in
                         </div>
                       </div>
                     </button>
@@ -1933,7 +1949,7 @@ const Connections = () => {
                           <DocumentTypeIcon documentType={docType} className="text-[var(--iverifi-text-primary)] h-5 w-5" />
                         </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: 14, fontWeight: 700, color: selected ? "#00e0ff" : "var(--iverifi-text-primary)" }}>{label}</div>
+                          <div style={{ fontSize: 14, fontWeight: 700, color: selected ? "var(--iverifi-accent)" : "var(--iverifi-text-primary)" }}>{label}</div>
                           <div style={{ fontSize: 11, color: "var(--iverifi-label)" }}>Verified</div>
                         </div>
                         <div
@@ -1941,8 +1957,8 @@ const Connections = () => {
                             width: 20,
                             height: 20,
                             borderRadius: "50%",
-                            border: selected ? "2px solid #00e0ff" : "2px solid var(--iverifi-ring-muted)",
-                            background: selected ? "#00e0ff" : "transparent",
+                            border: selected ? "2px solid var(--iverifi-accent)" : "2px solid var(--iverifi-ring-muted)",
+                            background: selected ? "var(--iverifi-accent)" : "transparent",
                             display: "flex",
                             alignItems: "center",
                             justifyContent: "center",
@@ -1974,7 +1990,7 @@ const Connections = () => {
                         padding: "12px 4px",
                         border: "none",
                         borderTop: verifiedDocTypesForShare.length > 0 ? "1px solid var(--iverifi-row-divider)" : "none",
-                        background: isSelected ? "rgba(0,224,255,0.06)" : "transparent",
+                        background: isSelected ? "var(--iverifi-accent-soft)" : "transparent",
                         cursor: qrActive ? "pointer" : "not-allowed",
                         textAlign: "left",
                         borderRadius: isSelected ? 8 : 0,
@@ -1987,8 +2003,8 @@ const Connections = () => {
                           height: 40,
                           flexShrink: 0,
                           borderRadius: 12,
-                          border: "1px solid rgba(0,224,255,0.18)",
-                          background: "rgba(0,224,255,0.08)",
+                          border: "1px solid var(--iverifi-accent-border)",
+                          background: "var(--iverifi-accent-soft)",
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
@@ -1997,7 +2013,7 @@ const Connections = () => {
                         <DocumentTypeIcon documentType="C-Form (Foreign Guest)" className="text-[var(--iverifi-text-primary)] h-5 w-5" />
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 14, fontWeight: 700, color: isSelected ? "#00e0ff" : "var(--iverifi-text-primary)" }}>C-Form (Foreign Guest)</div>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: isSelected ? "var(--iverifi-accent)" : "var(--iverifi-text-primary)" }}>C-Form (Foreign Guest)</div>
                         <div style={{ fontSize: 11, color: "var(--iverifi-label)" }}>
                           {qrActive ? "FRRO compliance · Fill & submit on check-in" : "Scan a hotel QR to use C-Form"}
                         </div>
@@ -2007,8 +2023,8 @@ const Connections = () => {
                           width: 20,
                           height: 20,
                           borderRadius: "50%",
-                          border: isSelected ? "2px solid #00e0ff" : "2px solid var(--iverifi-ring-muted)",
-                          background: isSelected ? "#00e0ff" : "transparent",
+                          border: isSelected ? "2px solid var(--iverifi-accent)" : "2px solid var(--iverifi-ring-muted)",
+                          background: isSelected ? "var(--iverifi-accent)" : "transparent",
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
@@ -2040,11 +2056,11 @@ const Connections = () => {
                           key={field}
                           style={{
                             borderRadius: 999,
-                            border: "1px solid rgba(0,224,255,0.15)",
-                            background: "rgba(0,224,255,0.08)",
+                            border: "1px solid var(--iverifi-accent-border)",
+                            background: "var(--iverifi-accent-soft)",
                             padding: "4px 12px",
                             fontSize: 12,
-                            color: "#00e0ff",
+                            color: "var(--iverifi-accent)",
                           }}
                         >
                           {field}
@@ -2074,10 +2090,10 @@ const Connections = () => {
                             borderRadius: 12,
                             border:
                               shareExpiryHours === value
-                                ? "1px solid rgba(0,224,255,0.45)"
+                                ? "1px solid var(--iverifi-accent)"
                                 : "1px solid var(--iverifi-ring-muted)",
-                            background: shareExpiryHours === value ? "rgba(0,224,255,0.10)" : "var(--iverifi-surface-1)",
-                            color: shareExpiryHours === value ? "#00e0ff" : "var(--iverifi-hint-text)",
+                            background: shareExpiryHours === value ? "var(--iverifi-accent-soft)" : "var(--iverifi-surface-1)",
+                            color: shareExpiryHours === value ? "var(--iverifi-accent)" : "var(--iverifi-hint-text)",
                             fontSize: 11,
                             fontWeight: 600,
                             cursor: "pointer",
@@ -2093,8 +2109,8 @@ const Connections = () => {
                 <div
                   style={{
                     padding: 12,
-                    background: "rgba(0,224,255,0.05)",
-                    border: "1px solid rgba(0,224,255,0.1)",
+                    background: "var(--iverifi-accent-soft)",
+                    border: "1px solid var(--iverifi-accent-border)",
                     borderRadius: 12,
                     marginBottom: 16,
                     fontSize: 12,
@@ -2112,12 +2128,12 @@ const Connections = () => {
 
                 <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                   {isCurrentlyCheckedIn && (
-                    <p style={{ fontSize: 12, color: "#10b981", background: "rgba(16,185,129,0.1)", border: "1px solid rgba(16,185,129,0.2)", borderRadius: 8, padding: "8px 12px", marginBottom: 4 }}>
+                    <p style={{ fontSize: 12, color: "var(--iverifi-success)", background: "var(--iverifi-success-soft)", border: "1px solid var(--iverifi-success-border)", borderRadius: 8, padding: "8px 12px", marginBottom: 4 }}>
                       You are currently checked in. Please check out before checking in again.
                     </p>
                   )}
                   {currentConnection?.check_in_status === "pending" && (
-                    <p style={{ fontSize: 12, color: "#f59e0b", background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.2)", borderRadius: 8, padding: "8px 12px", marginBottom: 4 }}>
+                    <p style={{ fontSize: 12, color: "var(--iverifi-warning)", background: "var(--iverifi-warning-soft)", border: "1px solid var(--iverifi-warning-border)", borderRadius: 8, padding: "8px 12px", marginBottom: 4 }}>
                       Check-in is waiting for the property to approve.
                     </p>
                   )}
@@ -2136,7 +2152,7 @@ const Connections = () => {
                       borderRadius: 14,
                       background: "rgba(0,200,150,0.12)",
                       border: "1px solid rgba(0,200,150,0.25)",
-                      color: "#00c896",
+                      color: "var(--iverifi-success)",
                       fontSize: 15,
                       fontWeight: 700,
                       cursor:
@@ -2202,7 +2218,7 @@ const Connections = () => {
                       marginTop: 2,
                       padding: "14px",
                       borderRadius: 12,
-                      background: "rgba(255,255,255,0.04)",
+                      background: "var(--iverifi-muted-surface)",
                       border: "1px solid var(--iverifi-border-subtle)",
                       color: "var(--iverifi-label)",
                       fontSize: 14,
@@ -2278,6 +2294,13 @@ const Connections = () => {
         onClose={() => setCformDialogOpen(false)}
         mode={verifiedCredentialsMap["PASSPORT"] ? "kwik" : "manual"}
         referenceNumber={cformRef}
+      />
+
+      <FeedbackModal
+        open={feedbackOpen}
+        credentialRequestId={feedbackRequestId ?? ""}
+        hotelName={connectedRequestorName ?? "the property"}
+        onClose={() => { setFeedbackOpen(false); setFeedbackRequestId(null); }}
       />
 
       {/* Iframe Overlay */}

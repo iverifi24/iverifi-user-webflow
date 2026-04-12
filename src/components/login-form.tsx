@@ -227,19 +227,19 @@ export function LoginForm({
           <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-sky-500/85">
             Method
           </p>
-          <span className="hidden text-right text-[10px] text-slate-500 sm:inline">
+          <span className="hidden text-right text-[10px] text-muted-foreground sm:inline">
             Choose how you’d like to continue
           </span>
         </div>
 
-        <div className="flex rounded-xl bg-[rgba(255,255,255,0.05)] border border-[rgba(56,189,248,0.12)] p-0.5 text-xs shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] sm:rounded-2xl sm:p-1 sm:text-sm">
+        <div className="flex rounded-xl bg-muted border border-border p-0.5 text-xs sm:rounded-2xl sm:p-1 sm:text-sm">
         <button
           type="button"
           className={cn(
             "flex-1 rounded-lg py-1.5 px-3 font-medium transition-all duration-200 sm:rounded-xl sm:py-2 sm:px-4",
             showPhoneLogin
-              ? "bg-[rgba(15,23,42,0.98)] text-slate-50 shadow-[0_0_22px_rgba(0,224,255,0.35)]"
-              : "text-slate-400 hover:text-slate-100"
+              ? "bg-card text-foreground shadow-sm dark:bg-[rgba(15,23,42,0.98)] dark:shadow-[0_0_22px_rgba(0,224,255,0.35)]"
+              : "text-muted-foreground hover:text-foreground"
           )}
           onClick={() => setShowPhoneLogin(true)}
         >
@@ -250,8 +250,8 @@ export function LoginForm({
           className={cn(
             "flex-1 rounded-lg py-1.5 px-3 font-medium transition-all duration-200 sm:rounded-xl sm:py-2 sm:px-4",
             !showPhoneLogin
-              ? "bg-[rgba(15,23,42,0.98)] text-slate-50 shadow-[0_0_22px_rgba(0,224,255,0.35)]"
-              : "text-slate-400 hover:text-slate-100"
+              ? "bg-card text-foreground shadow-sm dark:bg-[rgba(15,23,42,0.98)] dark:shadow-[0_0_22px_rgba(0,224,255,0.35)]"
+              : "text-muted-foreground hover:text-foreground"
           )}
           onClick={() => setShowPhoneLogin(false)}
         >
@@ -264,21 +264,21 @@ export function LoginForm({
         <div className="flex flex-col gap-4 pt-0.5">
           <PhoneLoginForm onSuccess={handlePhoneSuccess} />
 
-          <p className="text-center text-[10px] leading-snug text-slate-500 sm:text-[11px] md:text-xs">
+          <p className="text-center text-[10px] leading-snug text-muted-foreground sm:text-[11px] md:text-xs">
             Data protected under DPDP Act 2023.
           </p>
 
-          <div className="relative flex items-center py-0.5 text-[11px] md:text-xs text-slate-500">
-            <div className="h-px flex-1 bg-slate-800" />
-            <span className="mx-2.5 text-slate-400">or</span>
-            <div className="h-px flex-1 bg-slate-800" />
+          <div className="relative flex items-center py-0.5 text-[11px] md:text-xs text-muted-foreground">
+            <div className="h-px flex-1 bg-border" />
+            <span className="mx-2.5">or</span>
+            <div className="h-px flex-1 bg-border" />
           </div>
 
           <Button
             type="button"
             variant="outline"
             size="sm"
-            className="flex h-9 w-full items-center justify-center gap-2 border-slate-700/80 bg-slate-900/60 text-slate-50 hover:bg-slate-800 sm:h-10"
+            className="flex h-9 w-full items-center justify-center gap-2 sm:h-10"
             onClick={handleGoogleLogin}
             disabled={isLoading}
           >
@@ -311,10 +311,7 @@ export function LoginForm({
         <form onSubmit={handleEmailLogin} className="mt-1 space-y-3 sm:mt-2 sm:space-y-4">
           <div className="grid gap-2 sm:gap-3">
             <div className="grid gap-1.5 sm:gap-2">
-              <Label
-                htmlFor="email"
-                className="text-xs md:text-sm text-slate-200"
-              >
+              <Label htmlFor="email" className="text-xs md:text-sm">
                 Email
               </Label>
               <Input
@@ -325,14 +322,11 @@ export function LoginForm({
                 placeholder="you@example.com"
                 required
                 disabled={isLoading}
-                className="h-9 border-slate-800/80 bg-slate-900/60 text-slate-50 placeholder:text-slate-500 focus-visible:ring-sky-500/70 sm:h-10"
+                className="h-9 sm:h-10"
               />
             </div>
             <div className="grid gap-1.5 sm:gap-2">
-              <Label
-                htmlFor="password"
-                className="text-xs md:text-sm text-slate-200"
-              >
+              <Label htmlFor="password" className="text-xs md:text-sm">
                 Password
               </Label>
               <Input
@@ -342,7 +336,7 @@ export function LoginForm({
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 disabled={isLoading}
-                className="h-9 border-slate-800/80 bg-slate-900/60 text-slate-50 placeholder:text-slate-500 focus-visible:ring-sky-500/70 sm:h-10"
+                className="h-9 sm:h-10"
               />
             </div>
           </div>
@@ -356,17 +350,17 @@ export function LoginForm({
             {isLoading ? "Logging in..." : "Continue"}
           </Button>
 
-          <div className="relative flex items-center text-[11px] md:text-xs text-slate-500">
-            <div className="h-px flex-1 bg-slate-800" />
-            <span className="mx-3 text-slate-400">or</span>
-            <div className="h-px flex-1 bg-slate-800" />
+          <div className="relative flex items-center text-[11px] md:text-xs text-muted-foreground">
+            <div className="h-px flex-1 bg-border" />
+            <span className="mx-3">or</span>
+            <div className="h-px flex-1 bg-border" />
           </div>
 
           <Button
             type="button"
             variant="outline"
             size="sm"
-            className="flex h-9 w-full items-center justify-center gap-2 border-slate-700/80 bg-slate-900/60 text-slate-50 hover:bg-slate-800 sm:h-10"
+            className="flex h-9 w-full items-center justify-center gap-2 sm:h-10"
             onClick={handleGoogleLogin}
             disabled={isLoading}
           >

@@ -43,41 +43,39 @@
 
 :root {
   --radius: 0.625rem;
-  /* Light app shell (vault-style) */
-  --background: oklch(0.98 0.008 250);
-  --foreground: oklch(0.2 0.02 250);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
+  --background: #f0f4ff;
+  --foreground: oklch(0.13 0.02 250);
+  --card: #ffffff;
+  --card-foreground: oklch(0.13 0.02 250);
+  --popover: #ffffff;
+  --popover-foreground: oklch(0.13 0.02 250);
+  --primary: oklch(0.18 0.02 250);
   --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.94 0.01 250);
+  --secondary-foreground: oklch(0.18 0.02 250);
+  --muted: oklch(0.94 0.01 250);
+  --muted-foreground: oklch(0.46 0.02 250);
+  --accent: oklch(0.94 0.01 250);
+  --accent-foreground: oklch(0.18 0.02 250);
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
+  --border: oklch(0.88 0.01 250);
+  --input: oklch(0.88 0.01 250);
+  --ring: oklch(0.6 0.12 220);
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
   --chart-3: oklch(0.398 0.07 227.392);
   --chart-4: oklch(0.828 0.189 84.429);
   --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar: #ffffff;
+  --sidebar-foreground: oklch(0.13 0.02 250);
+  --sidebar-primary: oklch(0.18 0.02 250);
   --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --sidebar-accent: oklch(0.94 0.01 250);
+  --sidebar-accent-foreground: oklch(0.18 0.02 250);
+  --sidebar-border: oklch(0.88 0.01 250);
+  --sidebar-ring: oklch(0.6 0.12 220);
 
-  /* Shared “iVerifi” surfaces (used by vault, sheets, lists) */
-  --iverifi-page: #f1f5f9;
+  --iverifi-page: #eef2ff;
   --iverifi-card: #ffffff;
   --iverifi-card-border: rgba(15, 23, 42, 0.1);
   --iverifi-card-hover: rgba(15, 23, 42, 0.04);
@@ -90,28 +88,42 @@
   --iverifi-text-muted: #64748b;
   --iverifi-label: #64748b;
   --iverifi-nav-bg: #ffffff;
-  --iverifi-nav-border: rgba(15, 23, 42, 0.12);
-  --iverifi-nav-shadow: rgba(15, 23, 42, 0.12);
+  --iverifi-nav-border: rgba(15, 23, 42, 0.1);
+  --iverifi-nav-shadow: rgba(15, 23, 42, 0.08);
   --iverifi-overlay: rgba(15, 23, 42, 0.45);
   --iverifi-sheet: #ffffff;
-  --iverifi-sheet-border: rgba(15, 23, 42, 0.12);
-  --iverifi-sheet-handle: rgba(15, 23, 42, 0.2);
+  --iverifi-sheet-border: rgba(15, 23, 42, 0.1);
+  --iverifi-sheet-handle: rgba(15, 23, 42, 0.18);
   --iverifi-surface-1: #f8fafc;
   --iverifi-surface-2: #f1f5f9;
-  --iverifi-border-subtle: rgba(15, 23, 42, 0.1);
-  --iverifi-row-divider: rgba(15, 23, 42, 0.08);
-  --iverifi-icon-box-bg: rgba(14, 165, 233, 0.1);
-  --iverifi-icon-box-border: rgba(14, 165, 233, 0.25);
-  --iverifi-hint-bg: rgba(14, 165, 233, 0.06);
-  --iverifi-hint-border: rgba(14, 165, 233, 0.15);
+  --iverifi-border-subtle: rgba(15, 23, 42, 0.08);
+  --iverifi-row-divider: rgba(15, 23, 42, 0.07);
+  --iverifi-icon-box-bg: rgba(6, 148, 162, 0.08);
+  --iverifi-icon-box-border: rgba(6, 148, 162, 0.2);
+  --iverifi-hint-bg: rgba(6, 148, 162, 0.05);
+  --iverifi-hint-border: rgba(6, 148, 162, 0.15);
   --iverifi-hint-text: #475569;
   --iverifi-close-bg: rgba(15, 23, 42, 0.04);
-  --iverifi-close-border: rgba(15, 23, 42, 0.12);
+  --iverifi-close-border: rgba(15, 23, 42, 0.1);
   --iverifi-close-text: #64748b;
   --iverifi-dialog-bg: #ffffff;
-  --iverifi-dialog-border: rgba(15, 23, 42, 0.12);
+  --iverifi-dialog-border: rgba(15, 23, 42, 0.1);
   --iverifi-select-content: #ffffff;
-  --iverifi-ring-muted: rgba(15, 23, 42, 0.18);
+  --iverifi-ring-muted: rgba(15, 23, 42, 0.16);
+
+  /* Semantic accent colors — light mode */
+  --iverifi-accent: #0d9488;
+  --iverifi-accent-soft: rgba(13, 148, 136, 0.1);
+  --iverifi-accent-border: rgba(13, 148, 136, 0.3);
+  --iverifi-success: #059669;
+  --iverifi-success-soft: rgba(5, 150, 105, 0.08);
+  --iverifi-success-border: rgba(5, 150, 105, 0.25);
+  --iverifi-warning: #d97706;
+  --iverifi-warning-soft: rgba(217, 119, 6, 0.08);
+  --iverifi-warning-border: rgba(217, 119, 6, 0.3);
+  --iverifi-danger: #dc2626;
+  --iverifi-danger-soft: rgba(220, 38, 38, 0.08);
+  --iverifi-inactive-icon: #94a3b8;
 }
 
 .dark {
@@ -182,6 +194,20 @@
   --iverifi-dialog-border: rgba(255, 255, 255, 0.12);
   --iverifi-select-content: #0b1220;
   --iverifi-ring-muted: rgba(255, 255, 255, 0.2);
+
+  /* Semantic accent colors — dark mode */
+  --iverifi-accent: #00e0ff;
+  --iverifi-accent-soft: rgba(0, 224, 255, 0.08);
+  --iverifi-accent-border: rgba(0, 224, 255, 0.2);
+  --iverifi-success: #00c896;
+  --iverifi-success-soft: rgba(0, 200, 150, 0.08);
+  --iverifi-success-border: rgba(0, 200, 150, 0.25);
+  --iverifi-warning: #f5a623;
+  --iverifi-warning-soft: rgba(245, 166, 35, 0.1);
+  --iverifi-warning-border: rgba(245, 166, 35, 0.3);
+  --iverifi-danger: #f87171;
+  --iverifi-danger-soft: rgba(248, 113, 113, 0.08);
+  --iverifi-inactive-icon: #64748b;
 }
 
 @layer base {

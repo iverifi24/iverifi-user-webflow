@@ -101,7 +101,7 @@ export default function TermsAcceptance() {
   };
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden w-full py-3 sm:py-4 bg-[#050816] text-slate-50">
+    <div className="h-screen flex flex-col overflow-hidden w-full py-3 sm:py-4 bg-[var(--iverifi-page)] text-[var(--iverifi-text-primary)]">
       {/* Scale to fit one screen; on mobile width compensation keeps it full width */}
       <div className="flex-1 min-h-0 flex items-start sm:items-center justify-center overflow-hidden pt-2 sm:pt-0 sm:py-4 w-full">
         <div
@@ -124,22 +124,22 @@ export default function TermsAcceptance() {
           </div>
 
           {/* Main Card - reduced side padding on mobile for wider content area */}
-          <Card className="w-full bg-[rgba(10,16,30,0.98)] border border-[rgba(255,255,255,0.08)] shadow-[0_18px_45px_rgba(0,0,0,0.85)]">
+          <Card className="w-full bg-[var(--iverifi-card)] border border-[color:var(--iverifi-card-border)] shadow-lg dark:shadow-[0_18px_45px_rgba(0,0,0,0.85)]">
             <CardContent className="px-2 py-4 sm:p-5 space-y-3 sm:space-y-4">
               {/* How It Works - compact 3-step row with arrows */}
               <div className="space-y-2">
-                <h2 className="text-lg font-semibold text-slate-50">
+                <h2 className="text-lg font-semibold text-[var(--iverifi-text-primary)]">
                   How It Works
                 </h2>
                 {/* Desktop: cards in a row with horizontal arrows (right → left). Mobile: stacked with vertical arrows (bottom → top). */}
                 <div className="hidden sm:flex items-stretch justify-between gap-3">
-                  <Card className="flex-1 bg-[rgba(15,23,42,0.95)] border border-[rgba(148,163,184,0.35)]">
+                  <Card className="flex-1 bg-[var(--iverifi-muted-surface)] border border-[color:var(--iverifi-card-border)]">
                     <CardContent className="px-3 py-2 flex flex-col items-start gap-2">
                       <div className="flex items-center gap-2">
-                        <div className="bg-[rgba(56,189,248,0.08)] border border-[rgba(56,189,248,0.45)] p-1.5 rounded-lg shrink-0">
+                        <div className="bg-[var(--iverifi-icon-box-bg)] border border-[color:var(--iverifi-icon-box-border)] p-1.5 rounded-lg shrink-0">
                           <Grid3x3 className="h-4 w-4 text-sky-400" />
                         </div>
-                        <h3 className="font-medium text-sm text-slate-50">
+                        <h3 className="font-medium text-sm text-[var(--iverifi-text-primary)]">
                           Scan QR Code
                         </h3>
                       </div>
@@ -151,13 +151,13 @@ export default function TermsAcceptance() {
                   <div className="flex items-center">
                     <ArrowDown className="h-4 w-4 -rotate-90 text-slate-500" />
                   </div>
-                  <Card className="flex-1 bg-[rgba(15,23,42,0.95)] border border-[rgba(148,163,184,0.35)]">
+                  <Card className="flex-1 bg-[var(--iverifi-muted-surface)] border border-[color:var(--iverifi-card-border)]">
                     <CardContent className="px-3 py-2 flex flex-col items-start gap-2">
                       <div className="flex items-center gap-2">
-                        <div className="bg-[rgba(56,189,248,0.08)] border border-[rgba(56,189,248,0.45)] p-1.5 rounded-lg shrink-0">
+                        <div className="bg-[var(--iverifi-icon-box-bg)] border border-[color:var(--iverifi-icon-box-border)] p-1.5 rounded-lg shrink-0">
                           <FileText className="h-4 w-4 text-sky-400" />
                         </div>
-                        <h3 className="font-medium text-sm text-slate-50">
+                        <h3 className="font-medium text-sm text-[var(--iverifi-text-primary)]">
                           Verify Documents
                         </h3>
                       </div>
@@ -169,13 +169,13 @@ export default function TermsAcceptance() {
                   <div className="flex items-center">
                     <ArrowDown className="h-4 w-4 -rotate-90 text-slate-500" />
                   </div>
-                  <Card className="flex-1 bg-[rgba(15,23,42,0.95)] border border-[rgba(148,163,184,0.35)]">
+                  <Card className="flex-1 bg-[var(--iverifi-muted-surface)] border border-[color:var(--iverifi-card-border)]">
                     <CardContent className="px-3 py-2 flex flex-col items-start gap-2">
                       <div className="flex items-center gap-2">
-                        <div className="bg-[rgba(56,189,248,0.08)] border border-[rgba(56,189,248,0.45)] p-1.5 rounded-lg shrink-0">
+                        <div className="bg-[var(--iverifi-icon-box-bg)] border border-[color:var(--iverifi-icon-box-border)] p-1.5 rounded-lg shrink-0">
                           <Send className="h-4 w-4 text-sky-400" />
                         </div>
-                        <h3 className="font-medium text-sm text-slate-50">
+                        <h3 className="font-medium text-sm text-[var(--iverifi-text-primary)]">
                           Share Verified Result
                         </h3>
                       </div>
@@ -189,13 +189,13 @@ export default function TermsAcceptance() {
 
                 {/* Mobile layout (top-down arrows) */}
                 <div className="sm:hidden space-y-2">
-                  <Card className="bg-[rgba(15,23,42,0.95)] border border-[rgba(148,163,184,0.35)]">
+                  <Card className="bg-[var(--iverifi-muted-surface)] border border-[color:var(--iverifi-card-border)]">
                     <CardContent className="px-3 py-2 flex flex-col items-start gap-2">
                       <div className="flex items-center gap-2">
-                        <div className="bg-[rgba(56,189,248,0.08)] border border-[rgba(56,189,248,0.45)] p-1.5 rounded-lg shrink-0">
+                        <div className="bg-[var(--iverifi-icon-box-bg)] border border-[color:var(--iverifi-icon-box-border)] p-1.5 rounded-lg shrink-0">
                           <Grid3x3 className="h-4 w-4 text-sky-400" />
                         </div>
-                        <h3 className="font-medium text-sm text-slate-50">
+                        <h3 className="font-medium text-sm text-[var(--iverifi-text-primary)]">
                           Scan QR Code
                         </h3>
                       </div>
@@ -207,13 +207,13 @@ export default function TermsAcceptance() {
                   <div className="flex justify-center">
                     <ArrowDown className="h-4 w-4 text-slate-500" />
                   </div>
-                  <Card className="bg-[rgba(15,23,42,0.95)] border border-[rgba(148,163,184,0.35)]">
+                  <Card className="bg-[var(--iverifi-muted-surface)] border border-[color:var(--iverifi-card-border)]">
                     <CardContent className="px-3 py-2 flex flex-col items-start gap-2">
                       <div className="flex items-center gap-2">
-                        <div className="bg-[rgba(56,189,248,0.08)] border border-[rgba(56,189,248,0.45)] p-1.5 rounded-lg shrink-0">
+                        <div className="bg-[var(--iverifi-icon-box-bg)] border border-[color:var(--iverifi-icon-box-border)] p-1.5 rounded-lg shrink-0">
                           <FileText className="h-4 w-4 text-sky-400" />
                         </div>
-                        <h3 className="font-medium text-sm text-slate-50">
+                        <h3 className="font-medium text-sm text-[var(--iverifi-text-primary)]">
                           Verify Documents
                         </h3>
                       </div>
@@ -225,13 +225,13 @@ export default function TermsAcceptance() {
                   <div className="flex justify-center">
                     <ArrowDown className="h-4 w-4 text-slate-500" />
                   </div>
-                  <Card className="bg-[rgba(15,23,42,0.95)] border border-[rgba(148,163,184,0.35)]">
+                  <Card className="bg-[var(--iverifi-muted-surface)] border border-[color:var(--iverifi-card-border)]">
                     <CardContent className="px-3 py-2 flex flex-col items-start gap-2">
                       <div className="flex items-center gap-2">
-                        <div className="bg-[rgba(56,189,248,0.08)] border border-[rgba(56,189,248,0.45)] p-1.5 rounded-lg shrink-0">
+                        <div className="bg-[var(--iverifi-icon-box-bg)] border border-[color:var(--iverifi-icon-box-border)] p-1.5 rounded-lg shrink-0">
                           <Send className="h-4 w-4 text-sky-400" />
                         </div>
-                        <h3 className="font-medium text-sm text-slate-50">
+                        <h3 className="font-medium text-sm text-[var(--iverifi-text-primary)]">
                           Share Verified Result
                         </h3>
                       </div>
@@ -247,13 +247,13 @@ export default function TermsAcceptance() {
               <Separator className="my-2" />
 
               {/* Privacy */}
-              <div className="flex items-center gap-3 bg-[rgba(16,185,129,0.15)] border border-[rgba(34,197,94,0.55)] rounded-lg px-3 py-2.5">
-                <Lock className="h-4 w-4 text-emerald-200 shrink-0" />
+              <div className="flex items-center gap-3 bg-[var(--iverifi-success-soft)] border border-[color:var(--iverifi-success-border)] rounded-lg px-3 py-2.5">
+                <Lock className="h-4 w-4 text-emerald-600 dark:text-emerald-200 shrink-0" />
                 <div className="min-w-0">
-                  <p className="font-medium text-base text-emerald-50">
+                  <p className="font-medium text-base text-emerald-700 dark:text-emerald-50">
                     Your Documents Stay Private
                   </p>
-                  <p className="text-sm text-emerald-100 mt-0.5">
+                  <p className="text-sm text-emerald-600 dark:text-emerald-100 mt-0.5">
                     Documents never stored - Verified with govt portals.
                   </p>
                 </div>
@@ -262,10 +262,10 @@ export default function TermsAcceptance() {
               {/* What They Receive + What They DON'T Get */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <h3 className="font-medium text-base text-slate-50">
+                  <h3 className="font-medium text-base text-[var(--iverifi-text-primary)]">
                     What {connectionName} Receives:
                   </h3>
-                  <ul className="space-y-1 text-sm text-slate-300">
+                  <ul className="space-y-1 text-sm text-[var(--iverifi-text-secondary)]">
                     <li className="flex items-center gap-2">
                       <CheckCircle className="h-4 w-4 text-green-600 shrink-0" />
                       Verification status: &quot;Verified&quot;
@@ -281,10 +281,10 @@ export default function TermsAcceptance() {
                   </ul>
                 </div>
                 <div className="space-y-1.5">
-                  <h3 className="font-medium text-base text-slate-50">
+                  <h3 className="font-medium text-base text-[var(--iverifi-text-primary)]">
                     What They DON&apos;T Get:
                   </h3>
-                  <ul className="space-y-1 text-sm text-slate-300">
+                  <ul className="space-y-1 text-sm text-[var(--iverifi-text-secondary)]">
                     <li className="flex items-center gap-2">
                       <X className="h-4 w-4 text-red-500 shrink-0" />
                       Your document numbers
@@ -313,7 +313,7 @@ export default function TermsAcceptance() {
                 />
                 <Label
                   htmlFor="terms"
-                  className="text-sm sm:text-base text-slate-200 leading-snug cursor-pointer"
+                  className="text-sm sm:text-base text-[var(--iverifi-text-secondary)] leading-snug cursor-pointer"
                 >
                   I agree to the{" "}
                   <button
@@ -344,7 +344,7 @@ export default function TermsAcceptance() {
                 {isSaving ? "Saving..." : "Please Accept to Continue"}
               </Button>
 
-              <p className="text-center text-sm text-slate-500">
+              <p className="text-center text-sm text-[var(--iverifi-text-muted)]">
                 Protected by 256-bit encryption • Takes 30 seconds
               </p>
             </CardContent>

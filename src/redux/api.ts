@@ -111,6 +111,16 @@ export const api = createApi({
         body: { credential_request_id, cform_data },
       }),
     }),
+    submitFeedback: builder.mutation<
+      { success: boolean; message: string },
+      { credential_request_id: string; rating: number; feedback_message?: string }
+    >({
+      query: (body) => ({
+        url: "/users/submitFeedback",
+        method: "POST",
+        body,
+      }),
+    }),
     login: builder.mutation({
       query: (data) => ({ url: "/admin/login", method: "POST", body: data }),
     }),
@@ -351,4 +361,5 @@ export const {
   useGetUserByIdQuery,
   useAdminCreateUserMutation,
   useUpdateAdminUserMutation,
+  useSubmitFeedbackMutation,
 } = api;
