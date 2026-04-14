@@ -299,6 +299,9 @@ const Connections = () => {
   const [cformDialogOpen, setCformDialogOpen] = useState(false);
   const [cformRef, setCformRef] = useState("");
 
+  // Tracks when the user opened the check-in flow (share sheet or C-Form dialog)
+  const checkinFlowStartedAt = useRef<number | null>(null);
+
   // Feedback modal — shown after successful check-in
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [feedbackRequestId, setFeedbackRequestId] = useState<string | null>(null);
@@ -622,12 +625,14 @@ const Connections = () => {
     if (!connectedRequestorName) return;
     if (autoShareSheetOpenedForCodeRef.current === code) return;
     autoShareSheetOpenedForCodeRef.current = code;
+    checkinFlowStartedAt.current = Date.now();
     setShareSelectedDocType(firstShareableDocType);
     setShareExpiryHours("24");
     setShareSheetOpen(true);
   }, [code, isRecipientLoading, connectedRequestorName, firstShareableDocType]);
 
   const openHotelShareSheet = (docType?: DocumentType | ChildAadhaarType) => {
+    checkinFlowStartedAt.current = Date.now();
     if (
       docType &&
       docType !== "C-Form (Foreign Guest)" &&
@@ -789,6 +794,7 @@ const Connections = () => {
         status: "checkin",
         credential_id: credentialId,
         cform_data: { ...data, ref_number: cformRef },
+        ...(checkinFlowStartedAt.current != null ? { client_started_at: checkinFlowStartedAt.current } : {}),
       }).unwrap();
 
       setCformDialogOpen(false);
@@ -891,6 +897,7 @@ const Connections = () => {
         credentials: [],
         status: "checkin",
         credential_id: credentialId,
+        ...(checkinFlowStartedAt.current != null ? { client_started_at: checkinFlowStartedAt.current } : {}),
       }).unwrap();
 
 
@@ -1133,6 +1140,7 @@ const Connections = () => {
                   role={qrActive ? "button" : undefined}
                   onClick={() => {
                     if (!qrActive) return;
+                    checkinFlowStartedAt.current = Date.now();
                     setShareSelectedDocType("C-Form (Foreign Guest)");
                     setShareSheetOpen(true);
                   }}
@@ -1463,6 +1471,7 @@ const Connections = () => {
               <button
                 type="button"
                 onClick={() => {
+                  checkinFlowStartedAt.current = Date.now();
                   setShareSelectedDocType(selectedDocType);
                   setShareExpiryHours("24");
                   setSelectedDocType(null);

@@ -82,7 +82,7 @@ export const api = createApi({
       invalidatesTags: ["connections", "activity"],
     }),
     updateCheckInStatus: builder.mutation({
-      query: ({ credential_request_id, credentials, status, credential_id, cform_data }) => ({
+      query: ({ credential_request_id, credentials, status, credential_id, cform_data, client_started_at }) => ({
         url: "/users/updateCheckInStatus",
         method: "POST",
         body: {
@@ -91,6 +91,7 @@ export const api = createApi({
           status,
           ...(credential_id != null && credential_id !== "" && { credential_id }),
           ...(cform_data != null && { cform_data }),
+          ...(client_started_at != null && { client_started_at }),
         },
       }),
       invalidatesTags: ["connections", "activity"],
