@@ -25,6 +25,27 @@ export const api = createApi({
       }),
       providesTags: ["credentials"],
     }),
+    createCredential: builder.mutation<
+      { status: number; data: { document_id: string }; hasError: boolean; message: string },
+      { document_type: string; verifiers_name?: string }
+    >({
+      query: (body) => ({
+        url: "/document/createCredentials",
+        method: "POST",
+        body,
+      }),
+    }),
+    patchCredentialType: builder.mutation<
+      { status: number; hasError: boolean; message: string },
+      { session_id: string; document_type: string }
+    >({
+      query: (body) => ({
+        url: "/document/patchCredentialType",
+        method: "POST",
+        body,
+      }),
+      invalidatesTags: ["credentials"],
+    }),
     deleteCredential: builder.mutation<{ data: { credential_id: string } }, { credential_id: string }>({
       query: ({ credential_id }) => ({
         url: "/users/deleteCredential",
@@ -326,6 +347,8 @@ export const api = createApi({
 });
 export const {
   useGetCredentialsQuery,
+  useCreateCredentialMutation,
+  usePatchCredentialTypeMutation,
   useDeleteCredentialMutation,
   useSaveCFormMutation,
   useGetConnectionsQuery,

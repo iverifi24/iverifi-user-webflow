@@ -10,6 +10,8 @@ import {
   useUpdateCheckInStatusMutation,
   useDeleteCredentialMutation,
   useSaveCFormMutation,
+  useCreateCredentialMutation,
+  usePatchCredentialTypeMutation,
 } from "@/redux/api";
 import { CFormDialog } from "@/components/c-form-dialog";
 import type { CFormData, CFormPassportData } from "@/components/c-form-dialog";
@@ -76,11 +78,13 @@ const PRODUCT_CODE_MAP: Record<DocumentType, string> = {
   "C-Form (Foreign Guest)": "PP",
 };
 
-/** Kwik product codes for child Aadhaar (minor XML flow) */
+/** Child Aadhaar uses the regular KYC (Aadhaar OTP) flow — same as adult Aadhaar.
+ *  The credential is stamped with the correct child document_type after Kwik completes
+ *  via the patchCredentialType backend endpoint. */
 const CHILD_PRODUCT_CODE_MAP: Record<ChildAadhaarType, string> = {
-  "Child 1 Aadhaar": "XMLM1",
-  "Child 2 Aadhaar": "XMLM2",
-  "Child 3 Aadhaar": "XMLM3",
+  "Child 1 Aadhaar": "KYC",
+  "Child 2 Aadhaar": "KYC",
+  "Child 3 Aadhaar": "KYC",
 };
 
 const getProductCode = (docType: DocumentType | ChildAadhaarType): string =>
@@ -285,6 +289,13 @@ const Connections = () => {
   const [addConnection] = useAddConnectionMutation();
   const [deleteCredential, { isLoading: isDeleting }] = useDeleteCredentialMutation();
   const [saveCForm] = useSaveCFormMutation();
+  const [createCredential] = useCreateCredentialMutation();
+  const [patchCredentialType] = usePatchCredentialTypeMutation();
+
+  /** Tracks which child Aadhaar slot is being verified so we can stamp the correct
+   *  document_type after Kwik (KYC flow) completes (safety patch — primary type comes from
+   *  the pre-created Firestore doc detected by the webhook). */
+  const pendingChildVerify = useRef<{ sessionId: string; docType: ChildAadhaarType } | null>(null);
 
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; document_type: string } | null>(null);
   const [selectedDocType, setSelectedDocType] = useState<string | null>(null);
@@ -717,7 +728,17 @@ const Connections = () => {
       if (data && typeof data === "object" && data.type === "iverifi" && data.status === "completed") {
         toast.success("Verification completed.");
         setIframeUrl(null);
-        // setVerifyingDocType(null);
+        // If this was a child Aadhaar verification, stamp the correct document_type.
+        // Kwik stores it as AADHAAR_CARD (KYC flow); we override it to e.g. "Child 1 Aadhaar".
+        const pending = pendingChildVerify.current;
+        pendingChildVerify.current = null;
+        if (pending) {
+          try {
+            await patchCredentialType({ session_id: pending.sessionId, document_type: pending.docType }).unwrap();
+          } catch {
+            // non-fatal: refetch will still show the credential, worst case as AADHAAR_CARD
+          }
+        }
         await refetchCredentials();
         if (code) await refetchRecipient();
       }
@@ -935,11 +956,27 @@ const Connections = () => {
       ? crypto.randomUUID()
       : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
+    // For child Aadhaar we use the KYC (regular Aadhaar) product code.
+    // Pre-create a Firestore credential doc with the correct child document_type so the
+    // webhook can detect it from the session_id and avoid overwriting AADHAAR_CARD.
+    let effectiveSessionId = sessionId;
+    if ((CHILD_AADHAAR_TYPES as readonly string[]).includes(documentType)) {
+      try {
+        const res = await createCredential({ document_type: documentType, verifiers_name: "Kwik" }).unwrap();
+        if (res.data?.document_id) effectiveSessionId = res.data.document_id;
+      } catch {
+        // non-fatal: proceed with generated sessionId; webhook may still work
+      }
+      pendingChildVerify.current = { sessionId: effectiveSessionId, docType: documentType as ChildAadhaarType };
+    } else {
+      pendingChildVerify.current = null;
+    }
+
     const verificationUrl =
       `${IVERIFI_ORIGIN}/user/home?client_id=iverifi&api_key=iverifi&process=U` +
       `&productCode=${encodeURIComponent(productCode)}` +
       `&user_id=${encodeURIComponent(userId)}` +
-      `&session_id=${encodeURIComponent(sessionId)}` +
+      `&session_id=${encodeURIComponent(effectiveSessionId)}` +
       `&redirect_origin=${encodeURIComponent(origin)}`;
 
     setIframeUrl(verificationUrl);
@@ -2320,8 +2357,8 @@ const Connections = () => {
               aria-label="Close"
               className="absolute top-3 right-3 inline-flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-1.5 text-sm font-medium text-foreground shadow-sm hover:bg-accent hover:border-teal-300/40 hover:text-teal-700 dark:hover:text-teal-300 transition-colors"
               onClick={async () => {
+                pendingChildVerify.current = null; // user closed manually — no patch needed
                 setIframeUrl(null);
-                // setVerifyingDocType(null);
                 await refetchCredentials();
                 if (code) await refetchRecipient();
               }}
