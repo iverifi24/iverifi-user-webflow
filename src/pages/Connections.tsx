@@ -293,9 +293,10 @@ const Connections = () => {
   const [patchCredentialType] = usePatchCredentialTypeMutation();
 
   /** Tracks which child Aadhaar slot is being verified so we can stamp the correct
-   *  document_type after Kwik (KYC flow) completes (safety patch — primary type comes from
-   *  the pre-created Firestore doc detected by the webhook). */
-  const pendingChildVerify = useRef<{ sessionId: string; docType: ChildAadhaarType } | null>(null);
+   *  document_type after Kwik (KYC flow) completes.
+   *  startedAt lets patchCredentialType distinguish the newly created AADHAAR_CARD
+   *  credential from the user's pre-existing regular Aadhaar. */
+  const pendingChildVerify = useRef<{ sessionId: string; docType: ChildAadhaarType; startedAt: number } | null>(null);
 
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; document_type: string } | null>(null);
   const [selectedDocType, setSelectedDocType] = useState<string | null>(null);
@@ -734,7 +735,7 @@ const Connections = () => {
         pendingChildVerify.current = null;
         if (pending) {
           try {
-            await patchCredentialType({ session_id: pending.sessionId, document_type: pending.docType }).unwrap();
+            await patchCredentialType({ session_id: pending.sessionId, document_type: pending.docType, started_at: pending.startedAt }).unwrap();
           } catch {
             // non-fatal: refetch will still show the credential, worst case as AADHAAR_CARD
           }
@@ -967,7 +968,7 @@ const Connections = () => {
       } catch {
         // non-fatal: proceed with generated sessionId; webhook may still work
       }
-      pendingChildVerify.current = { sessionId: effectiveSessionId, docType: documentType as ChildAadhaarType };
+      pendingChildVerify.current = { sessionId: effectiveSessionId, docType: documentType as ChildAadhaarType, startedAt: Date.now() };
     } else {
       pendingChildVerify.current = null;
     }

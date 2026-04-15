@@ -37,7 +37,7 @@ export const api = createApi({
     }),
     patchCredentialType: builder.mutation<
       { status: number; hasError: boolean; message: string },
-      { session_id: string; document_type: string }
+      { session_id: string; document_type: string; started_at?: number }
     >({
       query: (body) => ({
         url: "/document/patchCredentialType",
