@@ -103,7 +103,7 @@ export const api = createApi({
       invalidatesTags: ["connections", "activity"],
     }),
     updateCheckInStatus: builder.mutation({
-      query: ({ credential_request_id, credentials, status, credential_id, cform_data, client_started_at }) => ({
+      query: ({ credential_request_id, credentials, status, credential_id, cform_data, client_started_at, document_type }) => ({
         url: "/users/updateCheckInStatus",
         method: "POST",
         body: {
@@ -113,6 +113,7 @@ export const api = createApi({
           ...(credential_id != null && credential_id !== "" && { credential_id }),
           ...(cform_data != null && { cform_data }),
           ...(client_started_at != null && { client_started_at }),
+          ...(document_type != null && { document_type }),
         },
       }),
       invalidatesTags: ["connections", "activity"],
@@ -131,6 +132,16 @@ export const api = createApi({
         url: "/users/saveCForm",
         method: "POST",
         body: { credential_request_id, cform_data },
+      }),
+    }),
+    saveForeignPassport: builder.mutation<
+      { success: boolean; message: string },
+      { credential_request_id: string; foreign_passport_data: { passportPhotoUrl: string; visaPhotoUrl: string; selfiePhotoUrl: string } }
+    >({
+      query: ({ credential_request_id, foreign_passport_data }) => ({
+        url: "/users/saveForeignPassport",
+        method: "POST",
+        body: { credential_request_id, foreign_passport_data },
       }),
     }),
     submitFeedback: builder.mutation<
@@ -351,6 +362,7 @@ export const {
   usePatchCredentialTypeMutation,
   useDeleteCredentialMutation,
   useSaveCFormMutation,
+  useSaveForeignPassportMutation,
   useGetConnectionsQuery,
   useGetRecipientCredentialsQuery,
   useGetMyActivityQuery,

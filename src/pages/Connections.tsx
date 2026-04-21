@@ -10,11 +10,14 @@ import {
   useUpdateCheckInStatusMutation,
   useDeleteCredentialMutation,
   useSaveCFormMutation,
+  useSaveForeignPassportMutation,
   useCreateCredentialMutation,
   usePatchCredentialTypeMutation,
 } from "@/redux/api";
 import { CFormDialog } from "@/components/c-form-dialog";
 import type { CFormData, CFormPassportData } from "@/components/c-form-dialog";
+import { ForeignPassportDialog } from "@/components/foreign-passport-dialog";
+import type { ForeignPassportPhotos } from "@/components/foreign-passport-dialog";
 import { determineConnectionType, isValidQRCode } from "@/utils/qr-code-utils";
 import { addDays, format } from "date-fns";
 import { CheckCircle, ChevronRight, Loader2, Lock, Plus, Share2, X } from "lucide-react";
@@ -128,7 +131,7 @@ interface RecipientRequest {
   }>;
 }
 
-const IVERIFI_ORIGIN = "https://iverifi.app.getkwikid.com";
+const IVERIFI_ORIGIN = "https://iverifi.test.getkwikid.com";
 
 const titleCase = (value: string): string =>
   value
@@ -236,6 +239,7 @@ const SHARE_SUMMARY_BY_DOC: Record<string, string[]> = {
   "Child 2 Aadhaar": ["Child photo", "Child name", "Aadhaar (masked)", "Age indicator", "City", "State", "Guardian name"],
   "Child 3 Aadhaar": ["Child photo", "Child name", "Aadhaar (masked)", "Age indicator", "City", "State", "Guardian name"],
   "C-Form (Foreign Guest)": ["Surname", "Given name", "Nationality", "Passport No.", "Date of birth", "Sex", "Arrival date", "Port of arrival", "Visa No.", "Visa type", "Address in India"],
+  "Foreign Passport": ["Passport photo", "Visa / immigration stamp", "Selfie"],
 };
 
 const Connections = () => {
@@ -289,6 +293,7 @@ const Connections = () => {
   const [addConnection] = useAddConnectionMutation();
   const [deleteCredential, { isLoading: isDeleting }] = useDeleteCredentialMutation();
   const [saveCForm] = useSaveCFormMutation();
+  const [saveForeignPassport] = useSaveForeignPassportMutation();
   const [createCredential] = useCreateCredentialMutation();
   const [patchCredentialType] = usePatchCredentialTypeMutation();
 
@@ -310,6 +315,7 @@ const Connections = () => {
   // C-Form dialog
   const [cformDialogOpen, setCformDialogOpen] = useState(false);
   const [cformRef, setCformRef] = useState("");
+  const [foreignPassportDialogOpen, setForeignPassportDialogOpen] = useState(false);
 
   // Tracks when the user opened the check-in flow (share sheet or C-Form dialog)
   const checkinFlowStartedAt = useRef<number | null>(null);
@@ -837,6 +843,44 @@ const Connections = () => {
     }
   };
 
+  /** Foreign Passport: saves 3 photos + triggers check-in */
+  const handleForeignPassportSave = async (data: ForeignPassportPhotos) => {
+    if (!derivedConnectionId) {
+      toast.error("No connection found. Try scanning the QR again.");
+      return;
+    }
+    if (isCheckInOutInFlight || isCheckInUpdating) return;
+    setCheckInOutInFlight(true);
+    try {
+      await saveForeignPassport({ credential_request_id: derivedConnectionId, foreign_passport_data: data }).unwrap();
+
+      await updateCheckInStatus({
+        credential_request_id: derivedConnectionId,
+        credentials: [],
+        status: "checkin",
+        credential_id: null,
+        document_type: "FOREIGN_PASSPORT",
+        ...(checkinFlowStartedAt.current != null ? { client_started_at: checkinFlowStartedAt.current } : {}),
+      }).unwrap();
+
+      setForeignPassportDialogOpen(false);
+      setShareSheetOpen(false);
+      clearPendingRecipientId();
+      processedCodeRef.current = null;
+      navigate(location.pathname, { replace: true });
+      toast.success("Foreign Passport submitted. Check-in request sent to the property.");
+      await refetchCredentials();
+      setFeedbackRequestId(derivedConnectionId);
+      setFeedbackOpen(true);
+    } catch (error: any) {
+      toast.error(
+        error?.data?.message ? String(error.data.message) : "Could not submit. Please try again."
+      );
+    } finally {
+      setCheckInOutInFlight(false);
+    }
+  };
+
   /** Share with a connection only (no check-in) — e.g. vault flow without ?code= */
   const handleShareCredentials = async (documentType: DocumentType | ChildAadhaarType) => {
     if (!derivedConnectionId) {
@@ -1173,27 +1217,53 @@ const Connections = () => {
             {(() => {
               const qrActive = !!(code && isValidQRCode(code));
               return (
-                <div
-                  className={`flex items-center justify-between gap-3 rounded-2xl border border-[color:var(--iverifi-card-border)] bg-[var(--iverifi-card)] px-4 py-3 ${qrActive ? "cursor-pointer hover:bg-[var(--iverifi-card-hover)]" : "opacity-50"}`}
-                  role={qrActive ? "button" : undefined}
-                  onClick={() => {
-                    if (!qrActive) return;
-                    checkinFlowStartedAt.current = Date.now();
-                    setShareSelectedDocType("C-Form (Foreign Guest)");
-                    setShareSheetOpen(true);
-                  }}
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[color:var(--iverifi-icon-border)] bg-[var(--iverifi-muted-surface)]">
-                      <DocumentTypeIcon documentType="C-Form (Foreign Guest)" className="text-[var(--iverifi-text-secondary)]" />
+                <>
+                  {/* C-Form card — hidden */}
+                  {/* <div
+                    className={`flex items-center justify-between gap-3 rounded-2xl border border-[color:var(--iverifi-card-border)] bg-[var(--iverifi-card)] px-4 py-3 ${qrActive ? "cursor-pointer hover:bg-[var(--iverifi-card-hover)]" : "opacity-50"}`}
+                    role={qrActive ? "button" : undefined}
+                    onClick={() => {
+                      if (!qrActive) return;
+                      checkinFlowStartedAt.current = Date.now();
+                      setShareSelectedDocType("C-Form (Foreign Guest)");
+                      setShareSheetOpen(true);
+                    }}
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[color:var(--iverifi-icon-border)] bg-[var(--iverifi-muted-surface)]">
+                        <DocumentTypeIcon documentType="C-Form (Foreign Guest)" className="text-[var(--iverifi-text-secondary)]" />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-semibold text-[var(--iverifi-text-primary)]">{"C-Form (Foreign Guest)"}</div>
+                        <div className="truncate text-xs text-[var(--iverifi-text-muted)]">{qrActive ? "Fill & submit on check-in" : "Scan hotel QR to fill & submit"}</div>
+                      </div>
                     </div>
-                    <div className="min-w-0">
-                      <div className="truncate text-sm font-semibold text-[var(--iverifi-text-primary)]">{"C-Form (Foreign Guest)"}</div>
-                      <div className="truncate text-xs text-[var(--iverifi-text-muted)]">{qrActive ? "Fill & submit on check-in" : "Scan hotel QR to fill & submit"}</div>
+                    {qrActive ? <ChevronRight className="h-4 w-4 shrink-0 text-[var(--iverifi-text-muted)]" /> : <Lock className="h-4 w-4 shrink-0 text-[var(--iverifi-text-muted)]" />}
+                  </div> */}
+
+                  {/* Foreign Passport card */}
+                  <div
+                    className={`flex items-center justify-between gap-3 rounded-2xl border border-[color:var(--iverifi-card-border)] bg-[var(--iverifi-card)] px-4 py-3 ${qrActive ? "cursor-pointer hover:bg-[var(--iverifi-card-hover)]" : "opacity-50"}`}
+                    role={qrActive ? "button" : undefined}
+                    onClick={() => {
+                      if (!qrActive) return;
+                      checkinFlowStartedAt.current = Date.now();
+                      setShareSelectedDocType("Foreign Passport");
+                      setShareSheetOpen(true);
+                    }}
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[color:var(--iverifi-icon-border)] bg-[var(--iverifi-muted-surface)]">
+                        <span className="text-lg">🛂</span>
+                      </div>
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-semibold text-[var(--iverifi-text-primary)]">Foreign Passport</div>
+                        <div className="truncate text-xs text-[var(--iverifi-text-muted)]">{qrActive ? "Upload passport, visa & selfie" : "Scan hotel QR to upload & submit"}</div>
+                      </div>
                     </div>
+                    {qrActive ? <ChevronRight className="h-4 w-4 shrink-0 text-[var(--iverifi-text-muted)]" /> : <Lock className="h-4 w-4 shrink-0 text-[var(--iverifi-text-muted)]" />}
                   </div>
-                  {qrActive ? <ChevronRight className="h-4 w-4 shrink-0 text-[var(--iverifi-text-muted)]" /> : <Lock className="h-4 w-4 shrink-0 text-[var(--iverifi-text-muted)]" />}
-                </div>
+                </>
               );
             })()}
           </div>
@@ -1762,35 +1832,27 @@ const Connections = () => {
                       </div>
                     ))}
                   </div>
-                  {/* C-Form preview — disabled until QR scanned */}
-                  <div
-                    style={{
-                      background: "var(--iverifi-surface-1)",
-                      borderRadius: 14,
-                      padding: "4px 12px",
-                      marginBottom: 14,
-                      border: "1px solid var(--iverifi-border-subtle)",
-                      opacity: 0.45,
-                    }}
-                  >
-                    <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 4px" }}>
-                      <div
-                        style={{
-                          width: 40, height: 40, flexShrink: 0, borderRadius: 12,
-                          border: "1px solid var(--iverifi-accent-border)",
-                          background: "var(--iverifi-accent-soft)",
-                          display: "flex", alignItems: "center", justifyContent: "center",
-                        }}
-                      >
-                        <DocumentTypeIcon documentType="C-Form (Foreign Guest)" className="text-[var(--iverifi-text-primary)] h-5 w-5" />
+                  {/* C-Form & Foreign Passport — disabled until QR scanned */}
+                  {[
+                    // { label: "C-Form (Foreign Guest)", subtitle: "Scan hotel QR to fill & submit C-Form", icon: <DocumentTypeIcon documentType="C-Form (Foreign Guest)" className="text-[var(--iverifi-text-primary)] h-5 w-5" /> },
+                    { label: "Foreign Passport", subtitle: "Scan hotel QR to upload & submit", icon: <span style={{ fontSize: 18 }}>🛂</span> },
+                  ].map((opt) => (
+                    <div
+                      key={opt.label}
+                      style={{ background: "var(--iverifi-surface-1)", borderRadius: 14, padding: "4px 12px", marginBottom: 8, border: "1px solid var(--iverifi-border-subtle)", opacity: 0.45 }}
+                    >
+                      <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 4px" }}>
+                        <div style={{ width: 40, height: 40, flexShrink: 0, borderRadius: 12, border: "1px solid var(--iverifi-accent-border)", background: "var(--iverifi-accent-soft)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          {opt.icon}
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 14, fontWeight: 700, color: "var(--iverifi-text-primary)" }}>{opt.label}</div>
+                          <div style={{ fontSize: 11, color: "var(--iverifi-label)" }}>{opt.subtitle}</div>
+                        </div>
+                        <div style={{ width: 20, height: 20, borderRadius: "50%", border: "2px solid var(--iverifi-ring-muted)", flexShrink: 0 }} />
                       </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 14, fontWeight: 700, color: "var(--iverifi-text-primary)" }}>C-Form (Foreign Guest)</div>
-                        <div style={{ fontSize: 11, color: "var(--iverifi-label)" }}>Scan hotel QR to fill &amp; submit C-Form</div>
-                      </div>
-                      <div style={{ width: 20, height: 20, borderRadius: "50%", border: "2px solid var(--iverifi-ring-muted)", flexShrink: 0 }} />
                     </div>
-                  </div>
+                  ))}
 
                   <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                     <button
@@ -2019,69 +2081,73 @@ const Connections = () => {
                   })}
                 </div>
 
-                {/* C-Form — only enabled when a hotel QR has been scanned */}
+                {/* Foreign options — C-Form and Foreign Passport — only enabled when a hotel QR has been scanned */}
                 {(() => {
-                  const isSelected = shareSelectedDocType === "C-Form (Foreign Guest)";
                   const qrActive = !!(code && isValidQRCode(code));
-                  return (
-                    <button
-                      key="C-Form (Foreign Guest)"
-                      type="button"
-                      disabled={!qrActive}
-                      onClick={() => qrActive && setShareSelectedDocType("C-Form (Foreign Guest)")}
-                      style={{
-                        width: "100%",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 12,
-                        padding: "12px 4px",
-                        border: "none",
-                        borderTop: verifiedDocTypesForShare.length > 0 ? "1px solid var(--iverifi-row-divider)" : "none",
-                        background: isSelected ? "var(--iverifi-accent-soft)" : "transparent",
-                        cursor: qrActive ? "pointer" : "not-allowed",
-                        textAlign: "left",
-                        borderRadius: isSelected ? 8 : 0,
-                        opacity: qrActive ? 1 : 0.4,
-                      }}
-                    >
-                      <div
+                  const foreignOptions = [
+                    // {
+                    //   key: "C-Form (Foreign Guest)",
+                    //   label: "C-Form (Foreign Guest)",
+                    //   subtitle: qrActive ? "FRRO compliance · Fill & submit on check-in" : "Scan a hotel QR to use C-Form",
+                    //   icon: <DocumentTypeIcon documentType="C-Form (Foreign Guest)" className="text-[var(--iverifi-text-primary)] h-5 w-5" />,
+                    // },
+                    {
+                      key: "Foreign Passport",
+                      label: "Foreign Passport",
+                      subtitle: qrActive ? "Upload passport, visa & selfie on check-in" : "Scan a hotel QR to use this option",
+                      icon: <span style={{ fontSize: 18 }}>🛂</span>,
+                    },
+                  ];
+                  return foreignOptions.map((opt, idx) => {
+                    const isSelected = shareSelectedDocType === opt.key;
+                    return (
+                      <button
+                        key={opt.key}
+                        type="button"
+                        disabled={!qrActive}
+                        onClick={() => qrActive && setShareSelectedDocType(opt.key)}
                         style={{
-                          width: 40,
-                          height: 40,
-                          flexShrink: 0,
-                          borderRadius: 12,
-                          border: "1px solid var(--iverifi-accent-border)",
-                          background: "var(--iverifi-accent-soft)",
+                          width: "100%",
                           display: "flex",
                           alignItems: "center",
-                          justifyContent: "center",
+                          gap: 12,
+                          padding: "12px 4px",
+                          border: "none",
+                          borderTop: (verifiedDocTypesForShare.length > 0 || idx > 0) ? "1px solid var(--iverifi-row-divider)" : "none",
+                          background: isSelected ? "var(--iverifi-accent-soft)" : "transparent",
+                          cursor: qrActive ? "pointer" : "not-allowed",
+                          textAlign: "left",
+                          borderRadius: isSelected ? 8 : 0,
+                          opacity: qrActive ? 1 : 0.4,
                         }}
                       >
-                        <DocumentTypeIcon documentType="C-Form (Foreign Guest)" className="text-[var(--iverifi-text-primary)] h-5 w-5" />
-                      </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 14, fontWeight: 700, color: isSelected ? "var(--iverifi-accent)" : "var(--iverifi-text-primary)" }}>C-Form (Foreign Guest)</div>
-                        <div style={{ fontSize: 11, color: "var(--iverifi-label)" }}>
-                          {qrActive ? "FRRO compliance · Fill & submit on check-in" : "Scan a hotel QR to use C-Form"}
+                        <div
+                          style={{
+                            width: 40, height: 40, flexShrink: 0, borderRadius: 12,
+                            border: "1px solid var(--iverifi-accent-border)",
+                            background: "var(--iverifi-accent-soft)",
+                            display: "flex", alignItems: "center", justifyContent: "center",
+                          }}
+                        >
+                          {opt.icon}
                         </div>
-                      </div>
-                      <div
-                        style={{
-                          width: 20,
-                          height: 20,
-                          borderRadius: "50%",
-                          border: isSelected ? "2px solid var(--iverifi-accent)" : "2px solid var(--iverifi-ring-muted)",
-                          background: isSelected ? "var(--iverifi-accent)" : "transparent",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          flexShrink: 0,
-                        }}
-                      >
-                        {isSelected ? <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#000" }} /> : null}
-                      </div>
-                    </button>
-                  );
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 14, fontWeight: 700, color: isSelected ? "var(--iverifi-accent)" : "var(--iverifi-text-primary)" }}>{opt.label}</div>
+                          <div style={{ fontSize: 11, color: "var(--iverifi-label)" }}>{opt.subtitle}</div>
+                        </div>
+                        <div
+                          style={{
+                            width: 20, height: 20, borderRadius: "50%", flexShrink: 0,
+                            border: isSelected ? "2px solid var(--iverifi-accent)" : "2px solid var(--iverifi-ring-muted)",
+                            background: isSelected ? "var(--iverifi-accent)" : "transparent",
+                            display: "flex", alignItems: "center", justifyContent: "center",
+                          }}
+                        >
+                          {isSelected ? <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#000" }} /> : null}
+                        </div>
+                      </button>
+                    );
+                  });
                 })()}
 
                 {shareSelectedDocType ? (
@@ -2225,10 +2291,16 @@ const Connections = () => {
                     }}
                     onClick={async () => {
                       if (!shareSelectedDocType) return;
-                      // C-Form: require passport first, then open fill dialog
+                      // C-Form: open fill dialog
                       if (shareSelectedDocType === "C-Form (Foreign Guest)") {
                         setCformRef(generateCFormRef(connectedRequestorName || "Hotel"));
                         setCformDialogOpen(true);
+                        return;
+                      }
+                      // Foreign Passport: close share sheet first, then open photo upload dialog
+                      if (shareSelectedDocType === "Foreign Passport") {
+                        setShareSheetOpen(false);
+                        setForeignPassportDialogOpen(true);
                         return;
                       }
                       try {
@@ -2253,6 +2325,8 @@ const Connections = () => {
                         <Share2 className="h-4 w-4 shrink-0" />
                         {shareSelectedDocType === "C-Form (Foreign Guest)"
                           ? "Submit C-Form & Check In →"
+                          : shareSelectedDocType === "Foreign Passport"
+                          ? "Upload Photos & Check In →"
                           : code && isValidQRCode(code) ? "Share & request check-in →" : "Share now →"}
                       </>
                     )}
@@ -2333,14 +2407,21 @@ const Connections = () => {
         </DialogContent>
       </Dialog>
 
-      {/* C-Form Dialog */}
-      <CFormDialog
+      {/* C-Form Dialog — hidden */}
+      {/* <CFormDialog
         open={cformDialogOpen}
         passportData={passportDataForCform}
         onSave={handleCFormSave}
         onClose={() => setCformDialogOpen(false)}
         mode={verifiedCredentialsMap["PASSPORT"] ? "kwik" : "manual"}
         referenceNumber={cformRef}
+      /> */}
+
+      {/* Foreign Passport Dialog */}
+      <ForeignPassportDialog
+        open={foreignPassportDialogOpen}
+        onSave={handleForeignPassportSave}
+        onClose={() => setForeignPassportDialogOpen(false)}
       />
 
       <FeedbackModal
