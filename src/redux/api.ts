@@ -16,6 +16,7 @@ export const api = createApi({
     "connections",
     "credentials",
     "activity",
+    "familyCredentials",
   ],
   endpoints: (builder) => ({
     getCredentials: builder.query<any, void>({
@@ -143,6 +144,21 @@ export const api = createApi({
         method: "POST",
         body: { credential_request_id, foreign_passport_data },
       }),
+    }),
+    getFamilyCredentials: builder.query<any, void>({
+      query: () => ({
+        url: "/users/listFamilyCredentials",
+        method: "GET",
+      }),
+      providesTags: ["familyCredentials"],
+    }),
+    deleteFamilyCredential: builder.mutation<{ message: string }, { member_id: string }>({
+      query: ({ member_id }) => ({
+        url: "/users/deleteFamilyCredential",
+        method: "POST",
+        body: { member_id },
+      }),
+      invalidatesTags: ["familyCredentials"],
     }),
     submitFeedback: builder.mutation<
       { success: boolean; message: string },
@@ -398,4 +414,6 @@ export const {
   useAdminCreateUserMutation,
   useUpdateAdminUserMutation,
   useSubmitFeedbackMutation,
+  useGetFamilyCredentialsQuery,
+  useDeleteFamilyCredentialMutation,
 } = api;

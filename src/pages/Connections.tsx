@@ -13,11 +13,13 @@ import {
   useSaveForeignPassportMutation,
   useCreateCredentialMutation,
   usePatchCredentialTypeMutation,
+  useGetFamilyCredentialsQuery,
+  useDeleteFamilyCredentialMutation,
 } from "@/redux/api";
-import { CFormDialog } from "@/components/c-form-dialog";
-import type { CFormData, CFormPassportData } from "@/components/c-form-dialog";
-import { ForeignPassportDialog } from "@/components/foreign-passport-dialog";
-import type { ForeignPassportPhotos } from "@/components/foreign-passport-dialog";
+// import { CFormDialog } from "@/components/c-form-dialog";
+// import type { CFormData, CFormPassportData } from "@/components/c-form-dialog";
+// import { ForeignPassportDialog } from "@/components/foreign-passport-dialog";
+// import type { ForeignPassportPhotos } from "@/components/foreign-passport-dialog";
 import { determineConnectionType, isValidQRCode } from "@/utils/qr-code-utils";
 import { addDays, format } from "date-fns";
 import { CheckCircle, ChevronRight, Loader2, Lock, Plus, Share2, X } from "lucide-react";
@@ -296,12 +298,16 @@ const Connections = () => {
   const [saveForeignPassport] = useSaveForeignPassportMutation();
   const [createCredential] = useCreateCredentialMutation();
   const [patchCredentialType] = usePatchCredentialTypeMutation();
+  const [deleteFamilyCredential] = useDeleteFamilyCredentialMutation();
+
+  const { data: familyData, refetch: refetchFamily } = useGetFamilyCredentialsQuery();
 
   /** Tracks which child Aadhaar slot is being verified so we can stamp the correct
    *  document_type after Kwik (KYC flow) completes.
    *  startedAt lets patchCredentialType distinguish the newly created AADHAAR_CARD
    *  credential from the user's pre-existing regular Aadhaar. */
   const pendingChildVerify = useRef<{ sessionId: string; docType: ChildAadhaarType; startedAt: number } | null>(null);
+  const pendingFamilyVerify = useRef(false);
 
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; document_type: string } | null>(null);
   const [selectedDocType, setSelectedDocType] = useState<string | null>(null);
@@ -313,9 +319,9 @@ const Connections = () => {
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
 
   // C-Form dialog
-  const [cformDialogOpen, setCformDialogOpen] = useState(false);
+  // const [cformDialogOpen, setCformDialogOpen] = useState(false);
   const [cformRef, setCformRef] = useState("");
-  const [foreignPassportDialogOpen, setForeignPassportDialogOpen] = useState(false);
+  // const [foreignPassportDialogOpen, setForeignPassportDialogOpen] = useState(false);
 
   // Tracks when the user opened the check-in flow (share sheet or C-Form dialog)
   const checkinFlowStartedAt = useRef<number | null>(null);
@@ -332,6 +338,13 @@ const Connections = () => {
    * Auto-expands when a child is verified so the next slot can appear (capped at 3).
    */
   const [childAadhaarSlotsVisible, setChildAadhaarSlotsVisible] = useState(1);
+
+  // Family member state
+  const [familyDialogOpen, setFamilyDialogOpen] = useState(false);
+  const [familyNickname, setFamilyNickname] = useState("");
+  const [familyNicknameError, setFamilyNicknameError] = useState("");
+  const [isStartingFamilyVerify, setIsStartingFamilyVerify] = useState(false);
+  const [familyDeleteTarget, setFamilyDeleteTarget] = useState<{ id: string; nickname: string } | null>(null);
 
   // helper to robustly pick connection id from addConnection response
   const pickConnectionId = (res: any): string | null => {
@@ -746,8 +759,13 @@ const Connections = () => {
             // non-fatal: refetch will still show the credential, worst case as AADHAAR_CARD
           }
         }
-        await refetchCredentials();
-        if (code) await refetchRecipient();
+        if (pendingFamilyVerify.current) {
+          pendingFamilyVerify.current = false;
+          await refetchFamily();
+        } else {
+          await refetchCredentials();
+          if (code) await refetchRecipient();
+        }
       }
     };
     window.addEventListener("message", onMessage);
@@ -777,7 +795,7 @@ const Connections = () => {
     }
   };
 
-  /** Extract passport data from the verified PASSPORT credential for the C-Form dialog */
+  /* Extract passport data from the verified PASSPORT credential for the C-Form dialog
   const passportDataForCform = useMemo((): CFormPassportData => {
     const passportCred = verifiedCredentialsMap["PASSPORT"];
     if (!passportCred) return { surname: "", givenName: "", nationality: "", passportNo: "", passportExpiry: "", dateOfBirth: "" };
@@ -792,9 +810,9 @@ const Connections = () => {
       dateOfBirth: String(pickFirst(flat, ["dateOfBirth", "dob", "date_of_birth"]) ?? ""),
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [verifiedCredentialsMap]);
+  }, [verifiedCredentialsMap]); */
 
-  /** C-Form: filled fresh per check-in, saves + triggers check-in in one go */
+  /* C-Form: filled fresh per check-in, saves + triggers check-in in one go
   const handleCFormSave = async (data: CFormData) => {
     if (!derivedConnectionId) {
       toast.error("No connection found. Try scanning the QR again.");
@@ -841,9 +859,9 @@ const Connections = () => {
     } finally {
       setCheckInOutInFlight(false);
     }
-  };
+  }; */
 
-  /** Foreign Passport: saves 3 photos + triggers check-in */
+  /* Foreign Passport: saves 3 photos + triggers check-in
   const handleForeignPassportSave = async (data: ForeignPassportPhotos) => {
     if (!derivedConnectionId) {
       toast.error("No connection found. Try scanning the QR again.");
@@ -879,7 +897,7 @@ const Connections = () => {
     } finally {
       setCheckInOutInFlight(false);
     }
-  };
+  }; */
 
   /** Share with a connection only (no check-in) — e.g. vault flow without ?code= */
   const handleShareCredentials = async (documentType: DocumentType | ChildAadhaarType) => {
@@ -1025,6 +1043,51 @@ const Connections = () => {
       `&redirect_origin=${encodeURIComponent(origin)}`;
 
     setIframeUrl(verificationUrl);
+  };
+
+  const handleStartFamilyVerification = async () => {
+    const trimmed = familyNickname.trim();
+    if (!trimmed) { setFamilyNicknameError("Please enter a nickname."); return; }
+    const currentUser = auth.currentUser;
+    if (!currentUser) return;
+    setIsStartingFamilyVerify(true);
+    try {
+      const res = await createCredential({
+        document_type: "FAMILY_AADHAAR",
+        verifiers_name: "Kwik",
+        // @ts-ignore — backend accepts these extra fields for family member credentials
+        is_family_member: true,
+        member_nickname: trimmed,
+      }).unwrap();
+      const sessionId = res?.data?.document_id;
+      if (!sessionId) throw new Error("No session ID returned.");
+      setFamilyDialogOpen(false);
+      setFamilyNickname("");
+      pendingFamilyVerify.current = true;
+      pendingChildVerify.current = null;
+      const origin = window.location.origin;
+      setIframeUrl(
+        `${IVERIFI_ORIGIN}/user/home?client_id=iverifi&api_key=iverifi&process=U` +
+        `&productCode=KYC&user_id=${encodeURIComponent(currentUser.uid)}` +
+        `&session_id=${encodeURIComponent(sessionId)}&redirect_origin=${encodeURIComponent(origin)}`
+      );
+    } catch (e: any) {
+      toast.error(e?.data?.message || e?.message || "Failed to start verification.");
+    } finally {
+      setIsStartingFamilyVerify(false);
+    }
+  };
+
+  const handleDeleteFamilyMember = async () => {
+    if (!familyDeleteTarget) return;
+    try {
+      await deleteFamilyCredential({ member_id: familyDeleteTarget.id }).unwrap();
+      toast.success(`${familyDeleteTarget.nickname} removed.`);
+      setFamilyDeleteTarget(null);
+      await refetchFamily();
+    } catch (e: any) {
+      toast.error(e?.data?.message || e?.message || "Failed to remove family member.");
+    }
   };
 
   // Don’t block the vault home on recipient fetch when ?code= — share sheet + banner handle loading
@@ -1362,6 +1425,77 @@ const Connections = () => {
               )}
             </div>
           </div>
+
+          {/* Family Member IDs */}
+          {(() => {
+            const members: any[] = familyData?.data?.family_members || [];
+            return (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="text-[11px] font-semibold tracking-widest uppercase text-[var(--iverifi-text-muted)]">
+                    FAMILY IDS ({members.length})
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-8 shrink-0 gap-1 rounded-full border-0 bg-teal-100 px-3 text-xs font-semibold text-teal-700 hover:bg-teal-200 dark:bg-[rgba(0,200,180,0.22)] dark:text-[#5eead4] dark:hover:bg-[rgba(0,200,180,0.32)]"
+                    onClick={() => { setFamilyNickname(""); setFamilyNicknameError(""); setFamilyDialogOpen(true); }}
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    Add member
+                  </Button>
+                </div>
+
+                <div className="space-y-2">
+                  {members.length === 0 && (
+                    <div className="rounded-2xl border border-dashed border-[color:var(--iverifi-card-border)] bg-[var(--iverifi-card)] px-4 py-4 text-center text-xs text-[var(--iverifi-text-muted)]">
+                      No family members added yet — tap Add member to verify a family member's Aadhaar.
+                    </div>
+                  )}
+                  {members.map((member: any) => {
+                    const displayName = member.member_nickname || member.nickname || "Family member";
+                    const isPending = member.state !== "auto_approved";
+                    return (
+                      <div
+                        key={member.id}
+                        className="flex cursor-pointer items-center justify-between gap-3 rounded-2xl border border-[color:var(--iverifi-card-border)] bg-[var(--iverifi-card)] px-4 py-3"
+                        role="button"
+                        onClick={() => !isPending && setSelectedDocType(member.id)}
+                      >
+                        <div className="flex min-w-0 items-center gap-3">
+                          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-teal-300 bg-teal-50 dark:border-[rgba(0,200,180,0.35)] dark:bg-[rgba(0,200,180,0.14)]">
+                            <DocumentTypeIcon documentType="AADHAAR_CARD" className="h-6 w-6 text-teal-600 dark:text-[#00c896]" />
+                          </div>
+                          <div className="min-w-0">
+                            <div className="truncate text-sm font-semibold text-[var(--iverifi-text-primary)]">
+                              {displayName}
+                            </div>
+                            <div className="truncate text-xs text-[var(--iverifi-text-muted)]">
+                              {isPending ? "Verification pending" : "Aadhaar · UIDAI Verified"}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex shrink-0 items-center gap-2">
+                          {!isPending && <CheckCircle className="h-4 w-4 text-emerald-600 dark:text-[#00c896]" />}
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 rounded-lg text-[var(--iverifi-text-muted)] hover:text-red-500"
+                            onClick={(e) => { e.stopPropagation(); setFamilyDeleteTarget({ id: member.id, nickname: displayName }); }}
+                            aria-label="Remove family member"
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()}
 
         </div>
 
@@ -2294,13 +2428,13 @@ const Connections = () => {
                       // C-Form: open fill dialog
                       if (shareSelectedDocType === "C-Form (Foreign Guest)") {
                         setCformRef(generateCFormRef(connectedRequestorName || "Hotel"));
-                        setCformDialogOpen(true);
+                        // setCformDialogOpen(true);
                         return;
                       }
                       // Foreign Passport: close share sheet first, then open photo upload dialog
                       if (shareSelectedDocType === "Foreign Passport") {
                         setShareSheetOpen(false);
-                        setForeignPassportDialogOpen(true);
+                        // setForeignPassportDialogOpen(true);
                         return;
                       }
                       try {
@@ -2418,11 +2552,11 @@ const Connections = () => {
       /> */}
 
       {/* Foreign Passport Dialog */}
-      <ForeignPassportDialog
+      {/* <ForeignPassportDialog
         open={foreignPassportDialogOpen}
         onSave={handleForeignPassportSave}
         onClose={() => setForeignPassportDialogOpen(false)}
-      />
+      /> */}
 
       <FeedbackModal
         open={feedbackOpen}
@@ -2430,6 +2564,52 @@ const Connections = () => {
         hotelName={connectedRequestorName ?? "the property"}
         onClose={() => { setFeedbackOpen(false); setFeedbackRequestId(null); }}
       />
+
+      {/* Add Family Member dialog */}
+      <Dialog open={familyDialogOpen} onOpenChange={(open) => { setFamilyDialogOpen(open); if (!open) setFamilyNicknameError(""); }}>
+        <DialogContent className="rounded-2xl" style={{ background: "var(--iverifi-dialog-bg)", borderColor: "var(--iverifi-dialog-border)" }}>
+          <DialogHeader>
+            <DialogTitle className="text-[var(--iverifi-text-primary)]">Add Family Member</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-[var(--iverifi-text-muted)]">
+            Enter a nickname for this family member. They'll verify their Aadhaar on this device.
+          </p>
+          <div className="space-y-2 py-1">
+            <Label htmlFor="family-nickname" className="text-[var(--iverifi-text-primary)]">Nickname</Label>
+            <Input
+              id="family-nickname"
+              placeholder="e.g. Mom, Dad, Brother"
+              value={familyNickname}
+              onChange={(e) => { setFamilyNickname(e.target.value); setFamilyNicknameError(""); }}
+              onKeyDown={(e) => e.key === "Enter" && handleStartFamilyVerification()}
+              className="rounded-xl"
+              autoComplete="off"
+            />
+            {familyNicknameError && <p className="text-xs text-red-500">{familyNicknameError}</p>}
+          </div>
+          <div className="flex justify-end gap-2 pt-1">
+            <Button variant="outline" className="rounded-xl" onClick={() => setFamilyDialogOpen(false)} disabled={isStartingFamilyVerify}>Cancel</Button>
+            <Button className="rounded-xl bg-teal-600 hover:bg-teal-500 text-white" onClick={handleStartFamilyVerification} disabled={isStartingFamilyVerify}>
+              {isStartingFamilyVerify ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              {isStartingFamilyVerify ? "Starting…" : "Start Verification"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Remove family member confirmation */}
+      <Dialog open={!!familyDeleteTarget} onOpenChange={(open) => !open && setFamilyDeleteTarget(null)}>
+        <DialogContent className="rounded-2xl" style={{ background: "var(--iverifi-dialog-bg)", borderColor: "var(--iverifi-dialog-border)" }}>
+          <DialogTitle className="text-[var(--iverifi-text-primary)]">Remove family member</DialogTitle>
+          <p className="text-sm text-[var(--iverifi-text-muted)]">
+            Remove <strong className="text-[var(--iverifi-text-primary)]">{familyDeleteTarget?.nickname}</strong>? Their verified Aadhaar data will be deleted.
+          </p>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" onClick={() => setFamilyDeleteTarget(null)}>Cancel</Button>
+            <Button variant="destructive" onClick={handleDeleteFamilyMember}>Remove</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Iframe Overlay */}
       {iframeUrl && (

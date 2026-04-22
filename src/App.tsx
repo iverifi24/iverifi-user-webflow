@@ -16,6 +16,7 @@ import TermsAcceptance from "./screens/terms_acceptance";
 import TermsPage from "./screens/terms_page";
 import PrivacyPage from "./screens/privacy_page";
 import AadhaarDigiLockerTest from "./screens/documents/aadhaar_digilocker_test";
+import FamilyIds from "./screens/family_ids";
 
 const App = () => {
   return (
@@ -47,6 +48,7 @@ const App = () => {
             <Route path="/my-activity" element={<MyActivity />} />
             <Route path="/complete-profile" element={<ProfileCompletion />} />
             <Route path="/aadhaar-test" element={<AadhaarDigiLockerTest />} />
+            <Route path="/family-ids" element={<FamilyIds />} />
           </Route>
 
           <Route path="*" element={<Login />} />

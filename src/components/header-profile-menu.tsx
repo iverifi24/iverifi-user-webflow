@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { signOut, linkWithPopup } from "firebase/auth";
-import { ChevronsUpDown, FileText, History, Home, LogOut, Trash2 } from "lucide-react";
+import { ChevronsUpDown, FileText, History, Home, LogOut, Trash2, Users } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -222,6 +222,10 @@ export function HeaderProfileMenu() {
         <DropdownMenuItem className="focus:bg-accent focus:text-accent-foreground" onClick={() => navigate("/my-activity")}>
           <History className="size-4" />
           My Activity
+        </DropdownMenuItem>
+        <DropdownMenuItem className="focus:bg-accent focus:text-accent-foreground" onClick={() => navigate("/family-ids")}>
+          <Users className="size-4" />
+          Family IDs
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         {!hasGoogleLinked && (
