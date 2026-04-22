@@ -133,7 +133,7 @@ interface RecipientRequest {
   }>;
 }
 
-const IVERIFI_ORIGIN = "https://iverifi.test.getkwikid.com";
+const IVERIFI_ORIGIN = "https://iverifi.app.getkwikid.com";
 
 const titleCase = (value: string): string =>
   value
