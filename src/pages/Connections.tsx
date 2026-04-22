@@ -55,14 +55,14 @@ type ChildAadhaarType = (typeof CHILD_AADHAAR_TYPES)[number];
 
 const HOME_DOCUMENT_TYPES = ["DRIVING_LICENSE", "AADHAAR_CARD", "PAN_CARD", "PASSPORT"] as const;
 
-/** Derive a 3-char hotel code from the hotel name for C-Form reference numbers. */
+/* Derive a 3-char hotel code from the hotel name for C-Form reference numbers.
 function hotelCodeFromName(name: string): string {
   const stops = new Set(["the", "a", "an", "and", "&", "hotel", "inn", "resort", "lodge", "suites", "palace"]);
   const words = name.trim().split(/\s+/).filter((w) => !stops.has(w.toLowerCase()));
   if (words.length === 0) return "HTL";
   if (words.length === 1) return words[0].slice(0, 3).toUpperCase().padEnd(3, "X");
   return words.slice(0, 3).map((w) => w[0].toUpperCase()).join("").padEnd(3, "X");
-}
+} */
 
 /* Generate a sequential C-Form reference: CF-YYYY-XXX-NNN (counter persisted in localStorage).
 function generateCFormRef(hotelName: string): string {
