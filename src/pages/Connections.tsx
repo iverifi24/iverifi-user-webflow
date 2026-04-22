@@ -294,8 +294,8 @@ const Connections = () => {
   const [updateCheckInStatus, { isLoading: isCheckInUpdating }] = useUpdateCheckInStatusMutation();
   const [addConnection] = useAddConnectionMutation();
   const [deleteCredential, { isLoading: isDeleting }] = useDeleteCredentialMutation();
-  const [saveCForm] = useSaveCFormMutation();
-  const [saveForeignPassport] = useSaveForeignPassportMutation();
+  // const [saveCForm] = useSaveCFormMutation();
+  // const [saveForeignPassport] = useSaveForeignPassportMutation();
   const [createCredential] = useCreateCredentialMutation();
   const [patchCredentialType] = usePatchCredentialTypeMutation();
   const [deleteFamilyCredential] = useDeleteFamilyCredentialMutation();
@@ -320,7 +320,7 @@ const Connections = () => {
 
   // C-Form dialog
   // const [cformDialogOpen, setCformDialogOpen] = useState(false);
-  const [cformRef, setCformRef] = useState("");
+  // const [cformRef, setCformRef] = useState("");
   // const [foreignPassportDialogOpen, setForeignPassportDialogOpen] = useState(false);
 
   // Tracks when the user opened the check-in flow (share sheet or C-Form dialog)
@@ -2427,7 +2427,7 @@ const Connections = () => {
                       if (!shareSelectedDocType) return;
                       // C-Form: open fill dialog
                       if (shareSelectedDocType === "C-Form (Foreign Guest)") {
-                        setCformRef(generateCFormRef(connectedRequestorName || "Hotel"));
+                        // setCformRef(generateCFormRef(connectedRequestorName || "Hotel"));
                         // setCformDialogOpen(true);
                         return;
                       }

@@ -27,11 +27,11 @@ const IVERIFI_ORIGIN = "https://iverifi.test.getkwikid.com";
 const cardClass =
   "rounded-2xl border border-[color:var(--iverifi-card-border)] bg-[var(--iverifi-card)]";
 
-const formatDocType = (type: string): string =>
-  type
-    .toLowerCase()
-    .replace(/_/g, " ")
-    .replace(/\b\w/g, (c) => c.toUpperCase());
+// const formatDocType = (type: string): string =>
+//   type
+//     .toLowerCase()
+//     .replace(/_/g, " ")
+//     .replace(/\b\w/g, (c) => c.toUpperCase());
 
 const getPreviewImageUrl = (credential: any): string | null => {
   if (credential?.face_url) return credential.face_url;
@@ -48,7 +48,7 @@ const getPreviewImageUrl = (credential: any): string | null => {
 };
 
 const FamilyIds = () => {
-  const { user } = useAuth();
+  // const { user } = useAuth();
 
   const { data: credData, isLoading: isLoadingCreds } = useGetCredentialsQuery();
   const {
