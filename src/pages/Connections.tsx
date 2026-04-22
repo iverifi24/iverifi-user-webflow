@@ -9,8 +9,8 @@ import {
   useUpdateCredentialsRequestMutation,
   useUpdateCheckInStatusMutation,
   useDeleteCredentialMutation,
-  useSaveCFormMutation,
-  useSaveForeignPassportMutation,
+  // useSaveCFormMutation,
+  // useSaveForeignPassportMutation,
   useCreateCredentialMutation,
   usePatchCredentialTypeMutation,
   useGetFamilyCredentialsQuery,
@@ -64,7 +64,7 @@ function hotelCodeFromName(name: string): string {
   return words.slice(0, 3).map((w) => w[0].toUpperCase()).join("").padEnd(3, "X");
 }
 
-/** Generate a sequential C-Form reference: CF-YYYY-XXX-NNN (counter persisted in localStorage). */
+/* Generate a sequential C-Form reference: CF-YYYY-XXX-NNN (counter persisted in localStorage).
 function generateCFormRef(hotelName: string): string {
   const code = hotelCodeFromName(hotelName);
   const year = new Date().getFullYear();
@@ -72,7 +72,7 @@ function generateCFormRef(hotelName: string): string {
   const seq = (parseInt(localStorage.getItem(key) || "0", 10)) + 1;
   localStorage.setItem(key, String(seq));
   return `CF-${year}-${code}-${String(seq).padStart(3, "0")}`;
-}
+} */
 
 const PRODUCT_CODE_MAP: Record<DocumentType, string> = {
   AADHAAR_CARD: "KYC",
