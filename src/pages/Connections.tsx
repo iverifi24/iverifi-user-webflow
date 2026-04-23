@@ -205,7 +205,19 @@ const extractKwikOcr = (credential: Record<string, any>): Record<string, any> =>
     null;
   const ocr = step?.ocr && typeof step.ocr === "object" ? step.ocr : {};
   const images = step?.images && typeof step.images === "object" ? step.images : {};
-  return { ...ocr, ...images };
+
+  // DigiLocker flow — data lives in digilocker_data[0].data
+  const digilockerRaw = step?.digilocker_data?.[0]?.data;
+  const digilockerData = digilockerRaw && typeof digilockerRaw === "object" ? digilockerRaw : {};
+  // Derive aadhaar last 4 from masked number like "xxxxxxxx4080"
+  const maskedNumber = digilockerData.number ? String(digilockerData.number) : "";
+  const derivedLast4 = maskedNumber ? maskedNumber.replace(/[^0-9]/g, "").slice(-4) : undefined;
+  const digilockerExtras: Record<string, any> = { ...digilockerData };
+  if (derivedLast4) digilockerExtras.aadhaarLast4 = derivedLast4;
+  // Map user_photo (base64) so existing photo extraction finds it
+  if (digilockerData.user_photo) digilockerExtras.photo_base64 = digilockerData.user_photo;
+
+  return { ...ocr, ...images, ...digilockerExtras };
 };
 
 const parseDob = (raw: unknown): Date | null => {
@@ -383,8 +395,10 @@ const Connections = () => {
     if (!credentialsData?.data?.credential) return {};
     const map: Record<string, Credential> = {};
     credentialsData.data.credential.forEach((cred: Credential) => {
-      const docType = cred.document_type || cred.details?.document_type;
-      if (!docType) return;
+      const rawDocType = cred.document_type || cred.details?.document_type;
+      if (!rawDocType) return;
+      // DigiLocker Aadhaar arrives as "DIGILOCKER" — normalise to AADHAAR_CARD
+      const docType = rawDocType === "DIGILOCKER" ? "AADHAAR_CARD" : rawDocType;
       map[docType] = cred;
     });
     return map;
