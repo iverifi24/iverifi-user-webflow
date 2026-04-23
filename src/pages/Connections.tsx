@@ -10,7 +10,7 @@ import {
   useUpdateCheckInStatusMutation,
   useDeleteCredentialMutation,
   // useSaveCFormMutation,
-  // useSaveForeignPassportMutation,
+  useSaveForeignPassportMutation,
   useCreateCredentialMutation,
   usePatchCredentialTypeMutation,
   useGetFamilyCredentialsQuery,
@@ -18,8 +18,8 @@ import {
 } from "@/redux/api";
 // import { CFormDialog } from "@/components/c-form-dialog";
 // import type { CFormData, CFormPassportData } from "@/components/c-form-dialog";
-// import { ForeignPassportDialog } from "@/components/foreign-passport-dialog";
-// import type { ForeignPassportPhotos } from "@/components/foreign-passport-dialog";
+import { ForeignPassportDialog } from "@/components/foreign-passport-dialog";
+import type { ForeignPassportPhotos } from "@/components/foreign-passport-dialog";
 import { determineConnectionType, isValidQRCode } from "@/utils/qr-code-utils";
 import { addDays, format } from "date-fns";
 import { CheckCircle, ChevronRight, Loader2, Lock, Plus, Share2, X } from "lucide-react";
@@ -307,7 +307,7 @@ const Connections = () => {
   const [addConnection] = useAddConnectionMutation();
   const [deleteCredential, { isLoading: isDeleting }] = useDeleteCredentialMutation();
   // const [saveCForm] = useSaveCFormMutation();
-  // const [saveForeignPassport] = useSaveForeignPassportMutation();
+  const [saveForeignPassport] = useSaveForeignPassportMutation();
   const [createCredential] = useCreateCredentialMutation();
   const [patchCredentialType] = usePatchCredentialTypeMutation();
   const [deleteFamilyCredential] = useDeleteFamilyCredentialMutation();
@@ -333,7 +333,7 @@ const Connections = () => {
   // C-Form dialog
   // const [cformDialogOpen, setCformDialogOpen] = useState(false);
   // const [cformRef, setCformRef] = useState("");
-  // const [foreignPassportDialogOpen, setForeignPassportDialogOpen] = useState(false);
+  const [foreignPassportDialogOpen, setForeignPassportDialogOpen] = useState(false);
 
   // Tracks when the user opened the check-in flow (share sheet or C-Form dialog)
   const checkinFlowStartedAt = useRef<number | null>(null);
@@ -877,7 +877,7 @@ const Connections = () => {
     }
   }; */
 
-  /* Foreign Passport: saves 3 photos + triggers check-in
+  /** Foreign Passport: saves 3 photos + triggers check-in */
   const handleForeignPassportSave = async (data: ForeignPassportPhotos) => {
     if (!derivedConnectionId) {
       toast.error("No connection found. Try scanning the QR again.");
@@ -913,7 +913,7 @@ const Connections = () => {
     } finally {
       setCheckInOutInFlight(false);
     }
-  }; */
+  };
 
   /** Share with a connection only (no check-in) — e.g. vault flow without ?code= */
   const handleShareCredentials = async (documentType: DocumentType | ChildAadhaarType) => {
@@ -2608,7 +2608,7 @@ const Connections = () => {
                       // Foreign Passport: close share sheet first, then open photo upload dialog
                       if (shareSelectedDocType === "Foreign Passport") {
                         setShareSheetOpen(false);
-                        // setForeignPassportDialogOpen(true);
+                        setForeignPassportDialogOpen(true);
                         return;
                       }
                       // Family member share
@@ -2761,11 +2761,11 @@ const Connections = () => {
       /> */}
 
       {/* Foreign Passport Dialog */}
-      {/* <ForeignPassportDialog
+      <ForeignPassportDialog
         open={foreignPassportDialogOpen}
         onSave={handleForeignPassportSave}
         onClose={() => setForeignPassportDialogOpen(false)}
-      /> */}
+      />
 
       <FeedbackModal
         open={feedbackOpen}
