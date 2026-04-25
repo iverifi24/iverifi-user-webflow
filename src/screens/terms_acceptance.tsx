@@ -120,7 +120,7 @@ export default function TermsAcceptance() {
   };
 
   return (
-    <div className="min-h-screen w-full py-6 sm:py-10 bg-[var(--iverifi-page)] text-[var(--iverifi-text-primary)]">
+    <div className="min-h-screen w-full py-6 sm:py-10 bg-[var(--iverifi-page)] text-[var(--iverifi-text-primary)] select-none">
       <div className="w-full flex justify-center">
         <div className="w-full sm:max-w-2xl px-4 sm:px-6 pb-10">
           <div className="mb-8">
