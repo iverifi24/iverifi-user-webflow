@@ -251,7 +251,7 @@ export function HeaderProfileMenu() {
     </DropdownMenu>
 
     <Dialog open={deleteProfileOpen} onOpenChange={onDeleteProfileOpenChange}>
-      <DialogContent className="sm:max-w-md border-border bg-card text-card-foreground">
+      <DialogContent className="sm:max-w-md border-border bg-card text-card-foreground max-h-[90dvh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-red-400">Delete your account</DialogTitle>
           <DialogDescription asChild>
