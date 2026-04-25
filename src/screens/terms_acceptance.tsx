@@ -45,7 +45,9 @@ export default function TermsAcceptance() {
       if (isTabletOrAbove) {
         const lastSection = lastSectionRef.current;
         const lastSectionVisible = lastSection
-          ? lastSection.getBoundingClientRect().top + lastSection.offsetHeight / 3 < viewportHeight
+          ? lastSection.getBoundingClientRect().top +
+              lastSection.offsetHeight / 3 <
+            viewportHeight
           : false;
         setShowScrollHint(scrollable && !lastSectionVisible);
       } else {
@@ -261,7 +263,7 @@ export default function TermsAcceptance() {
                 <ul className="space-y-2.5">
                   {[
                     "Your document numbers",
-                    "Your ID photo-copies",
+                    "Your ID photocopies",
                     "Your personal details",
                   ].map((item) => (
                     <li
@@ -277,7 +279,10 @@ export default function TermsAcceptance() {
             </div>
 
             {/* Section 4 — Accept */}
-            <div ref={lastSectionRef} className="w-full bg-[var(--iverifi-card)] border border-[color:var(--iverifi-card-border)] shadow-md dark:shadow-[0_12px_35px_rgba(0,0,0,0.7)] rounded-xl p-4 space-y-3">
+            <div
+              ref={lastSectionRef}
+              className="w-full bg-[var(--iverifi-card)] border border-[color:var(--iverifi-card-border)] shadow-md dark:shadow-[0_12px_35px_rgba(0,0,0,0.7)] rounded-xl p-4 space-y-3"
+            >
               <div
                 className={`flex items-start gap-3 rounded-lg border px-4 py-3 cursor-pointer transition-colors ${
                   acceptedTerms
@@ -326,7 +331,11 @@ export default function TermsAcceptance() {
                 disabled={!acceptedTerms || isSaving}
                 className="w-full py-3 text-base font-medium bg-gradient-to-r from-[#00e0ff] to-[#7B5CF5] text-slate-950 shadow-[0_0_40px_rgba(0,224,255,0.35)] hover:from-[#40e8ff] hover:to-[#9274ff] disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {isSaving ? "Saving..." : acceptedTerms ? "Continue" : "Accept to Continue"}
+                {isSaving
+                  ? "Saving..."
+                  : acceptedTerms
+                    ? "Continue"
+                    : "Accept to Continue"}
               </Button>
 
               <p className="text-center text-xs text-[var(--iverifi-text-muted)]">
