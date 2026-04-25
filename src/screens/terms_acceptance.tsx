@@ -326,7 +326,7 @@ export default function TermsAcceptance() {
                 disabled={!acceptedTerms || isSaving}
                 className="w-full py-3 text-base font-medium bg-gradient-to-r from-[#00e0ff] to-[#7B5CF5] text-slate-950 shadow-[0_0_40px_rgba(0,224,255,0.35)] hover:from-[#40e8ff] hover:to-[#9274ff] disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {isSaving ? "Saving..." : "Accept to Continue"}
+                {isSaving ? "Saving..." : acceptedTerms ? "Continue" : "Accept to Continue"}
               </Button>
 
               <p className="text-center text-xs text-[var(--iverifi-text-muted)]">
