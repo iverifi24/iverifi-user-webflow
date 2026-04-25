@@ -251,14 +251,14 @@ export function HeaderProfileMenu() {
     </DropdownMenu>
 
     <Dialog open={deleteProfileOpen} onOpenChange={onDeleteProfileOpenChange}>
-      <DialogContent className="sm:max-w-md border-border bg-card text-card-foreground max-h-[90dvh] overflow-y-auto">
+      <DialogContent className="sm:max-w-md border-border bg-card text-card-foreground max-h-[calc(100dvh-80px)] overflow-y-auto top-[calc(50%-32px)]">
         <DialogHeader>
           <DialogTitle className="text-red-400">Delete your account</DialogTitle>
           <DialogDescription asChild>
             <div className="space-y-3 text-sm text-slate-400">
               <p className="font-medium text-slate-100">This action is permanent and cannot be undone.</p>
               <p>The following will be permanently removed:</p>
-              <ul className="list-disc list-inside space-y-1 pl-1">
+              <ul className="list-disc list-outside space-y-1 pl-4 text-left">
                 <li>Your profile and personal information</li>
                 <li>All verified documents and credentials</li>
                 <li>Your connections and shared access with properties</li>
@@ -290,7 +290,7 @@ export function HeaderProfileMenu() {
             This helps prevent accidental deletion.
           </p>
         </div>
-        <DialogFooter className="gap-2 sm:gap-0">
+        <DialogFooter className="gap-2">
           <Button
             variant="outline"
             className="border-slate-700 bg-transparent text-slate-200 hover:bg-slate-800"
