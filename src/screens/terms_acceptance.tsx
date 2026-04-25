@@ -340,7 +340,7 @@ export default function TermsAcceptance() {
       {/* Scroll hint — fixed at bottom, fades out once user scrolls */}
       {showScrollHint && (
         <div
-          className="fixed left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 animate-bounce z-50 cursor-pointer"
+          className="fixed left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 animate-bounce z-50 cursor-pointer select-none"
           style={{ bottom: hintBottom }}
           onClick={() =>
             window.scrollTo({
