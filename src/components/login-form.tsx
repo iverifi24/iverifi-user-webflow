@@ -11,7 +11,6 @@ import {
   saveRecipientIdForLater,
   peekRecipientIdFromStorage,
 } from "@/utils/connectionFlow";
-import { useAddConnectionMutation } from "@/redux/api";
 import { isTermsAccepted } from "@/utils/terms";
 import { doc, getDoc } from "firebase/firestore";
 import { auth, db } from "@/firebase/firebase_setup";
@@ -31,7 +30,6 @@ export function LoginForm({
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [showPhoneLogin, setShowPhoneLogin] = useState(true);
-  const [addConnection] = useAddConnectionMutation();
 
   // ✅ capture ?code=... or ?recipientId=... from URL on mount and persist for post-login
   useEffect(() => {
@@ -52,32 +50,25 @@ export function LoginForm({
       nav("/");
       return;
     }
-  
+
     // Check terms once at the beginning
     const termsAccepted = await isTermsAccepted(user.uid);
-    
+
     if (!termsAccepted) {
       // Terms not accepted - redirect to accept-terms
       const pendingId = peekRecipientIdFromStorage();
-      const redirectUrl = pendingId ? `/accept-terms?code=${pendingId}` : "/accept-terms";
+      const redirectUrl = pendingId
+        ? `/accept-terms?code=${pendingId}`
+        : "/accept-terms";
       nav(redirectUrl);
       return;
     }
-  
-    // Terms accepted - proceed with connection flow
-    const pendingId = getRecipientIdFromStorage(); // This removes it from storage
-    
+
+    // Terms accepted - navigate with the code; Connections page handles addConnection
+    const pendingId = getRecipientIdFromStorage();
+
     if (pendingId) {
-      try {
-        await addConnection({
-          document_id: pendingId,
-          type: "Company",
-        }).unwrap();
-        nav(`/?code=${pendingId}`);
-      } catch (err) {
-        console.error("Failed to add connection after login", err);
-        nav("/");
-      }
+      nav(`/?code=${pendingId}`);
     } else {
       nav("/");
     }
@@ -110,14 +101,14 @@ export function LoginForm({
         try {
           // Check what sign-in methods are available for this email
           const signInMethods = await fetchSignInMethodsForEmail(auth, email);
-          
+
           if (signInMethods.includes("google.com")) {
             toast.error(
-              "This account was created with Google. Please use 'Login with Google' instead."
+              "This account was created with Google. Please use 'Login with Google' instead.",
             );
           } else if (signInMethods.length > 0) {
             toast.error(
-              "This account uses a different sign-in method. Please use the original method you signed up with."
+              "This account uses a different sign-in method. Please use the original method you signed up with.",
             );
           } else {
             // Account exists but no other sign-in methods found
@@ -152,7 +143,7 @@ export function LoginForm({
       // They might need to complete their profile, which will be handled in postLoginCheck
       const userDocRef = doc(db, "applicants", userCredential.user.uid);
       const userDoc = await getDoc(userDocRef);
-      
+
       if (!userDoc.exists()) {
         // User doesn't exist in Firestore - they might have signed up but profile wasn't saved
         // Save their details now and continue with login
@@ -163,7 +154,7 @@ export function LoginForm({
           // Continue with login anyway - don't block the user
         }
       }
-      
+
       toast.success("Login successful!");
       await postLoginCheck();
     } catch (err: any) {
@@ -176,7 +167,7 @@ export function LoginForm({
 
       if (errorCode.includes("account-exists-with-different-credential")) {
         toast.error(
-          "This email is already registered. Please log in with your email or phone number instead."
+          "This email is already registered. Please log in with your email or phone number instead.",
         );
       } else if (
         errorMessage.includes("doesn't exist") ||
@@ -191,7 +182,7 @@ export function LoginForm({
         toast.error("Network error. Please check your connection");
       } else {
         toast.error(
-          `Google login failed: ${errorMessage || "Please try again"}`
+          `Google login failed: ${errorMessage || "Please try again"}`,
         );
       }
       setIsLoading(false);
@@ -215,13 +206,7 @@ export function LoginForm({
   };
 
   return (
-    <div
-      className={cn(
-        "flex flex-col gap-2.5 sm:gap-3",
-        className
-      )}
-      {...props}
-    >
+    <div className={cn("flex flex-col gap-2.5 sm:gap-3", className)} {...props}>
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between gap-2">
           <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-sky-500/85">
@@ -233,30 +218,30 @@ export function LoginForm({
         </div>
 
         <div className="flex rounded-xl bg-muted border border-border p-0.5 text-xs sm:rounded-2xl sm:p-1 sm:text-sm">
-        <button
-          type="button"
-          className={cn(
-            "flex-1 rounded-lg py-1.5 px-3 font-medium transition-all duration-200 sm:rounded-xl sm:py-2 sm:px-4",
-            showPhoneLogin
-              ? "bg-card text-foreground shadow-sm dark:bg-[rgba(15,23,42,0.98)] dark:shadow-[0_0_22px_rgba(0,224,255,0.35)]"
-              : "text-muted-foreground hover:text-foreground"
-          )}
-          onClick={() => setShowPhoneLogin(true)}
-        >
-          Phone
-        </button>
-        <button
-          type="button"
-          className={cn(
-            "flex-1 rounded-lg py-1.5 px-3 font-medium transition-all duration-200 sm:rounded-xl sm:py-2 sm:px-4",
-            !showPhoneLogin
-              ? "bg-card text-foreground shadow-sm dark:bg-[rgba(15,23,42,0.98)] dark:shadow-[0_0_22px_rgba(0,224,255,0.35)]"
-              : "text-muted-foreground hover:text-foreground"
-          )}
-          onClick={() => setShowPhoneLogin(false)}
-        >
-          Email
-        </button>
+          <button
+            type="button"
+            className={cn(
+              "flex-1 rounded-lg py-1.5 px-3 font-medium transition-all duration-200 sm:rounded-xl sm:py-2 sm:px-4",
+              showPhoneLogin
+                ? "bg-card text-foreground shadow-sm dark:bg-[rgba(15,23,42,0.98)] dark:shadow-[0_0_22px_rgba(0,224,255,0.35)]"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+            onClick={() => setShowPhoneLogin(true)}
+          >
+            Phone
+          </button>
+          <button
+            type="button"
+            className={cn(
+              "flex-1 rounded-lg py-1.5 px-3 font-medium transition-all duration-200 sm:rounded-xl sm:py-2 sm:px-4",
+              !showPhoneLogin
+                ? "bg-card text-foreground shadow-sm dark:bg-[rgba(15,23,42,0.98)] dark:shadow-[0_0_22px_rgba(0,224,255,0.35)]"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+            onClick={() => setShowPhoneLogin(false)}
+          >
+            Email
+          </button>
         </div>
       </div>
 
@@ -282,11 +267,7 @@ export function LoginForm({
             onClick={handleGoogleLogin}
             disabled={isLoading}
           >
-            <svg
-              className="h-4 w-4"
-              viewBox="0 0 24 24"
-              aria-hidden="true"
-            >
+            <svg className="h-4 w-4" viewBox="0 0 24 24" aria-hidden="true">
               <path
                 d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
                 fill="#4285F4"
@@ -308,7 +289,10 @@ export function LoginForm({
           </Button>
         </div>
       ) : (
-        <form onSubmit={handleEmailLogin} className="mt-1 space-y-3 sm:mt-2 sm:space-y-4">
+        <form
+          onSubmit={handleEmailLogin}
+          className="mt-1 space-y-3 sm:mt-2 sm:space-y-4"
+        >
           <div className="grid gap-2 sm:gap-3">
             <div className="grid gap-1.5 sm:gap-2">
               <Label htmlFor="email" className="text-xs md:text-sm">
@@ -364,11 +348,7 @@ export function LoginForm({
             onClick={handleGoogleLogin}
             disabled={isLoading}
           >
-            <svg
-              className="h-4 w-4"
-              viewBox="0 0 24 24"
-              aria-hidden="true"
-            >
+            <svg className="h-4 w-4" viewBox="0 0 24 24" aria-hidden="true">
               <path
                 d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
                 fill="#4285F4"

@@ -17,7 +17,6 @@ import {
 } from "@/utils/connectionFlow";
 import { saveUserDetailsToFirestore } from "@/utils/userRegistration";
 import { isTermsAccepted } from "@/utils/terms";
-import { useAddConnectionMutation } from "@/redux/api";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/firebase/firebase_setup";
 import { toast } from "sonner";
@@ -30,14 +29,16 @@ export function SignupForm({
   navigate?: (path: string, options?: { replace?: boolean }) => void;
 }) {
   const defaultNavigate = useNavigate();
-  const nav = (navigate ?? defaultNavigate) as (path: string, options?: { replace?: boolean }) => void;
+  const nav = (navigate ?? defaultNavigate) as (
+    path: string,
+    options?: { replace?: boolean },
+  ) => void;
   const [searchParams] = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [showPhoneSignup, setShowPhoneSignup] = useState(true);
-  const [addConnection] = useAddConnectionMutation();
 
   // Capture ?code=... or ?recipientId=... from URL on mount and persist for post-signup
   useEffect(() => {
@@ -62,22 +63,19 @@ export function SignupForm({
     const termsAccepted = await isTermsAccepted(user.uid);
 
     if (!termsAccepted) {
-      const code = searchParams.get("code") || searchParams.get("recipientId") || peekRecipientIdFromStorage();
+      const code =
+        searchParams.get("code") ||
+        searchParams.get("recipientId") ||
+        peekRecipientIdFromStorage();
       const redirectUrl = code ? `/accept-terms?code=${code}` : "/accept-terms";
       nav(redirectUrl, { replace: true });
       return;
     }
 
-    // Terms already accepted — go to home or connections
+    // Terms already accepted — navigate with the code; Connections page handles addConnection
     const pendingId = getRecipientIdFromStorage();
     if (pendingId) {
-      try {
-        await addConnection({ document_id: pendingId, type: "Company" }).unwrap();
-        nav(`/?code=${pendingId}`, { replace: true });
-      } catch (err) {
-        console.error("Failed to add connection after signup", err);
-        nav("/", { replace: true });
-      }
+      nav(`/?code=${pendingId}`, { replace: true });
     } else {
       nav("/", { replace: true });
     }
@@ -118,7 +116,7 @@ export function SignupForm({
       const userCredential = await createUserWithEmailAndPassword(
         auth,
         email,
-        password
+        password,
       );
 
       // Save user details to Firestore before proceeding
@@ -136,7 +134,7 @@ export function SignupForm({
 
       if (errorCode.includes("email-already-in-use")) {
         toast.error(
-          "This email is already registered. Please try logging in instead."
+          "This email is already registered. Please try logging in instead.",
         );
       } else if (errorCode.includes("weak-password")) {
         toast.error("Password is too weak. Please choose a stronger password.");
@@ -144,7 +142,7 @@ export function SignupForm({
         toast.error("Please enter a valid email address.");
       } else if (errorCode.includes("operation-not-allowed")) {
         toast.error(
-          "Email/password accounts are not enabled. Please contact support."
+          "Email/password accounts are not enabled. Please contact support.",
         );
       } else if (errorCode.includes("network-request-failed")) {
         toast.error("Network error. Please check your connection");
@@ -173,15 +171,17 @@ export function SignupForm({
         toast.error("Signup cancelled");
       } else if (errorCode.includes("popup-blocked")) {
         toast.error("Popup was blocked. Please allow popups for this site");
-      } else if (errorCode.includes("account-exists-with-different-credential")) {
+      } else if (
+        errorCode.includes("account-exists-with-different-credential")
+      ) {
         toast.error(
-          "This email is already registered. Please log in with your existing method instead."
+          "This email is already registered. Please log in with your existing method instead.",
         );
       } else if (errorCode.includes("network-request-failed")) {
         toast.error("Network error. Please check your connection");
       } else {
         toast.error(
-          `Google signup failed: ${errorMessage || "Please try again"}`
+          `Google signup failed: ${errorMessage || "Please try again"}`,
         );
       }
       setIsLoading(false);
@@ -189,13 +189,7 @@ export function SignupForm({
   };
 
   return (
-    <div
-      className={cn(
-        "flex flex-col gap-2.5 sm:gap-3",
-        className
-      )}
-      {...props}
-    >
+    <div className={cn("flex flex-col gap-2.5 sm:gap-3", className)} {...props}>
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between gap-2">
           <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-sky-500/85">
@@ -207,30 +201,30 @@ export function SignupForm({
         </div>
 
         <div className="flex rounded-xl bg-muted border border-border p-0.5 text-xs sm:rounded-2xl sm:p-1 sm:text-sm">
-        <button
-          type="button"
-          className={cn(
-            "flex-1 rounded-lg py-1.5 px-3 font-medium transition-all duration-200 sm:rounded-xl sm:py-2 sm:px-4",
-            showPhoneSignup
-              ? "bg-card text-foreground shadow-sm dark:bg-[rgba(15,23,42,0.98)] dark:shadow-[0_0_22px_rgba(0,224,255,0.35)]"
-              : "text-muted-foreground hover:text-foreground"
-          )}
-          onClick={() => setShowPhoneSignup(true)}
-        >
-          Phone
-        </button>
-        <button
-          type="button"
-          className={cn(
-            "flex-1 rounded-lg py-1.5 px-3 font-medium transition-all duration-200 sm:rounded-xl sm:py-2 sm:px-4",
-            !showPhoneSignup
-              ? "bg-card text-foreground shadow-sm dark:bg-[rgba(15,23,42,0.98)] dark:shadow-[0_0_22px_rgba(0,224,255,0.35)]"
-              : "text-muted-foreground hover:text-foreground"
-          )}
-          onClick={() => setShowPhoneSignup(false)}
-        >
-          Email
-        </button>
+          <button
+            type="button"
+            className={cn(
+              "flex-1 rounded-lg py-1.5 px-3 font-medium transition-all duration-200 sm:rounded-xl sm:py-2 sm:px-4",
+              showPhoneSignup
+                ? "bg-card text-foreground shadow-sm dark:bg-[rgba(15,23,42,0.98)] dark:shadow-[0_0_22px_rgba(0,224,255,0.35)]"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+            onClick={() => setShowPhoneSignup(true)}
+          >
+            Phone
+          </button>
+          <button
+            type="button"
+            className={cn(
+              "flex-1 rounded-lg py-1.5 px-3 font-medium transition-all duration-200 sm:rounded-xl sm:py-2 sm:px-4",
+              !showPhoneSignup
+                ? "bg-card text-foreground shadow-sm dark:bg-[rgba(15,23,42,0.98)] dark:shadow-[0_0_22px_rgba(0,224,255,0.35)]"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+            onClick={() => setShowPhoneSignup(false)}
+          >
+            Email
+          </button>
         </div>
       </div>
 
@@ -256,11 +250,7 @@ export function SignupForm({
             onClick={handleGoogleSignup}
             disabled={isLoading}
           >
-            <svg
-              className="h-4 w-4"
-              viewBox="0 0 24 24"
-              aria-hidden="true"
-            >
+            <svg className="h-4 w-4" viewBox="0 0 24 24" aria-hidden="true">
               <path
                 d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
                 fill="#4285F4"
@@ -282,7 +272,10 @@ export function SignupForm({
           </Button>
         </div>
       ) : (
-        <form onSubmit={handleEmailSignup} className="mt-1 space-y-2.5 sm:mt-2 sm:space-y-4">
+        <form
+          onSubmit={handleEmailSignup}
+          className="mt-1 space-y-2.5 sm:mt-2 sm:space-y-4"
+        >
           <div className="grid gap-2 sm:gap-3">
             <div className="grid gap-1.5 sm:gap-2">
               <Label htmlFor="email" className="text-xs md:text-sm">
@@ -354,11 +347,7 @@ export function SignupForm({
             onClick={handleGoogleSignup}
             disabled={isLoading}
           >
-            <svg
-              className="h-4 w-4"
-              viewBox="0 0 24 24"
-              aria-hidden="true"
-            >
+            <svg className="h-4 w-4" viewBox="0 0 24 24" aria-hidden="true">
               <path
                 d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
                 fill="#4285F4"

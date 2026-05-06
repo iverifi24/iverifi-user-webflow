@@ -251,14 +251,14 @@ export function HeaderProfileMenu() {
     </DropdownMenu>
 
     <Dialog open={deleteProfileOpen} onOpenChange={onDeleteProfileOpenChange}>
-      <DialogContent className="sm:max-w-md border-border bg-card text-card-foreground">
+      <DialogContent className="sm:max-w-md border-border bg-card text-card-foreground max-h-[calc(100dvh-80px)] overflow-y-auto top-[calc(50%-32px)]">
         <DialogHeader>
-          <DialogTitle className="text-red-400">Delete your account</DialogTitle>
+          <DialogTitle className="text-red-500">Delete your account</DialogTitle>
           <DialogDescription asChild>
-            <div className="space-y-3 text-sm text-slate-400">
-              <p className="font-medium text-slate-100">This action is permanent and cannot be undone.</p>
+            <div className="space-y-3 text-sm text-muted-foreground">
+              <p className="font-medium text-foreground">This action is permanent and cannot be undone.</p>
               <p>The following will be permanently removed:</p>
-              <ul className="list-disc list-inside space-y-1 pl-1">
+              <ul className="list-disc list-outside space-y-1 pl-4 text-left">
                 <li>Your profile and personal information</li>
                 <li>All verified documents and credentials</li>
                 <li>Your connections and shared access with properties</li>
@@ -266,14 +266,14 @@ export function HeaderProfileMenu() {
                 <li>Your Firebase authentication account (you will not be able to sign in with this email or phone again)</li>
               </ul>
               <p>If you have shared credentials with any property, they will no longer have access to your documents.</p>
-              <p className="pt-2 text-slate-100">
-                To confirm, type <strong className="font-mono text-red-400">DELETE</strong> below.
+              <p className="pt-2 text-foreground">
+                To confirm, type <strong className="font-mono text-red-500">DELETE</strong> below.
               </p>
             </div>
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-2 py-2">
-          <Label htmlFor="delete-confirm" className="text-slate-400">
+          <Label htmlFor="delete-confirm" className="text-muted-foreground">
             Type DELETE to confirm
           </Label>
           <Input
@@ -281,19 +281,18 @@ export function HeaderProfileMenu() {
             placeholder="DELETE"
             value={deleteConfirmText}
             onChange={(e) => setDeleteConfirmText(e.target.value)}
-            className="font-mono placeholder:font-mono border-slate-700 bg-slate-900/80 text-slate-100 placeholder:text-slate-500"
+            className="font-mono placeholder:font-mono"
             disabled={isDeletingProfile}
             autoComplete="off"
             aria-describedby="delete-confirm-hint"
           />
-          <p id="delete-confirm-hint" className="text-xs text-slate-500">
+          <p id="delete-confirm-hint" className="text-xs text-muted-foreground">
             This helps prevent accidental deletion.
           </p>
         </div>
-        <DialogFooter className="gap-2 sm:gap-0">
+        <DialogFooter className="gap-2">
           <Button
             variant="outline"
-            className="border-slate-700 bg-transparent text-slate-200 hover:bg-slate-800"
             onClick={() => onDeleteProfileOpenChange(false)}
             disabled={isDeletingProfile}
           >

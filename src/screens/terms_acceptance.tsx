@@ -1,18 +1,16 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
-import { Card, CardContent } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import {
   Grid3x3,
   FileText,
   Send,
   Lock,
-  ArrowDown,
   X,
   CheckCircle,
+  ArrowDown,
+  ArrowRight,
 } from "lucide-react";
 import { useGetRecipientCredentialsQuery } from "@/redux/api";
 import { setTermsAccepted } from "@/utils/terms";
@@ -27,35 +25,58 @@ export default function TermsAcceptance() {
   const [searchParams] = useSearchParams();
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [showScrollHint, setShowScrollHint] = useState(false);
+  const [hintBottom, setHintBottom] = useState(24);
+  const lastSectionRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const updateHint = () => {
+      const vv = window.visualViewport;
+      const viewportHeight = vv ? vv.height : window.innerHeight;
+      const windowHeight = window.innerHeight;
+      const browserBarHeight = windowHeight - viewportHeight;
+      // Position above the browser bar with 16px padding
+      setHintBottom(browserBarHeight + 16);
+
+      const scrollable =
+        document.documentElement.scrollHeight > windowHeight + 10;
+
+      const isTabletOrAbove = window.innerWidth >= 768;
+      if (isTabletOrAbove) {
+        const lastSection = lastSectionRef.current;
+        const lastSectionVisible = lastSection
+          ? lastSection.getBoundingClientRect().top +
+              lastSection.offsetHeight / 3 <
+            viewportHeight
+          : false;
+        setShowScrollHint(scrollable && !lastSectionVisible);
+      } else {
+        const notScrolled = window.scrollY < 40;
+        setShowScrollHint(scrollable && notScrolled);
+      }
+    };
+
+    updateHint();
+    window.addEventListener("scroll", updateHint);
+    window.visualViewport?.addEventListener("resize", updateHint);
+    window.visualViewport?.addEventListener("scroll", updateHint);
+    return () => {
+      window.removeEventListener("scroll", updateHint);
+      window.visualViewport?.removeEventListener("resize", updateHint);
+      window.visualViewport?.removeEventListener("scroll", updateHint);
+    };
+  }, []);
   const { user } = useAuth();
   const code = searchParams.get("code");
 
-  const { data: recipientData } = useGetRecipientCredentialsQuery(
-    code || "",
-    { skip: !code }
-  );
+  const { data: recipientData } = useGetRecipientCredentialsQuery(code || "", {
+    skip: !code,
+  });
 
   const connectionName =
     recipientData?.data?.requests?.[0]?.recipients?.name ||
     recipientData?.data?.requests?.[0]?.recipients?.firstName ||
     "Hotel";
-
-  // Mobile: scale to fit one screen + width compensation so it stays full width. Desktop: scale to fit one screen.
-  const [scale, setScale] = useState(1);
-  useEffect(() => {
-    const updateScale = () => {
-      const vh = window.innerHeight;
-      const vw = window.innerWidth;
-      const mobile = vw < 640;
-      const contentHeight = mobile ? 1200 : 1000;
-      const padding = mobile ? 20 : 48;
-      const s = Math.min(1, (vh - padding) / contentHeight);
-      setScale(s);
-    };
-    updateScale();
-    window.addEventListener("resize", updateScale);
-    return () => window.removeEventListener("resize", updateScale);
-  }, []);
 
   const handleAccept = async () => {
     if (!acceptedTerms) return;
@@ -101,256 +122,248 @@ export default function TermsAcceptance() {
   };
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden w-full py-3 sm:py-4 bg-[var(--iverifi-page)] text-[var(--iverifi-text-primary)]">
-      {/* Scale to fit one screen; on mobile width compensation keeps it full width */}
-      <div className="flex-1 min-h-0 flex items-start sm:items-center justify-center overflow-hidden pt-2 sm:pt-0 sm:py-4 w-full">
-        <div
-          className={`w-full sm:max-w-4xl sm:mx-auto pt-2 sm:pt-12 origin-top sm:origin-center min-w-0 px-4 sm:px-6 ${
-            scale < 1 ? "shrink-0" : ""
-          }`}
-          style={{
-            transform: `scale(${scale})`,
-            ...(scale < 1
-              ? {
-                  width: `${(1 / scale) * 100}vw`,
-                  marginLeft: "auto",
-                  marginRight: "auto",
-                }
-              : {}),
-          }}
-        >
-          <div className="mb-6 sm:mb-8">
+    <div className="min-h-screen w-full py-6 sm:py-10 bg-[var(--iverifi-page)] text-[var(--iverifi-text-primary)] select-none">
+      <div className="w-full flex justify-center">
+        <div className="w-full sm:max-w-2xl px-4 sm:px-6 pb-10">
+          <div className="mb-8">
             <AuthHeroHeader />
           </div>
 
-          {/* Main Card - reduced side padding on mobile for wider content area */}
-          <Card className="w-full bg-[var(--iverifi-card)] border border-[color:var(--iverifi-card-border)] shadow-lg dark:shadow-[0_18px_45px_rgba(0,0,0,0.85)]">
-            <CardContent className="px-2 py-4 sm:p-5 space-y-3 sm:space-y-4">
-              {/* How It Works - compact 3-step row with arrows */}
-              <div className="space-y-2">
-                <h2 className="text-lg font-semibold text-[var(--iverifi-text-primary)]">
-                  How It Works
-                </h2>
-                {/* Desktop: cards in a row with horizontal arrows (right → left). Mobile: stacked with vertical arrows (bottom → top). */}
-                <div className="hidden sm:flex items-stretch justify-between gap-3">
-                  <Card className="flex-1 bg-[var(--iverifi-muted-surface)] border border-[color:var(--iverifi-card-border)]">
-                    <CardContent className="px-3 py-2 flex flex-col items-start gap-2">
-                      <div className="flex items-center gap-2">
-                        <div className="bg-[var(--iverifi-icon-box-bg)] border border-[color:var(--iverifi-icon-box-border)] p-1.5 rounded-lg shrink-0">
-                          <Grid3x3 className="h-4 w-4 text-sky-400" />
-                        </div>
-                        <h3 className="font-medium text-sm text-[var(--iverifi-text-primary)]">
-                          Scan QR Code
-                        </h3>
+          <div className="space-y-4">
+            {/* Section 1 — How It Works */}
+            <div className="w-full bg-[var(--iverifi-card)] border border-[color:var(--iverifi-card-border)] shadow-md dark:shadow-[0_12px_35px_rgba(0,0,0,0.7)] rounded-xl p-4 space-y-4">
+              <h2 className="text-lg font-bold text-[var(--iverifi-text-primary)] tracking-wide text-center">
+                How It Works
+              </h2>
+              {/* Mobile: vertical stack with down arrows */}
+              <div className="flex flex-col gap-0 md:hidden">
+                {[
+                  {
+                    icon: <Grid3x3 className="h-4 w-4 text-sky-400" />,
+                    title: "Scan QR Code",
+                    desc: "Open verification on your phone.",
+                  },
+                  {
+                    icon: <FileText className="h-4 w-4 text-sky-400" />,
+                    title: "Verify Documents",
+                    desc: "Connect to DigiLocker or govt portals.",
+                  },
+                  {
+                    icon: <Send className="h-4 w-4 text-sky-400" />,
+                    title: "Share Verified Result",
+                    desc: `Only 'verified ✓' status sent to ${connectionName}.`,
+                  },
+                ].map((step, i, arr) => (
+                  <div key={i}>
+                    <div className="flex items-center gap-3 p-3 rounded-lg bg-[var(--iverifi-muted-surface)] border border-[color:var(--iverifi-card-border)]">
+                      <div className="bg-[var(--iverifi-icon-box-bg)] border border-[color:var(--iverifi-icon-box-border)] p-2 rounded-lg shrink-0">
+                        {step.icon}
                       </div>
-                      <p className="text-xs text-slate-400">
-                        Open verification on your phone.
-                      </p>
-                    </CardContent>
-                  </Card>
-                  <div className="flex items-center">
-                    <ArrowDown className="h-4 w-4 -rotate-90 text-slate-500" />
+                      <div>
+                        <p className="font-medium text-sm text-[var(--iverifi-text-primary)]">
+                          {step.title}
+                        </p>
+                        <p className="text-xs text-[var(--iverifi-text-muted)] mt-0.5">
+                          {step.desc}
+                        </p>
+                      </div>
+                    </div>
+                    {i < arr.length - 1 && (
+                      <div className="flex justify-center py-1">
+                        <ArrowDown className="h-4 w-4 text-[var(--iverifi-text-muted)]" />
+                      </div>
+                    )}
                   </div>
-                  <Card className="flex-1 bg-[var(--iverifi-muted-surface)] border border-[color:var(--iverifi-card-border)]">
-                    <CardContent className="px-3 py-2 flex flex-col items-start gap-2">
-                      <div className="flex items-center gap-2">
-                        <div className="bg-[var(--iverifi-icon-box-bg)] border border-[color:var(--iverifi-icon-box-border)] p-1.5 rounded-lg shrink-0">
-                          <FileText className="h-4 w-4 text-sky-400" />
-                        </div>
-                        <h3 className="font-medium text-sm text-[var(--iverifi-text-primary)]">
-                          Verify Documents
-                        </h3>
-                      </div>
-                      <p className="text-xs text-slate-400">
-                        Connect to DigiLocker or govt portals.
-                      </p>
-                    </CardContent>
-                  </Card>
-                  <div className="flex items-center">
-                    <ArrowDown className="h-4 w-4 -rotate-90 text-slate-500" />
-                  </div>
-                  <Card className="flex-1 bg-[var(--iverifi-muted-surface)] border border-[color:var(--iverifi-card-border)]">
-                    <CardContent className="px-3 py-2 flex flex-col items-start gap-2">
-                      <div className="flex items-center gap-2">
-                        <div className="bg-[var(--iverifi-icon-box-bg)] border border-[color:var(--iverifi-icon-box-border)] p-1.5 rounded-lg shrink-0">
-                          <Send className="h-4 w-4 text-sky-400" />
-                        </div>
-                        <h3 className="font-medium text-sm text-[var(--iverifi-text-primary)]">
-                          Share Verified Result
-                        </h3>
-                      </div>
-                      <p className="text-xs text-slate-400">
-                        Only &apos;verified ✓&apos; status sent to{" "}
-                        {connectionName}.
-                      </p>
-                    </CardContent>
-                  </Card>
-                </div>
-
-                {/* Mobile layout (top-down arrows) */}
-                <div className="sm:hidden space-y-2">
-                  <Card className="bg-[var(--iverifi-muted-surface)] border border-[color:var(--iverifi-card-border)]">
-                    <CardContent className="px-3 py-2 flex flex-col items-start gap-2">
-                      <div className="flex items-center gap-2">
-                        <div className="bg-[var(--iverifi-icon-box-bg)] border border-[color:var(--iverifi-icon-box-border)] p-1.5 rounded-lg shrink-0">
-                          <Grid3x3 className="h-4 w-4 text-sky-400" />
-                        </div>
-                        <h3 className="font-medium text-sm text-[var(--iverifi-text-primary)]">
-                          Scan QR Code
-                        </h3>
-                      </div>
-                      <p className="text-xs text-slate-400">
-                        Open verification on your phone.
-                      </p>
-                    </CardContent>
-                  </Card>
-                  <div className="flex justify-center">
-                    <ArrowDown className="h-4 w-4 text-slate-500" />
-                  </div>
-                  <Card className="bg-[var(--iverifi-muted-surface)] border border-[color:var(--iverifi-card-border)]">
-                    <CardContent className="px-3 py-2 flex flex-col items-start gap-2">
-                      <div className="flex items-center gap-2">
-                        <div className="bg-[var(--iverifi-icon-box-bg)] border border-[color:var(--iverifi-icon-box-border)] p-1.5 rounded-lg shrink-0">
-                          <FileText className="h-4 w-4 text-sky-400" />
-                        </div>
-                        <h3 className="font-medium text-sm text-[var(--iverifi-text-primary)]">
-                          Verify Documents
-                        </h3>
-                      </div>
-                      <p className="text-xs text-slate-400">
-                        Connect to DigiLocker or govt portals.
-                      </p>
-                    </CardContent>
-                  </Card>
-                  <div className="flex justify-center">
-                    <ArrowDown className="h-4 w-4 text-slate-500" />
-                  </div>
-                  <Card className="bg-[var(--iverifi-muted-surface)] border border-[color:var(--iverifi-card-border)]">
-                    <CardContent className="px-3 py-2 flex flex-col items-start gap-2">
-                      <div className="flex items-center gap-2">
-                        <div className="bg-[var(--iverifi-icon-box-bg)] border border-[color:var(--iverifi-icon-box-border)] p-1.5 rounded-lg shrink-0">
-                          <Send className="h-4 w-4 text-sky-400" />
-                        </div>
-                        <h3 className="font-medium text-sm text-[var(--iverifi-text-primary)]">
-                          Share Verified Result
-                        </h3>
-                      </div>
-                      <p className="text-xs text-slate-400">
-                        Only &apos;verified ✓&apos; status sent to{" "}
-                        {connectionName}.
-                      </p>
-                    </CardContent>
-                  </Card>
-                </div>
+                ))}
               </div>
 
-              <Separator className="my-2" />
+              {/* Desktop: horizontal row with right arrows */}
+              <div className="hidden md:flex items-stretch gap-2">
+                {[
+                  {
+                    icon: <Grid3x3 className="h-4 w-4 text-sky-400" />,
+                    title: "Scan QR Code",
+                    desc: "Open verification on your phone.",
+                  },
+                  {
+                    icon: <FileText className="h-4 w-4 text-sky-400" />,
+                    title: "Verify Documents",
+                    desc: "Connect to DigiLocker or govt portals.",
+                  },
+                  {
+                    icon: <Send className="h-4 w-4 text-sky-400" />,
+                    title: "Share Verified Result",
+                    desc: `Only 'verified ✓' status sent to ${connectionName}.`,
+                  },
+                ].map((step, i, arr) => (
+                  <div key={i} className="flex items-center gap-2 flex-1">
+                    <div className="flex-1 flex flex-col items-center text-center gap-2 p-4 rounded-lg bg-[var(--iverifi-muted-surface)] border border-[color:var(--iverifi-card-border)] h-full">
+                      <div className="bg-[var(--iverifi-icon-box-bg)] border border-[color:var(--iverifi-icon-box-border)] p-2.5 rounded-lg shrink-0">
+                        {step.icon}
+                      </div>
+                      <div>
+                        <p className="font-semibold text-sm text-[var(--iverifi-text-primary)] whitespace-nowrap">
+                          {step.title}
+                        </p>
+                        <p className="text-xs text-[var(--iverifi-text-muted)] mt-1 leading-relaxed">
+                          {step.desc}
+                        </p>
+                      </div>
+                    </div>
+                    {i < arr.length - 1 && (
+                      <ArrowRight className="h-4 w-4 text-[var(--iverifi-text-muted)] shrink-0" />
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
 
-              {/* Privacy */}
-              <div className="flex items-center gap-3 bg-[var(--iverifi-success-soft)] border border-[color:var(--iverifi-success-border)] rounded-lg px-3 py-2.5">
-                <Lock className="h-4 w-4 text-emerald-600 dark:text-emerald-200 shrink-0" />
-                <div className="min-w-0">
-                  <p className="font-medium text-base text-emerald-700 dark:text-emerald-50">
-                    Your Documents Stay Private
-                  </p>
-                  <p className="text-sm text-emerald-600 dark:text-emerald-100 mt-0.5">
-                    Documents never stored - Verified with govt portals.
-                  </p>
-                </div>
+            {/* Section 2 — Privacy guarantee */}
+            <div className="flex items-center gap-4 bg-[var(--iverifi-success-soft)] border border-[color:var(--iverifi-success-border)] rounded-xl px-4 py-4">
+              <div className="bg-emerald-500/20 p-2.5 rounded-lg shrink-0">
+                <Lock className="h-5 w-5 text-emerald-500 dark:text-emerald-300" />
+              </div>
+              <div>
+                <p className="font-semibold text-sm text-emerald-700 dark:text-emerald-50">
+                  Your Documents Stay Private
+                </p>
+                <p className="text-xs text-emerald-600 dark:text-emerald-200 mt-0.5">
+                  Documents never stored - Verified with govt portals.
+                </p>
+              </div>
+            </div>
+
+            {/* Section 3 — What they get / don't get */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="bg-[var(--iverifi-card)] border border-[color:var(--iverifi-card-border)] shadow-sm rounded-xl p-4 space-y-3">
+                <h3 className="text-xs font-semibold tracking-wide text-[var(--iverifi-text-muted)]">
+                  What {connectionName} Receives:
+                </h3>
+                <ul className="space-y-2.5">
+                  {[
+                    'Verification status: "Verified"',
+                    'Document type: "Aadhaar Card"',
+                    `Timestamp: ${new Date().toLocaleString()}`,
+                  ].map((item) => (
+                    <li
+                      key={item}
+                      className="flex items-center gap-2.5 text-sm text-[var(--iverifi-text-secondary)]"
+                    >
+                      <CheckCircle className="h-4 w-4 text-emerald-500 shrink-0" />
+                      {item}
+                    </li>
+                  ))}
+                </ul>
               </div>
 
-              {/* What They Receive + What They DON'T Get */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <h3 className="font-medium text-base text-[var(--iverifi-text-primary)]">
-                    What {connectionName} Receives:
-                  </h3>
-                  <ul className="space-y-1 text-sm text-[var(--iverifi-text-secondary)]">
-                    <li className="flex items-center gap-2">
-                      <CheckCircle className="h-4 w-4 text-green-600 shrink-0" />
-                      Verification status: &quot;Verified&quot;
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <CheckCircle className="h-4 w-4 text-green-600 shrink-0" />
-                      Document type: &quot;Aadhaar Card&quot;
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <CheckCircle className="h-4 w-4 text-green-600 shrink-0" />
-                      Timestamp: {new Date().toLocaleString()}
-                    </li>
-                  </ul>
-                </div>
-                <div className="space-y-1.5">
-                  <h3 className="font-medium text-base text-[var(--iverifi-text-primary)]">
-                    What They DON&apos;T Get:
-                  </h3>
-                  <ul className="space-y-1 text-sm text-[var(--iverifi-text-secondary)]">
-                    <li className="flex items-center gap-2">
+              <div className="bg-[var(--iverifi-card)] border border-[color:var(--iverifi-card-border)] shadow-sm rounded-xl p-4 space-y-3">
+                <h3 className="text-xs font-semibold tracking-wide text-[var(--iverifi-text-muted)]">
+                  What They DON&apos;T Get:
+                </h3>
+                <ul className="space-y-2.5">
+                  {[
+                    "Your document numbers",
+                    "Your ID photocopies",
+                    "Your personal details",
+                  ].map((item) => (
+                    <li
+                      key={item}
+                      className="flex items-center gap-2.5 text-sm text-[var(--iverifi-text-secondary)]"
+                    >
                       <X className="h-4 w-4 text-red-500 shrink-0" />
-                      Your document numbers
+                      {item}
                     </li>
-                    <li className="flex items-center gap-2">
-                      <X className="h-4 w-4 text-red-500 shrink-0" />
-                      Your photographs
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <X className="h-4 w-4 text-red-500 shrink-0" />
-                      Your personal details
-                    </li>
-                  </ul>
-                </div>
+                  ))}
+                </ul>
               </div>
+            </div>
 
-              <Separator className="my-2" />
-
-              {/* Terms checkbox */}
-              <div className="flex items-start gap-3">
+            {/* Section 4 — Accept */}
+            <div
+              ref={lastSectionRef}
+              className="w-full bg-[var(--iverifi-card)] border border-[color:var(--iverifi-card-border)] shadow-md dark:shadow-[0_12px_35px_rgba(0,0,0,0.7)] rounded-xl p-4 space-y-3"
+            >
+              <div
+                className={`flex items-start gap-3 rounded-lg border px-4 py-3 cursor-pointer transition-colors ${
+                  acceptedTerms
+                    ? "border-sky-500/60 bg-sky-500/10"
+                    : "border-[color:var(--iverifi-card-border)] bg-[var(--iverifi-muted-surface)]"
+                }`}
+                onClick={() => setAcceptedTerms((v) => !v)}
+              >
                 <Checkbox
                   id="terms"
                   checked={acceptedTerms}
                   onCheckedChange={(c) => setAcceptedTerms(c === true)}
-                  className="mt-0.5 shrink-0"
+                  className="mt-0.5 shrink-0 h-5 w-5 border-2 border-slate-400 data-[state=checked]:border-sky-400"
+                  onClick={(e) => e.stopPropagation()}
                 />
-                <Label
+                <label
                   htmlFor="terms"
-                  className="text-sm sm:text-base text-[var(--iverifi-text-secondary)] leading-snug cursor-pointer"
+                  className="text-sm text-[var(--iverifi-text-secondary)] leading-relaxed cursor-pointer"
                 >
                   I agree to the{" "}
-                  <button
-                    type="button"
-                    onClick={() => navigate("/terms")}
-                    className="text-sky-400 underline underline-offset-4 hover:text-sky-300 bg-transparent border-0 p-0 cursor-pointer font-medium"
+                  <span
+                    onClick={(e) => {
+                      e.preventDefault();
+                      navigate("/terms");
+                    }}
+                    className="text-sky-400 underline underline-offset-4 hover:text-sky-300 cursor-pointer font-medium"
                   >
                     Terms &amp; Conditions
-                  </button>{" "}
+                  </span>{" "}
                   and{" "}
-                  <button
-                    type="button"
-                    onClick={() => navigate("/privacy")}
-                    className="text-sky-400 underline underline-offset-4 hover:text-sky-300 bg-transparent border-0 p-0 cursor-pointer font-medium"
+                  <span
+                    onClick={(e) => {
+                      e.preventDefault();
+                      navigate("/privacy");
+                    }}
+                    className="text-sky-400 underline underline-offset-4 hover:text-sky-300 cursor-pointer font-medium"
                   >
                     Privacy Policy
-                  </button>
+                  </span>
                   .
-                </Label>
+                </label>
               </div>
 
-              {/* Button */}
               <Button
                 onClick={handleAccept}
                 disabled={!acceptedTerms || isSaving}
-                className="w-full py-3 text-base font-medium bg-gradient-to-r from-[#00e0ff] to-[#7B5CF5] text-slate-950 shadow-[0_0_40px_rgba(0,224,255,0.45)] hover:from-[#40e8ff] hover:to-[#9274ff] disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full py-3 text-base font-medium bg-gradient-to-r from-[#00e0ff] to-[#7B5CF5] text-slate-950 shadow-[0_0_40px_rgba(0,224,255,0.35)] hover:from-[#40e8ff] hover:to-[#9274ff] disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {isSaving ? "Saving..." : "Please Accept to Continue"}
+                {isSaving
+                  ? "Saving..."
+                  : acceptedTerms
+                    ? "Continue"
+                    : "Accept to Continue"}
               </Button>
 
-              <p className="text-center text-sm text-[var(--iverifi-text-muted)]">
+              <p className="text-center text-xs text-[var(--iverifi-text-muted)]">
                 Protected by 256-bit encryption • Takes 30 seconds
               </p>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </div>
       </div>
+
+      {/* Scroll hint — fixed at bottom, fades out once user scrolls */}
+      {showScrollHint && (
+        <div
+          className="fixed left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 animate-bounce z-50 cursor-pointer select-none"
+          style={{ bottom: hintBottom }}
+          onClick={() =>
+            window.scrollTo({
+              top: document.documentElement.scrollHeight,
+              behavior: "smooth",
+            })
+          }
+        >
+          <span className="text-xs text-sky-300 bg-slate-900/90 border border-sky-500/40 rounded-full px-3 py-1 shadow-[0_0_12px_rgba(0,224,255,0.2)] backdrop-blur-sm whitespace-nowrap">
+            Scroll down to Read & Accept
+          </span>
+          <ArrowDown className="h-4 w-4 text-sky-400" />
+        </div>
+      )}
     </div>
   );
 }
