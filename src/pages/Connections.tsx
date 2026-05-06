@@ -284,12 +284,17 @@ const Connections = () => {
   const codeFromPath = (params.code as string) || null;
   const code = codeFromQuery || codeFromPath || null;
 
+  // Poll credentials after verification until new credential appears (max 15 s)
+  const [verifyPollingMs, setVerifyPollingMs] = useState(0);
+  const verifyPollStopRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const credCountBeforeVerifyRef = useRef(0);
+
   // api
   const {
     data: credentialsData,
     isLoading: isCredentialsLoading,
     refetch: refetchCredentials,
-  } = useGetCredentialsQuery();
+  } = useGetCredentialsQuery(undefined, { pollingInterval: verifyPollingMs });
 
   const {
     data: connectionsData,
@@ -403,6 +408,16 @@ const Connections = () => {
     });
     return map;
   }, [credentialsData]);
+
+  // Stop polling as soon as the credentials list grows after a verification
+  useEffect(() => {
+    if (verifyPollingMs === 0) return;
+    const count = credentialsData?.data?.credential?.length ?? 0;
+    if (count > credCountBeforeVerifyRef.current) {
+      setVerifyPollingMs(0);
+      if (verifyPollStopRef.current) { clearTimeout(verifyPollStopRef.current); verifyPollStopRef.current = null; }
+    }
+  }, [credentialsData, verifyPollingMs]);
 
   useEffect(() => {
     let maxVerifiedChildIndex = 0;
@@ -779,7 +794,13 @@ const Connections = () => {
           pendingFamilyVerify.current = false;
           await refetchFamily();
         } else {
+          // Snapshot count before polling so we know when something new arrives
+          credCountBeforeVerifyRef.current = credentialsData?.data?.credential?.length ?? 0;
+          // Immediate refetch, then poll every 2 s until a new credential appears (max 15 s)
           await refetchCredentials();
+          if (verifyPollStopRef.current) clearTimeout(verifyPollStopRef.current);
+          setVerifyPollingMs(2000);
+          verifyPollStopRef.current = setTimeout(() => { setVerifyPollingMs(0); verifyPollStopRef.current = null; }, 15000);
           if (code) await refetchRecipient();
         }
       }

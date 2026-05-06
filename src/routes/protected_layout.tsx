@@ -4,6 +4,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { IverifiLogo } from "@/components/iverifi-logo";
 import { HeaderProfileMenu } from "@/components/header-profile-menu";
 import { BottomNav } from "@/components/bottom-nav";
+import { SupportWidget } from "@/components/support-widget";
 import { Sun, Moon } from "lucide-react";
 import { useTheme } from "@/context/theme_context";
 import { useInactivityLogout } from "@/hooks/use-inactivity-logout";
@@ -70,6 +71,7 @@ const ProtectedLayout = () => {
         </main>
       </SidebarInset>
       {showBottomNav && <BottomNav />}
+      {showBottomNav && <SupportWidget />}
 
       <Dialog open={showWarning} onOpenChange={(open) => { if (!open) stayLoggedIn(); }}>
         <DialogContent className="max-w-sm">
