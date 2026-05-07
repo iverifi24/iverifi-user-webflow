@@ -411,6 +411,13 @@ const Connections = () => {
   const [verifyPollingMs, setVerifyPollingMs] = useState(0);
   const verifyPollStopRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const credCountBeforeVerifyRef = useRef(0);
+  // IDs of credentials before KYC started — used to find the newly-created credential doc
+  const credIdsBeforeVerifyRef = useRef<Set<string>>(new Set());
+  // When user verifies via hotel QR (first-time, doc doesn't exist yet), remember the
+  // credential_request_id so we can link once the new credential appears in polling
+  const pendingHotelLinkRef = useRef<string | null>(null);
+  // Always-current mirror of credentialsData — avoids stale closure in onMessage handler
+  const latestCredentialsRef = useRef(credentialsData);
 
   // api
   const {
@@ -557,15 +564,31 @@ const Connections = () => {
     return map;
   }, [credentialsData]);
 
-  // Stop polling as soon as the credentials list grows after a verification
+  // Keep latestCredentialsRef in sync so onMessage always reads current data
+  useEffect(() => { latestCredentialsRef.current = credentialsData; }, [credentialsData]);
+
+  // Stop polling when a new credential appears; link it to the hotel if applicable
   useEffect(() => {
     if (verifyPollingMs === 0) return;
-    const count = credentialsData?.data?.credential?.length ?? 0;
+    const creds: any[] = credentialsData?.data?.credential ?? [];
+    const count = creds.length;
     if (count > credCountBeforeVerifyRef.current) {
       setVerifyPollingMs(0);
       if (verifyPollStopRef.current) { clearTimeout(verifyPollStopRef.current); verifyPollStopRef.current = null; }
+      // Find the new credential doc (one that wasn't there before KYC)
+      const credReqId = pendingHotelLinkRef.current;
+      if (credReqId) {
+        pendingHotelLinkRef.current = null;
+        const newCred = creds.find((c: any) => !credIdsBeforeVerifyRef.current.has(c.id));
+        if (newCred?.id) {
+          updateCredentials({
+            credential_request_id: credReqId,
+            pending_credential_id: newCred.id,
+          });
+        }
+      }
     }
-  }, [credentialsData, verifyPollingMs]);
+  }, [credentialsData, verifyPollingMs, updateCredentials]);
 
   useEffect(() => {
     let maxVerifiedChildIndex = 0;
@@ -1096,8 +1119,12 @@ const Connections = () => {
           pendingFamilyVerify.current = false;
           await refetchFamily();
         } else {
-          // Snapshot count before polling so we know when something new arrives
-          credCountBeforeVerifyRef.current = credentialsData?.data?.credential?.length ?? 0;
+          // Snapshot credential IDs + count before polling so we can find the new doc.
+          // Use latestCredentialsRef (not closure value) so a delete-then-reverify scenario
+          // sees the post-delete count, not the stale pre-delete count.
+          const currentCreds: any[] = latestCredentialsRef.current?.data?.credential ?? [];
+          credCountBeforeVerifyRef.current = currentCreds.length;
+          credIdsBeforeVerifyRef.current = new Set(currentCreds.map((c: any) => c.id));
           // Immediate refetch, then poll every 2 s until a new credential appears (max 15 s)
           await refetchCredentials();
           if (verifyPollStopRef.current) clearTimeout(verifyPollStopRef.current);
@@ -1427,13 +1454,20 @@ const Connections = () => {
     // Save hotel code before opening iframe in case Kwik navigation clears the URL param
     if (code) saveRecipientIdForLater(code);
 
-    // Store the session_id on the credential_request so the hotel name is visible
-    // in the super-admin verifications table even before the user shares the document.
+    // Link this verification to the hotel so the hotel name appears in the super-admin
+    // verifications table even if the user never shares the document.
     if (code && derivedConnectionId && !(CHILD_AADHAAR_TYPES as readonly string[]).includes(documentType)) {
-      updateCredentials({
-        credential_request_id: derivedConnectionId,
-        pending_session_id: effectiveSessionId,
-      });
+      const existingCred = verifiedCredentialsMap[documentType as string];
+      if (existingCred?.id) {
+        // Re-verification: credential already exists — link its known ID immediately
+        updateCredentials({
+          credential_request_id: derivedConnectionId,
+          pending_credential_id: existingCred.id,
+        });
+      } else {
+        // First verification: credential will be created by webhook — find it via polling
+        pendingHotelLinkRef.current = derivedConnectionId;
+      }
     }
 
     setIframeUrl(verificationUrl);

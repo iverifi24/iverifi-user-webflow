@@ -92,14 +92,14 @@ export const api = createApi({
       invalidatesTags: ["connections", "activity"],
     }),
     updateCredentialsRequest: builder.mutation({
-      query: ({ credential_request_id, credentials, action, pending_session_id }) => ({
+      query: ({ credential_request_id, credentials, action, pending_credential_id }) => ({
         url: "/users/updateCredentialsRequest",
         method: "POST",
         body: {
           credential_request_id,
           credentials,
           ...(action && { action }),
-          ...(pending_session_id && { pending_session_id }),
+          ...(pending_credential_id && { pending_credential_id }),
         },
       }),
       invalidatesTags: ["connections", "activity"],
