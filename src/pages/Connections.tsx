@@ -417,7 +417,7 @@ const Connections = () => {
   // credential_request_id so we can link once the new credential appears in polling
   const pendingHotelLinkRef = useRef<string | null>(null);
   // Always-current mirror of credentialsData — avoids stale closure in onMessage handler
-  const latestCredentialsRef = useRef(credentialsData);
+  const latestCredentialsRef = useRef<any>(null);
 
   // api
   const {
