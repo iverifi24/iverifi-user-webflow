@@ -517,6 +517,7 @@ const Connections = () => {
   // helper to robustly pick connection id from addConnection response
   const pickConnectionId = (res: any): string | null => {
     return (
+      res?.data?.credential_request_id ??
       res?.data?.request_id ??
       res?.data?.id ??
       res?.request_id ??
