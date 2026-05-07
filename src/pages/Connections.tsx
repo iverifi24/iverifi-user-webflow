@@ -15,6 +15,7 @@ import {
   usePatchCredentialTypeMutation,
   useGetFamilyCredentialsQuery,
   useDeleteFamilyCredentialMutation,
+  useUpdateCredentialHotelMutation,
 } from "@/redux/api";
 // import { CFormDialog } from "@/components/c-form-dialog";
 // import type { CFormData, CFormPassportData } from "@/components/c-form-dialog";
@@ -446,6 +447,7 @@ const Connections = () => {
   const [createCredential] = useCreateCredentialMutation();
   const [patchCredentialType] = usePatchCredentialTypeMutation();
   const [deleteFamilyCredential] = useDeleteFamilyCredentialMutation();
+  const [updateCredentialHotel] = useUpdateCredentialHotelMutation();
 
   const { data: familyData, refetch: refetchFamily } =
     useGetFamilyCredentialsQuery();
@@ -581,14 +583,14 @@ const Connections = () => {
         pendingHotelLinkRef.current = null;
         const newCred = creds.find((c: any) => !credIdsBeforeVerifyRef.current.has(c.id));
         if (newCred?.id) {
-          updateCredentials({
+          updateCredentialHotel({
+            credential_id: newCred.id,
             credential_request_id: credReqId,
-            pending_credential_id: newCred.id,
           });
         }
       }
     }
-  }, [credentialsData, verifyPollingMs, updateCredentials]);
+  }, [credentialsData, verifyPollingMs, updateCredentialHotel]);
 
   useEffect(() => {
     let maxVerifiedChildIndex = 0;
@@ -1459,10 +1461,10 @@ const Connections = () => {
     if (code && derivedConnectionId && !(CHILD_AADHAAR_TYPES as readonly string[]).includes(documentType)) {
       const existingCred = verifiedCredentialsMap[documentType as string];
       if (existingCred?.id) {
-        // Re-verification: credential already exists — link its known ID immediately
-        updateCredentials({
+        // Re-verification: credential already exists — stamp hotel_id directly on it
+        updateCredentialHotel({
+          credential_id: existingCred.id,
           credential_request_id: derivedConnectionId,
-          pending_credential_id: existingCred.id,
         });
       } else {
         // First verification: credential will be created by webhook — find it via polling

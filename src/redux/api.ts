@@ -161,6 +161,13 @@ export const api = createApi({
       }),
       invalidatesTags: ["familyCredentials"],
     }),
+    updateCredentialHotel: builder.mutation<{ success: boolean }, { credential_id: string; credential_request_id: string }>({
+      query: (body) => ({
+        url: "/users/updateCredentialHotel",
+        method: "POST",
+        body,
+      }),
+    }),
     submitFeedback: builder.mutation<
       { success: boolean; message: string },
       { credential_request_id: string; rating: number; feedback_message?: string }
@@ -417,4 +424,5 @@ export const {
   useSubmitFeedbackMutation,
   useGetFamilyCredentialsQuery,
   useDeleteFamilyCredentialMutation,
+  useUpdateCredentialHotelMutation,
 } = api;
