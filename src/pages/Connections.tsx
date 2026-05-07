@@ -411,6 +411,13 @@ const Connections = () => {
   const [verifyPollingMs, setVerifyPollingMs] = useState(0);
   const verifyPollStopRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const credCountBeforeVerifyRef = useRef(0);
+  // When user verifies via a hotel QR but hasn't shared yet, remember the link so we can
+  // attach the credential to the credential_request with status "Pending"
+  const pendingHotelLinkRef = useRef<{
+    sessionId: string;
+    credentialRequestId: string;
+    documentType: string;
+  } | null>(null);
 
   // api
   const {
@@ -564,8 +571,18 @@ const Connections = () => {
     if (count > credCountBeforeVerifyRef.current) {
       setVerifyPollingMs(0);
       if (verifyPollStopRef.current) { clearTimeout(verifyPollStopRef.current); verifyPollStopRef.current = null; }
+      // Link verified credential to hotel's request with Pending status (not shared yet)
+      // so the hotel name appears in the super admin verifications table
+      const link = pendingHotelLinkRef.current;
+      if (link) {
+        pendingHotelLinkRef.current = null;
+        updateCredentials({
+          credential_request_id: link.credentialRequestId,
+          credentials: [{ credential_id: link.sessionId, status: "Pending", document_type: link.documentType }],
+        });
+      }
     }
-  }, [credentialsData, verifyPollingMs]);
+  }, [credentialsData, verifyPollingMs, updateCredentials]);
 
   useEffect(() => {
     let maxVerifiedChildIndex = 0;
@@ -1426,6 +1443,15 @@ const Connections = () => {
 
     // Save hotel code before opening iframe in case Kwik navigation clears the URL param
     if (code) saveRecipientIdForLater(code);
+
+    // Track hotel link so we can attach credential after verification completes
+    if (code && derivedConnectionId && !(CHILD_AADHAAR_TYPES as readonly string[]).includes(documentType)) {
+      pendingHotelLinkRef.current = {
+        sessionId: effectiveSessionId,
+        credentialRequestId: derivedConnectionId,
+        documentType: documentType as string,
+      };
+    }
 
     setIframeUrl(verificationUrl);
   };
