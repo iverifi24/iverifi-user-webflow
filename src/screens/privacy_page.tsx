@@ -785,7 +785,7 @@ export default function PrivacyPage() {
                   <strong>CIN:</strong> U62099MP2023PTC066602
                 </p>
                 <p>
-                  <strong>Phone:</strong> +91 7022573737
+                  <strong>Phone:</strong> +91 7676487732
                 </p>
 
                 <div className="mt-4 pt-4 border-t border-teal-300 dark:border-teal-700">

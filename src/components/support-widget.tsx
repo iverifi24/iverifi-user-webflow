@@ -48,7 +48,7 @@ export function SupportWidget() {
           </p>
 
           <a
-            href="tel:+919535488227"
+            href="tel:+917676487732"
             className="flex items-center justify-center gap-2 w-full rounded-xl py-2.5 px-4 text-sm font-semibold transition-opacity hover:opacity-90 active:opacity-75"
             style={{
               backgroundColor: "var(--iverifi-accent)",
@@ -56,7 +56,7 @@ export function SupportWidget() {
             }}
           >
             <PhoneCall className="h-4 w-4" />
-            +91 95354 88227
+            +91 76764 87732
           </a>
         </div>
       )}

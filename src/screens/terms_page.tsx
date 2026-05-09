@@ -772,7 +772,7 @@ export default function TermsPage() {
                   <strong>CIN:</strong> U62099MP2023PTC066602
                 </p>
                 <p>
-                  <strong>Phone:</strong> +91 7022573737
+                  <strong>Phone:</strong> +91 7676487732
                 </p>
 
                 <div className="mt-4 pt-4 border-t border-blue-300 dark:border-blue-700">
