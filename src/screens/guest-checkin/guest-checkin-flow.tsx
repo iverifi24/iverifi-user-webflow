@@ -11,6 +11,7 @@ import GuestKyc from "./guest-kyc";
 import GuestDetails from "./guest-details";
 import ReturningGuest from "./returning-guest";
 import GuestConfirmation from "./guest-confirmation";
+import { SupportWidget } from "@/components/support-widget";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -352,6 +353,8 @@ export default function GuestCheckinFlow() {
       <div className="w-full max-w-[420px] mx-auto min-h-screen flex flex-col">
         {renderStep()}
       </div>
+
+      <SupportWidget />
     </div>
   );
 }
