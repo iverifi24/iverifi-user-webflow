@@ -335,6 +335,21 @@ export default function GuestCheckinFlow() {
         }}
       />
 
+      {/* Home button */}
+      {state.step !== "loading" && (
+        <button
+          onClick={() => navigate("/")}
+          className="fixed top-4 left-4 z-50 flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium text-[#6b7e95] hover:text-white transition-colors"
+          style={{ background: "rgba(255,255,255,0.06)" }}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+            <polyline points="9 22 9 12 15 12 15 22"/>
+          </svg>
+          Home
+        </button>
+      )}
+
       {/* Progress bar */}
       {state.step !== "loading" && state.step !== "landing" && state.step !== "error" && state.step !== "kyc" && state.step !== "checkedin" && (
         <div className="fixed top-0 left-0 right-0 h-1 bg-white/5 z-50 max-w-[420px] mx-auto">
