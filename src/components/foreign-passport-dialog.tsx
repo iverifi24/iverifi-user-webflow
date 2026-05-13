@@ -165,7 +165,7 @@ export function ForeignPassportDialog({ open, onSave, onClose }: Props) {
     </div>
   );
 
-  const uploadCard = (icon: string, title: string, subtitle: string, inputId: string, onFile: (f: File) => void, demoLabel: string, onDemo: () => void, backLabel?: string, onBack?: () => void) => (
+  const uploadCard = (icon: string, title: string, subtitle: string, inputId: string, onFile: (f: File) => void, backLabel?: string, onBack?: () => void) => (
     <>
       <label
         htmlFor={inputId}
@@ -192,9 +192,6 @@ export function ForeignPassportDialog({ open, onSave, onClose }: Props) {
           onChange={(e) => { const f = e.target.files?.[0]; if (f) onFile(f); e.target.value = ""; }}
         />
       </label>
-      <button type="button" onClick={onDemo} disabled={uploading} style={{ ...BTN_SECONDARY, marginTop: 0, marginBottom: 10 }}>
-        {demoLabel}
-      </button>
       {onBack && (
         <button type="button" onClick={onBack} style={{ ...BTN_SECONDARY, marginTop: 0 }}>
           {backLabel || "← Back"}
@@ -240,8 +237,6 @@ export function ForeignPassportDialog({ open, onSave, onClose }: Props) {
               "📷", "Upload passport photo", "Camera or gallery",
               "fp-passport-upload",
               (f) => handleFileSelect("passport", f),
-              "Demo — use sample photo",
-              () => { setPhotos((p) => ({ ...p, passport: "demo" })); setStep("visa"); },
             )}
           </>
         )}
@@ -260,7 +255,7 @@ export function ForeignPassportDialog({ open, onSave, onClose }: Props) {
             {photos.passport && (
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14, padding: 10, background: "var(--iverifi-success-soft)", borderRadius: 12, border: "1px solid var(--iverifi-success-border)" }}>
                 <div style={{ width: 40, height: 40, borderRadius: 10, overflow: "hidden", flexShrink: 0, background: "var(--iverifi-muted-surface)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  {photos.passport !== "demo" && photos.passport
+                  {photos.passport
                     ? <img src={photos.passport} alt="passport" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                     : <span style={{ fontSize: 18 }}>📷</span>}
                 </div>
@@ -271,8 +266,6 @@ export function ForeignPassportDialog({ open, onSave, onClose }: Props) {
               "📄", "Upload visa / stamp photo", "Camera or gallery",
               "fp-visa-upload",
               (f) => handleFileSelect("visa", f),
-              "Demo — use sample photo",
-              () => { setPhotos((p) => ({ ...p, visa: "demo" })); setStep("selfie"); startCamera(); },
               "← Back",
               () => setStep("passport"),
             )}
@@ -303,17 +296,12 @@ export function ForeignPassportDialog({ open, onSave, onClose }: Props) {
                   </div>
                 </div>
                 <button type="button" onClick={captureSelfie} style={{ ...BTN_PRIMARY, marginBottom: 10 }}>📸 Capture</button>
-                <button type="button" onClick={() => { stopCamera(); setPhotos((p) => ({ ...p, selfie: "demo" })); }} style={{ ...BTN_SECONDARY, marginTop: 0, marginBottom: 10 }}>
-                  Skip — use demo
-                </button>
               </>
             )}
             {photos.selfie && !cameraActive && (
               <>
                 <div style={{ width: 200, height: 200, margin: "0 auto 12px", borderRadius: 16, overflow: "hidden", background: "var(--iverifi-muted-surface)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  {photos.selfie !== "demo"
-                    ? <img src={photos.selfie} alt="selfie" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                    : <div style={{ textAlign: "center" }}><div style={{ fontSize: 64 }}>👤</div><div style={{ fontSize: 13, color: "var(--iverifi-hint-text)", marginTop: 8 }}>Photo captured</div></div>}
+                  <img src={photos.selfie} alt="selfie" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                 </div>
                 <button type="button" onClick={() => setStep("preview")} style={{ ...BTN_PRIMARY, marginBottom: 10 }}>
                   Looks good →
@@ -348,7 +336,7 @@ export function ForeignPassportDialog({ open, onSave, onClose }: Props) {
                 return (
                   <div key={key} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
                     <div style={{ width: "100%", aspectRatio: "1", borderRadius: 12, overflow: "hidden", background: "var(--iverifi-muted-surface)", border: "1px solid var(--iverifi-card-border)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                      {src && src !== "demo"
+                      {src
                         ? <img src={src} alt={label} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                         : <span style={{ fontSize: 28 }}>{icon}</span>}
                     </div>

@@ -462,6 +462,7 @@ const Connections = () => {
     startedAt: number;
   } | null>(null);
   const pendingFamilyVerify = useRef(false);
+  const pendingFamilyCredentialId = useRef<string | null>(null);
 
   const [deleteTarget, setDeleteTarget] = useState<{
     id: string;
@@ -1120,6 +1121,7 @@ const Connections = () => {
         }
         if (pendingFamilyVerify.current) {
           pendingFamilyVerify.current = false;
+          pendingFamilyCredentialId.current = null;
           await refetchFamily();
         } else {
           // Snapshot credential IDs + count before polling so we can find the new doc.
@@ -1498,6 +1500,7 @@ const Connections = () => {
       setFamilyDialogOpen(false);
       setFamilyNickname("");
       pendingFamilyVerify.current = true;
+      pendingFamilyCredentialId.current = sessionId;
       pendingChildVerify.current = null;
       const origin = window.location.origin;
       setIframeUrl(
@@ -4241,7 +4244,18 @@ const Connections = () => {
               aria-label="Close"
               className="absolute top-3 right-3 inline-flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-1.5 text-sm font-medium text-foreground shadow-sm hover:bg-accent hover:border-teal-300/40 hover:text-teal-700 dark:hover:text-teal-300 transition-colors"
               onClick={async () => {
-                pendingChildVerify.current = null; // user closed manually — no patch needed
+                // Delete any pre-created ONGOING credential if the user closed without completing
+                const closedChild = pendingChildVerify.current;
+                const closedFamilyId = pendingFamilyCredentialId.current;
+                pendingChildVerify.current = null;
+                pendingFamilyVerify.current = false;
+                pendingFamilyCredentialId.current = null;
+                if (closedChild?.sessionId) {
+                  try { await deleteCredential({ credential_id: closedChild.sessionId }).unwrap(); } catch { /* non-fatal */ }
+                }
+                if (closedFamilyId) {
+                  try { await deleteCredential({ credential_id: closedFamilyId }).unwrap(); } catch { /* non-fatal */ }
+                }
                 setIframeUrl(null);
                 await refetchCredentials();
                 const currentCode = new URLSearchParams(

@@ -17,12 +17,16 @@ import TermsPage from "./screens/terms_page";
 import PrivacyPage from "./screens/privacy_page";
 import AadhaarDigiLockerTest from "./screens/documents/aadhaar_digilocker_test";
 import FamilyIds from "./screens/family_ids";
+import GuestCheckinFlow from "./screens/guest-checkin/guest-checkin-flow";
 
 const App = () => {
   return (
     <Router>
       <QRCodeHandler>
         <Routes>
+          {/* Guest check-in funnel — no auth required, manages its own auth internally */}
+          <Route path="/checkin" element={<GuestCheckinFlow />} />
+
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
           <Route path="/accept-terms" element={<TermsAcceptance />} />

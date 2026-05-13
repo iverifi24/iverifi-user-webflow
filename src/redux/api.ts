@@ -378,6 +378,27 @@ export const api = createApi({
       }),
       invalidatesTags: ["userManagement"],
     }),
+
+    getHotelPublicInfo: builder.query<
+      { hasError: boolean; data: { name: string; logo_url: string | null } | null; message: string },
+      string
+    >({
+      query: (recipient_id) => ({
+        url: `/users/public/hotel-info`,
+        method: "GET",
+        params: { recipient_id },
+      }),
+    }),
+    markKycStarted: builder.mutation<
+      { hasError: boolean; message: string },
+      { credential_request_id: string; session_id: string; document_type: string }
+    >({
+      query: (body) => ({
+        url: "/users/markKycStarted",
+        method: "POST",
+        body,
+      }),
+    }),
   }),
 });
 export const {
@@ -425,4 +446,6 @@ export const {
   useGetFamilyCredentialsQuery,
   useDeleteFamilyCredentialMutation,
   useUpdateCredentialHotelMutation,
+  useGetHotelPublicInfoQuery,
+  useMarkKycStartedMutation,
 } = api;

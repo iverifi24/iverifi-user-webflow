@@ -14,7 +14,7 @@ export default function SignupPage() {
     if (user) {
       const code = searchParams.get("code");
       if (code) {
-        navigate(`/?code=${encodeURIComponent(code)}`, { replace: true });
+        navigate(`/checkin?code=${encodeURIComponent(code)}`, { replace: true });
       } else {
         navigate("/", { replace: true });
       }
