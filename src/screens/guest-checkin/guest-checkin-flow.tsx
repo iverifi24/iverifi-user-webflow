@@ -372,7 +372,7 @@ interface CheckingProps {
   onError: (msg: string) => void;
 }
 
-function GuestChecking({ hotelCode, hotelName, startedAt, onResult, onAlreadyCheckedIn, onError }: CheckingProps) {
+function GuestChecking({ hotelCode, hotelName, startedAt: _startedAt, onResult, onAlreadyCheckedIn, onError }: CheckingProps) {
   const [addConnection] = useAddConnectionMutation();
   const { data: credsData, isLoading: credsLoading } = useGetCredentialsQuery();
   const { data: recipientData, isLoading: recipientLoading } = useGetRecipientCredentialsQuery(hotelCode, { skip: !hotelCode });
