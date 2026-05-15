@@ -119,13 +119,20 @@ export default function GuestDocSelect({
     setIframeUrl(null);
     setKycFailed(false);
     if (!verifyingType) {
-      // No verification was in progress — cancel polling and go back
       setVerifyingType(null);
       setPolling(false);
       if (pollStop.current) clearTimeout(pollStop.current);
+      return;
     }
-    // If verifyingType is set, polling is already running from handleVerify.
-    // Let it detect the new credential and call onSelected, or timeout and set timedOut.
+    // Verification was in progress — reset the poll timer so webhook has a fresh
+    // window to arrive even if the user spent a long time inside the iframe.
+    setTimedOut(false);
+    setPolling(true);
+    if (pollStop.current) clearTimeout(pollStop.current);
+    pollStop.current = setTimeout(() => {
+      setPolling(false);
+      setTimedOut(true);
+    }, POLL_TIMEOUT_MS);
   };
 
   const handleVerify = (docType: string, productCode: string) => {
