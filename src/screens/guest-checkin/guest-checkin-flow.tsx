@@ -4,6 +4,7 @@ import { guestCheckin } from "@/utils/connectionFlow";
 import { useAddConnectionMutation, useGetCredentialsQuery, useGetRecipientCredentialsQuery, useGetHotelPublicInfoQuery } from "@/redux/api";
 import { useAuth } from "@/context/auth_context";
 import { setTermsAccepted } from "@/utils/terms";
+import { logoutUser } from "@/firebase_auth_service";
 
 import GuestLanding from "./guest-landing";
 import GuestPhoneAuth from "./guest-phone-auth";
@@ -211,7 +212,17 @@ export default function GuestCheckinFlow() {
             onSelected={(credential) =>
               advance({ selectedCredential: credential, credentials: state.credentials.find(c => c.id === credential.id) ? state.credentials : [...state.credentials, credential], step: "details" })
             }
-            onForeignCheckin={(result) => advance({ step: "confirm", checkInResult: result })}
+            onForeignCheckin={(result, docType) => advance({
+              step: "confirm",
+              checkInResult: result,
+              selectedCredential: docType
+                ? { id: "manual", document_type: docType, state: "auto_approved" }
+                : state.selectedCredential,
+            })}
+            onManualDetails={(docType) => advance({
+              step: "details",
+              selectedCredential: { id: "manual", document_type: docType, state: "auto_approved" },
+            })}
             onError={(msg) => advance({ step: "error", errorMessage: msg })}
             onBack={() => advance({ step: "checking" })}
           />
@@ -262,6 +273,7 @@ export default function GuestCheckinFlow() {
             hotelName={state.hotelInfo?.name ?? "the hotel"}
             credential={state.selectedCredential}
             checkInResult={state.checkInResult}
+            connectionId={state.connectionId}
             onDone={() => {}}
           />
         );
@@ -335,8 +347,8 @@ export default function GuestCheckinFlow() {
         }}
       />
 
-      {/* Home button */}
-      {state.step !== "loading" && (
+      {/* Home button — only when signed in */}
+      {state.step !== "loading" && user && (
         <button
           onClick={() => navigate("/")}
           className="fixed top-4 left-4 z-50 flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium text-[#6b7e95] hover:text-white transition-colors"
@@ -347,6 +359,22 @@ export default function GuestCheckinFlow() {
             <polyline points="9 22 9 12 15 12 15 22"/>
           </svg>
           Home
+        </button>
+      )}
+
+      {/* Logout button — only when signed in */}
+      {state.step !== "loading" && user && (
+        <button
+          onClick={() => { logoutUser(); guestCheckin.clear(); navigate("/login"); }}
+          className="fixed top-4 right-4 z-50 flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium text-[#6b7e95] hover:text-red-400 transition-colors"
+          style={{ background: "rgba(255,255,255,0.06)" }}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+            <polyline points="16 17 21 12 16 7"/>
+            <line x1="21" y1="12" x2="9" y2="12"/>
+          </svg>
+          Logout
         </button>
       )}
 

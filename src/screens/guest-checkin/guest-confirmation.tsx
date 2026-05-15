@@ -1,8 +1,10 @@
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { guestCheckin } from "@/utils/connectionFlow";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { IverifiLogo } from "@/components/iverifi-logo";
+import { FeedbackModal } from "@/components/feedback-modal";
 import type { FlowCredential } from "./guest-checkin-flow";
 
 const DOC_LABELS: Record<string, string> = {
@@ -10,25 +12,38 @@ const DOC_LABELS: Record<string, string> = {
   DRIVING_LICENSE: "Driving Licence",
   PAN_CARD: "PAN Card",
   PASSPORT: "Passport",
+  FOREIGN_PASSPORT: "Foreign Passport",
 };
 
 interface Props {
   hotelName: string;
   credential: FlowCredential | null;
   checkInResult: "approved" | "pending" | null;
+  connectionId: string;
   onDone: () => void;
 }
 
-export default function GuestConfirmation({ hotelName, credential, checkInResult, onDone }: Props) {
+export default function GuestConfirmation({ hotelName, credential, checkInResult, connectionId, onDone }: Props) {
   const navigate = useNavigate();
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
   const docLabel = credential ? (DOC_LABELS[credential.document_type] ?? credential.document_type) : "Document";
   const isApproved = checkInResult === "approved";
   const now = new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
+
+  // Auto-open feedback sheet after a short delay
+  useEffect(() => {
+    const t = setTimeout(() => setFeedbackOpen(true), 1500);
+    return () => clearTimeout(t);
+  }, []);
 
   const handleDone = () => {
     guestCheckin.clear();
     onDone();
     navigate("/");
+  };
+
+  const handleFeedbackClose = () => {
+    setFeedbackOpen(false);
   };
 
   return (
@@ -82,7 +97,21 @@ export default function GuestConfirmation({ hotelName, credential, checkInResult
         >
           Back to Home
         </Button>
+        <button
+          type="button"
+          className="text-sm text-muted-foreground underline-offset-2 hover:underline"
+          onClick={() => setFeedbackOpen(true)}
+        >
+          Rate your experience
+        </button>
       </div>
+
+      <FeedbackModal
+        open={feedbackOpen}
+        credentialRequestId={connectionId}
+        hotelName={hotelName}
+        onClose={handleFeedbackClose}
+      />
     </div>
   );
 }

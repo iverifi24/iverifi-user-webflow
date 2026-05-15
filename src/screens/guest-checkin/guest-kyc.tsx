@@ -4,6 +4,7 @@ import { useGetCredentialsQuery, useSaveForeignPassportMutation, useUpdateCheckI
 import { Button } from "@/components/ui/button";
 import { IverifiLogo } from "@/components/iverifi-logo";
 import { ForeignPassportDialog } from "@/components/foreign-passport-dialog";
+import { ManualIdUploadDialog } from "@/components/manual-id-upload-dialog";
 import type { ForeignPassportPhotos } from "@/components/foreign-passport-dialog";
 import type { FlowCredential } from "./guest-checkin-flow";
 
@@ -24,7 +25,8 @@ interface Props {
   connectionId: string;
   startedAt: number;
   onSelected: (credential: FlowCredential) => void;
-  onForeignCheckin: (result: "approved" | "pending") => void;
+  onForeignCheckin: (result: "approved" | "pending", docType?: string) => void;
+  onManualDetails: (docType: string) => void;
   onError: (msg: string) => void;
   onBack: () => void;
 }
@@ -36,6 +38,7 @@ export default function GuestDocSelect({
   startedAt,
   onSelected,
   onForeignCheckin,
+  onManualDetails,
   onError,
   onBack,
 }: Props) {
@@ -43,6 +46,8 @@ export default function GuestDocSelect({
   const [verifyingType, setVerifyingType] = useState<string | null>(null);
   const [polling, setPolling] = useState(false);
   const [timedOut, setTimedOut] = useState(false);
+  const [kycFailed, setKycFailed] = useState(false);
+  const [manualUploadOpen, setManualUploadOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(
     existingCredentials[0]?.id ?? null
   );
@@ -61,6 +66,9 @@ export default function GuestDocSelect({
   const { data: credsData, refetch: refetchCreds } = useGetCredentialsQuery(undefined, {
     pollingInterval: pollInterval,
   });
+
+  // Ensure credentials are fresh when this screen first mounts
+  useEffect(() => { refetchCreds(); }, []);
 
   // Detect newly verified credential from webhook
   useEffect(() => {
@@ -85,15 +93,21 @@ export default function GuestDocSelect({
     const handler = async (event: MessageEvent) => {
       if (typeof event.origin !== "string" || !event.origin.startsWith(IVERIFI_ORIGIN)) return;
       const d = event.data;
-      if (d?.type === "iverifi" && d?.status === "completed") {
-        setIframeUrl(null);
-        setPolling(true);
-        await refetchCreds();
-        if (pollStop.current) clearTimeout(pollStop.current);
-        pollStop.current = setTimeout(() => {
-          setPolling(false);
-          setTimedOut(true);
-        }, POLL_TIMEOUT_MS);
+      if (d?.type === "iverifi") {
+        if (d?.status === "completed") {
+          setIframeUrl(null);
+          setPolling(true);
+          await refetchCreds();
+          if (pollStop.current) clearTimeout(pollStop.current);
+          pollStop.current = setTimeout(() => {
+            setPolling(false);
+            setTimedOut(true);
+          }, POLL_TIMEOUT_MS);
+        } else if (d?.status === "failed" || d?.status === "rejected" || d?.status === "error") {
+          setIframeUrl(null);
+          setVerifyingType(null);
+          setKycFailed(true);
+        }
       }
     };
     window.addEventListener("message", handler);
@@ -104,8 +118,35 @@ export default function GuestDocSelect({
   }, [refetchCreds]);
 
   const closeIframe = () => {
+    const wasVerifying = !!verifyingType;
     setIframeUrl(null);
-    setVerifyingType(null);
+    setKycFailed(false);
+    if (!wasVerifying) {
+      setVerifyingType(null);
+      return;
+    }
+    // Was mid-verification — quick check for a new credential.
+    // If one appeared (KYC completed just before close) → update badge silently.
+    // If not → show error screen so the user sees their options.
+    setPolling(true);
+    refetchCreds().then((result: any) => {
+      setPolling(false);
+      const all: any[] = result.data?.data?.credential ?? [];
+      const approved = all.filter((c: any) => c.state === "auto_approved") as FlowCredential[];
+      const newOne = approved.find((c: any) => !credIdsBefore.current.has(c.id));
+      if (newOne) {
+        setLocalCreds(approved);
+        setSelectedId(newOne.id);
+        credIdsBefore.current = new Set(approved.map((c: any) => c.id));
+        setVerifyingType(null);
+      } else {
+        // No new credential — surface the error screen with options
+        setKycFailed(true);
+      }
+    }).catch(() => {
+      setPolling(false);
+      setKycFailed(true);
+    });
   };
 
   const handleVerify = (docType: string, productCode: string) => {
@@ -158,7 +199,7 @@ export default function GuestDocSelect({
         res?.data?.status === "approved" ||
         res?.message?.toLowerCase().includes("approved") ||
         res?.message?.toLowerCase().includes("recorded");
-      onForeignCheckin(isApproved ? "approved" : "pending");
+      onForeignCheckin(isApproved ? "approved" : "pending", "FOREIGN_PASSPORT");
     } catch (err: any) {
       const status = err?.status ?? err?.originalStatus;
       if (status === 403) {
@@ -215,28 +256,104 @@ export default function GuestDocSelect({
     );
   }
 
-  // ── Timeout ───────────────────────────────────────────────────────────────
-  if (timedOut) {
+  // ── KYC error (explicit failure postMessage or polling timeout) ───────────
+  const showError = timedOut || kycFailed;
+  const failedDocType = verifyingType ?? localCreds[0]?.document_type ?? "AADHAAR_CARD";
+  const DOC_LABELS_MAP: Record<string, string> = {
+    AADHAAR_CARD: "Aadhaar Card", DRIVING_LICENSE: "Driving Licence",
+    PAN_CARD: "PAN Card", PASSPORT: "Passport",
+  };
+  const failedDocLabel = DOC_LABELS_MAP[failedDocType] ?? "ID Document";
+
+  const handleManualUploadSave = async (data: ForeignPassportPhotos) => {
+    if (!connectionId) { onError("No connection found. Please restart."); return; }
+    await saveForeignPassport({ credential_request_id: connectionId, foreign_passport_data: data }).unwrap();
+    setManualUploadOpen(false);
+    setTimedOut(false);
+    setKycFailed(false);
+    onManualDetails(failedDocType);
+  };
+
+  if (showError) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-4 px-4 text-center max-w-sm mx-auto">
-        <span className="text-4xl">⏳</span>
-        <p className="font-semibold text-foreground">Still processing…</p>
-        <p className="text-sm text-muted-foreground">
-          Verification is taking longer than usual. Tap below to check again or speak to the front desk.
-        </p>
-        <Button
-          className="w-full bg-gradient-to-r from-[#00e0ff] to-[#7B5CF5] text-slate-950 hover:from-[#40e8ff] hover:to-[#9274ff]"
-          onClick={async () => {
-            setTimedOut(false);
-            setPolling(true);
-            await refetchCreds();
-            if (pollStop.current) clearTimeout(pollStop.current);
-            pollStop.current = setTimeout(() => { setPolling(false); setTimedOut(true); }, POLL_TIMEOUT_MS);
-          }}
-        >
-          Check Again
-        </Button>
-      </div>
+      <>
+        <div className="flex min-h-screen flex-col items-center justify-center gap-5 px-6 text-center max-w-sm mx-auto">
+          <div
+            className="w-20 h-20 rounded-[24px] flex items-center justify-center text-4xl"
+            style={{ background: "rgba(255,77,109,0.10)", border: "1.5px solid rgba(255,77,109,0.3)" }}
+          >
+            ❌
+          </div>
+          <div>
+            <p className="font-bold text-lg text-foreground mb-1">Verification unsuccessful</p>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              {kycFailed
+                ? "Your identity verification was declined. This can happen due to a blurry document, liveness check failure, or an expired ID."
+                : "Verification is taking longer than expected. The document may be unclear, expired, or the session timed out."}
+            </p>
+          </div>
+
+          <div className="w-full flex flex-col gap-3">
+            {/* Try again — re-open Kwik for same doc type */}
+            {verifyingType && (() => {
+              const dt = DOC_TYPES.find((d) => d.type === verifyingType);
+              return dt ? (
+                <Button
+                  className="w-full h-12 bg-gradient-to-r from-[#00e0ff] to-[#7B5CF5] text-slate-950 font-semibold hover:from-[#40e8ff] hover:to-[#9274ff]"
+                  onClick={() => { setTimedOut(false); setKycFailed(false); handleVerify(dt.type, dt.productCode); }}
+                >
+                  Try again with {failedDocLabel}
+                </Button>
+              ) : null;
+            })()}
+
+            {/* Check again (polling timeout only) */}
+            {timedOut && !kycFailed && (
+              <Button
+                className="w-full h-12 bg-gradient-to-r from-[#00e0ff] to-[#7B5CF5] text-slate-950 font-semibold hover:from-[#40e8ff] hover:to-[#9274ff]"
+                onClick={async () => {
+                  setTimedOut(false);
+                  setPolling(true);
+                  await refetchCreds();
+                  if (pollStop.current) clearTimeout(pollStop.current);
+                  pollStop.current = setTimeout(() => { setPolling(false); setTimedOut(true); }, POLL_TIMEOUT_MS);
+                }}
+              >
+                Check if verification went through
+              </Button>
+            )}
+
+            {/* Upload manually */}
+            <Button
+              variant="outline"
+              className="w-full h-12 border-[var(--iverifi-card-border)] text-foreground"
+              onClick={() => setManualUploadOpen(true)}
+            >
+              📷 Upload {failedDocLabel} manually
+            </Button>
+
+            {/* Try different ID */}
+            <Button
+              variant="outline"
+              className="w-full h-12 border-[var(--iverifi-card-border)] text-muted-foreground"
+              onClick={() => { setTimedOut(false); setKycFailed(false); setVerifyingType(null); }}
+            >
+              Try a different ID
+            </Button>
+          </div>
+
+          <p className="text-xs text-muted-foreground">
+            Still having trouble? Please speak to the front desk.
+          </p>
+        </div>
+
+        <ManualIdUploadDialog
+          open={manualUploadOpen}
+          documentLabel={failedDocLabel}
+          onSave={handleManualUploadSave}
+          onClose={() => setManualUploadOpen(false)}
+        />
+      </>
     );
   }
 

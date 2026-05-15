@@ -69,6 +69,8 @@ export default function GuestDetails({
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
+  const [phoneInput, setPhoneInput] = useState(phone ?? "");
+  useEffect(() => { if (phone && !phoneInput) setPhoneInput(phone); }, [phone]);
   const [submitting, setSubmitting] = useState(false);
 
   const [updateCredentialsRequest] = useUpdateCredentialsRequestMutation();
@@ -94,6 +96,7 @@ export default function GuestDetails({
   }, [credential?.id]);
 
   const handleSubmit = useCallback(async () => {
+    const isManualUpload = selected?.id === "manual";
     if (!firstName.trim()) { toast.error("Please enter your first name"); return; }
     if (!selected || !connectionId) {
       onError("No credential selected. Please go back and try again.");
@@ -108,29 +111,31 @@ export default function GuestDetails({
         lastName: lastName.trim(),
         name: `${firstName.trim()} ${lastName.trim()}`.trim(),
         ...(email.trim() && { email: email.trim() }),
-        ...(phone && { phone, phoneNumber: phone }),
+        ...(phoneInput.trim() && { phone: phoneInput.trim(), phoneNumber: phoneInput.trim() }),
         profile_completion_level: 2,
       });
 
-      // Share credential
-      const expiryDate = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split("T")[0];
-      await updateCredentialsRequest({
-        credential_request_id: connectionId,
-        credentials: [
-          {
-            credential_id: selected.id,
-            document_type: selected.document_type,
-            status: "Active",
-            expiry_date: expiryDate,
-          },
-        ],
-      }).unwrap();
+      if (!isManualUpload) {
+        // Share KYC credential
+        const expiryDate = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+        await updateCredentialsRequest({
+          credential_request_id: connectionId,
+          credentials: [
+            {
+              credential_id: selected.id,
+              document_type: selected.document_type,
+              status: "Active",
+              expiry_date: expiryDate,
+            },
+          ],
+        }).unwrap();
+      }
 
       // Submit check-in
       const checkInRes = await updateCheckInStatus({
         credential_request_id: connectionId,
         status: "checkin",
-        credential_id: selected.id,
+        credential_id: isManualUpload ? null : selected.id,
         document_type: selected.document_type,
         client_started_at: startedAt,
       }).unwrap();
@@ -151,7 +156,7 @@ export default function GuestDetails({
     } finally {
       setSubmitting(false);
     }
-  }, [firstName, lastName, email, phone, selected, connectionId, startedAt, updateCredentialsRequest, updateCheckInStatus, onSuccess, onError]);
+  }, [firstName, lastName, email, phoneInput, selected, connectionId, startedAt, updateCredentialsRequest, updateCheckInStatus, onSuccess, onError]);
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center px-4 py-8">
@@ -191,6 +196,18 @@ export default function GuestDetails({
                   className="bg-background border-[color:var(--iverifi-card-border)]"
                 />
               </div>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <Label className="text-xs font-medium text-muted-foreground">Phone Number</Label>
+              <Input
+                value={phoneInput}
+                onChange={(e) => setPhoneInput(e.target.value)}
+                placeholder="+91 98765 43210"
+                type="tel"
+                disabled={submitting}
+                className="bg-background border-[color:var(--iverifi-card-border)]"
+              />
             </div>
 
             <div className="flex flex-col gap-1.5">

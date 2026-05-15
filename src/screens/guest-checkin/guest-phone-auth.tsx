@@ -57,10 +57,12 @@ export default function GuestPhoneAuth({ hotelName, onAuthSuccess, onBack }: Pro
 
         <Card className="w-full border-[color:var(--iverifi-card-border)] bg-[var(--iverifi-card)] shadow-lg dark:shadow-[0_18px_45px_rgba(0,0,0,0.85)]">
           <CardHeader>
-            <CardTitle className="text-lg text-foreground">Verify your identity</CardTitle>
+            <CardTitle className="text-lg text-foreground">
+              Your mobile{" "}
+              <span style={{ color: "var(--iverifi-accent)" }}>number</span>
+            </CardTitle>
             <CardDescription className="text-sm text-muted-foreground">
-              Checking in to <strong className="text-foreground">{hotelName}</strong>. Sign in to
-              continue.
+              We'll send a one-time code to confirm it's you.
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
@@ -85,6 +87,10 @@ export default function GuestPhoneAuth({ hotelName, onAuthSuccess, onBack }: Pro
               )}
               Continue with Google
             </Button>
+
+            <p className="text-xs text-muted-foreground text-center">
+              Data protected under DPDP Act 2023.
+            </p>
           </CardContent>
         </Card>
 
