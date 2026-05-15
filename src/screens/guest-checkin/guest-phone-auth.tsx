@@ -19,7 +19,7 @@ interface Props {
   onBack: () => void;
 }
 
-export default function GuestPhoneAuth({ hotelName, onAuthSuccess, onBack }: Props) {
+export default function GuestPhoneAuth({ onAuthSuccess, onBack }: Props) {
   const [googleLoading, setGoogleLoading] = useState(false);
 
   const handleGoogleLogin = async () => {
