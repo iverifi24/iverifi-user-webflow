@@ -112,35 +112,16 @@ export default function GuestDocSelect({
   }, [refetchCreds]);
 
   const closeIframe = () => {
-    const wasVerifying = !!verifyingType;
     setIframeUrl(null);
     setKycFailed(false);
-    if (!wasVerifying) {
+    if (!verifyingType) {
+      // No verification was in progress — cancel polling and go back
       setVerifyingType(null);
-      return;
+      setPolling(false);
+      if (pollStop.current) clearTimeout(pollStop.current);
     }
-    // Was mid-verification — quick check for a new credential.
-    // If one appeared (KYC completed just before close) → update badge silently.
-    // If not → show error screen so the user sees their options.
-    setPolling(true);
-    refetchCreds().then((result: any) => {
-      setPolling(false);
-      const all: any[] = result.data?.data?.credential ?? [];
-      const approved = all.filter((c: any) => c.state === "auto_approved") as FlowCredential[];
-      const newOne = approved.find((c: any) => !credIdsBefore.current.has(c.id));
-      if (newOne) {
-        setLocalCreds(approved);
-        setSelectedId(newOne.id);
-        credIdsBefore.current = new Set(approved.map((c: any) => c.id));
-        setVerifyingType(null);
-      } else {
-        // No new credential — surface the error screen with options
-        setKycFailed(true);
-      }
-    }).catch(() => {
-      setPolling(false);
-      setKycFailed(true);
-    });
+    // If verifyingType is set, polling is already running from handleVerify.
+    // Let it detect the new credential and call onSelected, or timeout and set timedOut.
   };
 
   const handleVerify = (docType: string, productCode: string) => {
