@@ -51,7 +51,6 @@ export default function GuestDocSelect({
   const [selectedId, setSelectedId] = useState<string | null>(
     existingCredentials[0]?.id ?? null
   );
-  const [localCreds, setLocalCreds] = useState<FlowCredential[]>(existingCredentials);
   const [foreignPassportOpen, setForeignPassportOpen] = useState(false);
   const [foreignSubmitting, setForeignSubmitting] = useState(false);
 
@@ -66,6 +65,11 @@ export default function GuestDocSelect({
   const { data: credsData, refetch: refetchCreds } = useGetCredentialsQuery(undefined, {
     pollingInterval: pollInterval,
   });
+
+  const fetchedCreds: FlowCredential[] = (
+    (credsData?.data?.credential ?? []) as any[]
+  ).filter((c: any) => c.state === "auto_approved");
+  const localCreds = fetchedCreds.length > 0 ? fetchedCreds : existingCredentials;
 
   // Ensure credentials are fresh when this screen first mounts
   useEffect(() => { refetchCreds(); }, []);
