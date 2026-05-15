@@ -82,9 +82,8 @@ export default function GuestDocSelect({
       setVerifyingType(null);
       setIframeUrl(null);
       setTimedOut(false);
-      setLocalCreds(approved);
-      setSelectedId(newOne.id);
       credIdsBefore.current = new Set(approved.map((c) => c.id));
+      onSelected(newOne);
     }
   }, [credsData, polling]);
 
@@ -96,13 +95,8 @@ export default function GuestDocSelect({
       if (d?.type === "iverifi") {
         if (d?.status === "completed") {
           setIframeUrl(null);
-          setPolling(true);
+          // Polling already running from iframe open; just kick an immediate refetch
           await refetchCreds();
-          if (pollStop.current) clearTimeout(pollStop.current);
-          pollStop.current = setTimeout(() => {
-            setPolling(false);
-            setTimedOut(true);
-          }, POLL_TIMEOUT_MS);
         } else if (d?.status === "failed" || d?.status === "rejected" || d?.status === "error") {
           setIframeUrl(null);
           setVerifyingType(null);
@@ -173,6 +167,15 @@ export default function GuestDocSelect({
 
     setVerifyingType(docType);
     setIframeUrl(url);
+
+    // Start polling immediately so a new credential closes the iframe automatically,
+    // regardless of whether Kwik fires the postMessage.
+    setPolling(true);
+    if (pollStop.current) clearTimeout(pollStop.current);
+    pollStop.current = setTimeout(() => {
+      setPolling(false);
+      setTimedOut(true);
+    }, POLL_TIMEOUT_MS);
 
     // Fire-and-forget: record that this guest opened the KYC iframe so the hotel
     // admin can see incomplete verifications in their dashboard.

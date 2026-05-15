@@ -203,7 +203,7 @@ export default function GuestDetails({
               <Input
                 value={phoneInput}
                 onChange={(e) => setPhoneInput(e.target.value)}
-                placeholder="+91 98765 43210"
+                placeholder="Phone number"
                 type="tel"
                 disabled={submitting}
                 className="bg-background border-[color:var(--iverifi-card-border)]"

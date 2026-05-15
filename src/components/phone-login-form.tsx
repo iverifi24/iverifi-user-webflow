@@ -179,7 +179,7 @@ export function PhoneLoginForm({
                 id="phone-number"
                 type="tel"
                 inputMode="numeric"
-                placeholder="98765 43210"
+                placeholder="Phone number"
                 value={phoneDigits}
                 onChange={(e) =>
                   setPhoneDigits(
@@ -187,7 +187,7 @@ export function PhoneLoginForm({
                   )
                 }
                 disabled={isSendingOtp}
-                className="h-9 flex-1 rounded-lg sm:h-10 sm:rounded-xl"
+                className="h-9 flex-1 rounded-lg sm:h-10 sm:rounded-xl text-sm placeholder:text-sm"
               />
             </div>
           </div>
