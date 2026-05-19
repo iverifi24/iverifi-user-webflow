@@ -129,7 +129,14 @@ export default function GuestCheckinFlow() {
     if (authLoading) return;
     if (state.step !== "loading") return;
     if (user) {
-      advance({ step: "checking", phone: user.phoneNumber ?? "" });
+      const dlVerified = searchParams.get("dl_verified");
+      if (dlVerified === "1" && state.connectionId) {
+        // Returning from DigiLocker DL OAuth — skip GuestChecking, go straight to kyc.
+        // GuestKyc will detect ?dl_verified=1 and open the selfie modal.
+        advance({ step: "kyc", phone: user.phoneNumber ?? "", credentials: [] });
+      } else {
+        advance({ step: "checking", phone: user.phoneNumber ?? "" });
+      }
     } else {
       advance({ step: "landing" });
     }

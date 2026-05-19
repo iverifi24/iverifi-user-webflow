@@ -90,7 +90,7 @@ export default function GuestDetails({
       .then((profile) => {
         if (!fn && profile.firstName) setFirstName(profile.firstName);
         if (!fn) setLastName(profile.lastName ?? "");
-        if (profile.email) setEmail((prev) => prev || profile.email);
+        if (profile.email) setEmail((prev) => prev || profile.email || "");
         if (profile.phone || profile.phoneNumber) {
           setPhoneInput((prev) => prev || profile.phone || profile.phoneNumber || "");
         }
