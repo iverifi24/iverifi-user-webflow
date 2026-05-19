@@ -78,19 +78,22 @@ export default function GuestDetails({
 
   const selected = credential ?? credentials[0] ?? null;
 
-  // Pre-fill name: try OCR first, then fall back to saved backend profile
+  // Pre-fill name from OCR; always fetch profile for email + phone fallbacks.
   useEffect(() => {
     const { firstName: fn, lastName: ln } = extractNameFromCredential(credential);
     if (fn) {
       setFirstName(fn);
       setLastName(ln);
-      return;
     }
+    // Always fetch profile — needed for email and phone regardless of whether OCR gave us a name.
     getApplicantProfileFromBackend()
       .then((profile) => {
-        if (profile.firstName) setFirstName(profile.firstName);
-        setLastName(profile.lastName ?? "");
-        if (profile.email) setEmail(profile.email);
+        if (!fn && profile.firstName) setFirstName(profile.firstName);
+        if (!fn) setLastName(profile.lastName ?? "");
+        if (profile.email) setEmail((prev) => prev || profile.email);
+        if (profile.phone || profile.phoneNumber) {
+          setPhoneInput((prev) => prev || profile.phone || profile.phoneNumber || "");
+        }
       })
       .catch(() => {});
   }, [credential?.id]);

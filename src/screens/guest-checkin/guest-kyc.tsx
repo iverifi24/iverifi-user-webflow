@@ -5,8 +5,16 @@ import { Button } from "@/components/ui/button";
 import { IverifiLogo } from "@/components/iverifi-logo";
 import { ForeignPassportDialog } from "@/components/foreign-passport-dialog";
 import { ManualIdUploadDialog } from "@/components/manual-id-upload-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import type { ForeignPassportPhotos } from "@/components/foreign-passport-dialog";
 import type { FlowCredential } from "./guest-checkin-flow";
+import { toast } from "sonner";
+import { useSearchParams, useNavigate, useLocation } from "react-router-dom";
 
 const IVERIFI_ORIGIN = "https://iverifi.app.getkwikid.com";
 const POLL_INTERVAL_MS = 2000;
@@ -42,6 +50,10 @@ export default function GuestDocSelect({
   onError,
   onBack,
 }: Props) {
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const location = useLocation();
+
   const [iframeUrl, setIframeUrl] = useState<string | null>(null);
   const [verifyingType, setVerifyingType] = useState<string | null>(null);
   const [polling, setPolling] = useState(false);
@@ -53,6 +65,20 @@ export default function GuestDocSelect({
   );
   const [foreignPassportOpen, setForeignPassportOpen] = useState(false);
   const [foreignSubmitting, setForeignSubmitting] = useState(false);
+
+  // DL: choice modal + selfie
+  const [dlChoiceOpen, setDlChoiceOpen] = useState(false);
+  const [dlSelfieOpen, setDlSelfieOpen] = useState(false);
+  // true when selfie was triggered by DigiLocker return (cred already exists); false for Kwik path
+  const dlSelfieIsDigiLockerReturn = useRef(false);
+  const dlSelfieStreamRef = useRef<MediaStream | null>(null);
+  const dlSelfieVideoRef = useRef<HTMLVideoElement | null>(null);
+  const dlSelfieCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const [dlSelfieCaptured, setDlSelfieCaptured] = useState<string | null>(null);
+  const [dlSelfieUploading, setDlSelfieUploading] = useState(false);
+  // Holds the S3 URL of the selfie for the Kwik path — credential doesn't exist yet when the
+  // selfie is submitted, so we store the URL here and attach it once polling finds the credential.
+  const dlSelfieS3UrlRef = useRef<string | null>(null);
 
   const [saveForeignPassport] = useSaveForeignPassportMutation();
   const [updateCheckInStatus] = useUpdateCheckInStatusMutation();
@@ -74,6 +100,34 @@ export default function GuestDocSelect({
   // Ensure credentials are fresh when this screen first mounts
   useEffect(() => { refetchCreds(); }, []);
 
+  // Detect DigiLocker DL return: /?dl_verified=1 or /checkin?dl_verified=1
+  useEffect(() => {
+    const dlVerified = searchParams.get("dl_verified");
+    const dlError = searchParams.get("dl_error");
+    if (!dlVerified && !dlError) return;
+    if (dlVerified === "1") {
+      dlSelfieIsDigiLockerReturn.current = true;
+      setDlSelfieOpen(true);
+    }
+    if (dlError) {
+      setVerifyingType("DRIVING_LICENSE");
+      setKycFailed(true);
+    }
+    navigate(location.pathname, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Start/stop camera when selfie modal opens/closes
+  useEffect(() => {
+    if (dlSelfieOpen) {
+      startDLSelfieCamera();
+    } else {
+      stopDLSelfieCamera();
+      setDlSelfieCaptured(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dlSelfieOpen]);
+
   // Detect newly verified credential from webhook
   useEffect(() => {
     if (!polling) return;
@@ -87,6 +141,22 @@ export default function GuestDocSelect({
       setIframeUrl(null);
       setTimedOut(false);
       credIdsBefore.current = new Set(approved.map((c) => c.id));
+      // Kwik DL path: selfie was uploaded before the credential existed — attach it now.
+      const pendingSelfieUrl = dlSelfieS3UrlRef.current;
+      if (pendingSelfieUrl && newOne.document_type === "DRIVING_LICENSE") {
+        dlSelfieS3UrlRef.current = null;
+        const currentUser = auth.currentUser;
+        if (currentUser) {
+          const apiBase = ((import.meta as any).env.VITE_BASE_URL as string || "").replace(/\/$/, "");
+          currentUser.getIdToken().then((token) => {
+            fetch(`${apiBase}/users/updateDLSelfie`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+              body: JSON.stringify({ face_url: pendingSelfieUrl }),
+            }).catch(() => {});
+          }).catch(() => {});
+        }
+      }
       onSelected(newOne);
     }
   }, [credsData, polling]);
@@ -98,9 +168,15 @@ export default function GuestDocSelect({
       const d = event.data;
       if (d?.type === "iverifi") {
         if (d?.status === "completed") {
+          const wasDLKwik = (iframeUrl || "").includes("productCode=DL");
           setIframeUrl(null);
-          // Polling already running from iframe open; just kick an immediate refetch
-          await refetchCreds();
+          if (wasDLKwik) {
+            dlSelfieIsDigiLockerReturn.current = false; // Kwik path: cred not yet in Firestore
+            setDlSelfieOpen(true);
+          } else {
+            // Polling already running from iframe open; just kick an immediate refetch
+            await refetchCreds();
+          }
         } else if (d?.status === "failed" || d?.status === "rejected" || d?.status === "error") {
           setIframeUrl(null);
           setVerifyingType(null);
@@ -113,33 +189,126 @@ export default function GuestDocSelect({
       window.removeEventListener("message", handler);
       if (pollStop.current) clearTimeout(pollStop.current);
     };
-  }, [refetchCreds]);
+  }, [refetchCreds, iframeUrl]);
 
-  const closeIframe = () => {
-    setIframeUrl(null);
-    setKycFailed(false);
-    if (!verifyingType) {
-      setVerifyingType(null);
-      setPolling(false);
-      if (pollStop.current) clearTimeout(pollStop.current);
+  // Called after DigiLocker DL return (credential already exists in Firestore).
+  // Tries to select it directly; falls back to polling only if it's not there yet.
+  const afterDLVerification = async () => {
+    const result = await refetchCreds();
+    const allCreds: any[] = (result as any)?.data?.credential ?? [];
+    const approved = allCreds.filter((c: any) => c.state === "auto_approved");
+    const dlCred = approved.find((c: any) => c.document_type === "DRIVING_LICENSE");
+    if (dlCred) {
+      onSelected(dlCred as FlowCredential);
       return;
     }
-    // Verification was in progress — reset the poll timer so webhook has a fresh
-    // window to arrive even if the user spent a long time inside the iframe.
-    setTimedOut(false);
+    // Credential not yet propagated — snapshot ALL current approved creds as "before" so only
+    // the incoming DL cred is detected as new. Without this, an existing PAN would be picked up.
+    credIdsBefore.current = new Set(approved.map((c: any) => c.id));
+    setVerifyingType("DRIVING_LICENSE");
     setPolling(true);
     if (pollStop.current) clearTimeout(pollStop.current);
-    pollStop.current = setTimeout(() => {
-      setPolling(false);
-      setTimedOut(true);
-    }, POLL_TIMEOUT_MS);
+    pollStop.current = setTimeout(() => { setPolling(false); setTimedOut(true); }, POLL_TIMEOUT_MS);
   };
 
-  const handleVerify = (docType: string, productCode: string) => {
+  // Called after Kwik DL completion (credential doesn't exist yet — webhook fires it).
+  const startDLPolling = () => {
+    const all: any[] = credsData?.data?.credential ?? [];
+    credIdsBefore.current = new Set(
+      all.filter((c: any) => c.state === "auto_approved").map((c: any) => c.id)
+    );
+    setVerifyingType("DRIVING_LICENSE");
+    setPolling(true);
+    if (pollStop.current) clearTimeout(pollStop.current);
+    pollStop.current = setTimeout(() => { setPolling(false); setTimedOut(true); }, POLL_TIMEOUT_MS);
+  };
+
+  // ── Selfie camera helpers ──
+  const startDLSelfieCamera = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
+      dlSelfieStreamRef.current = stream;
+      if (dlSelfieVideoRef.current) dlSelfieVideoRef.current.srcObject = stream;
+      setDlSelfieCaptured(null);
+    } catch {
+      toast.error("Could not access camera. Please allow camera permission.");
+    }
+  };
+
+  const stopDLSelfieCamera = () => {
+    dlSelfieStreamRef.current?.getTracks().forEach((t) => t.stop());
+    dlSelfieStreamRef.current = null;
+  };
+
+  const captureDLSelfie = () => {
+    const video = dlSelfieVideoRef.current;
+    const canvas = dlSelfieCanvasRef.current;
+    if (!video || !canvas) return;
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext("2d")?.drawImage(video, 0, 0);
+    setDlSelfieCaptured(canvas.toDataURL("image/jpeg", 0.85));
+    stopDLSelfieCamera();
+  };
+
+  const handleDLSelfieSubmit = async () => {
+    setDlSelfieUploading(true);
+    try {
+      const currentUser = auth.currentUser;
+      if (dlSelfieCaptured && currentUser) {
+        const res = await fetch(dlSelfieCaptured);
+        const blob = await res.blob();
+        const file = new File([blob], "dl_selfie.jpg", { type: "image/jpeg" });
+        const apiBase = ((import.meta as any).env.VITE_BASE_URL as string || "").replace(/\/$/, "");
+        const form = new FormData();
+        form.append("file", file);
+        form.append("fileType", "dl_selfie");
+        const uploadRes = await fetch(`${apiBase}/users/uploadImage`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${await currentUser.getIdToken()}` },
+          body: form,
+        });
+        const uploadJson = await uploadRes.json();
+        const s3url: string = uploadJson?.data?.s3url;
+        if (s3url) {
+          if (dlSelfieIsDigiLockerReturn.current) {
+            // DigiLocker path: credential already exists — attach selfie immediately.
+            await fetch(`${apiBase}/users/updateDLSelfie`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${await currentUser.getIdToken()}`,
+              },
+              body: JSON.stringify({ face_url: s3url }),
+            });
+          } else {
+            // Kwik path: credential doesn't exist yet (webhook fires it after the iframe closes).
+            // Store the URL so the polling effect can attach it once the credential appears.
+            dlSelfieS3UrlRef.current = s3url;
+          }
+        }
+      }
+    } catch {
+      // non-fatal
+    } finally {
+      setDlSelfieUploading(false);
+      setDlSelfieOpen(false);
+      setDlSelfieCaptured(null);
+      stopDLSelfieCamera();
+      if (dlSelfieIsDigiLockerReturn.current) {
+        await afterDLVerification();
+      } else {
+        startDLPolling();
+      }
+    }
+  };
+
+  // Open the Kwik iframe. For DL, polling is deferred until after selfie (startDLPolling).
+  // For all other docs, polling starts immediately so the "completed" postMessage just refetches.
+  const openKwikIframe = (docType: string, productCode: string) => {
     const user = auth.currentUser;
     if (!user) { onError("Not authenticated. Please restart."); return; }
 
-    // Snapshot approved IDs before opening so we can detect the new one after polling
     const current: any[] = credsData?.data?.credential ?? [];
     credIdsBefore.current = new Set(
       current.filter((c: any) => c.state === "auto_approved").map((c: any) => c.id)
@@ -160,21 +329,50 @@ export default function GuestDocSelect({
     setVerifyingType(docType);
     setIframeUrl(url);
 
-    // Start polling immediately so a new credential closes the iframe automatically,
-    // regardless of whether Kwik fires the postMessage.
-    setPolling(true);
-    if (pollStop.current) clearTimeout(pollStop.current);
-    pollStop.current = setTimeout(() => {
-      setPolling(false);
-      setTimedOut(true);
-    }, POLL_TIMEOUT_MS);
+    // DL Kwik: polling starts after selfie (via startDLPolling). Non-DL: start polling now.
+    if (docType !== "DRIVING_LICENSE") {
+      setPolling(true);
+      if (pollStop.current) clearTimeout(pollStop.current);
+      pollStop.current = setTimeout(() => { setPolling(false); setTimedOut(true); }, POLL_TIMEOUT_MS);
+    }
 
-    // Fire-and-forget: record that this guest opened the KYC iframe so the hotel
-    // admin can see incomplete verifications in their dashboard.
     if (connectionId) {
       markKycStarted({ credential_request_id: connectionId, session_id: sessionId, document_type: docType })
-        .catch(() => {/* non-critical — ignore failures */});
+        .catch(() => {});
     }
+  };
+
+  // ── DL verification handlers ──
+  const handleVerifyDLKwik = () => openKwikIframe("DRIVING_LICENSE", "DL");
+
+  const handleVerifyDLWithDigiLocker = () => {
+    const user = auth.currentUser;
+    if (!user) { onError("Not authenticated. Please restart."); return; }
+    const apiBase = ((import.meta as any).env.VITE_BASE_URL as string || "").replace(/\/$/, "");
+    const returnUrl = `${window.location.origin}/checkin`;
+    window.location.assign(
+      `${apiBase}/webhook/digilocker-aadhaar-oauth-start` +
+      `?applicant_id=${encodeURIComponent(user.uid)}&doc_type=DL` +
+      `&return_url=${encodeURIComponent(returnUrl)}`,
+    );
+  };
+
+  // User manually closed the iframe without completing — show failed screen immediately.
+  const closeIframe = () => {
+    setIframeUrl(null);
+    setPolling(false);
+    setTimedOut(false);
+    if (pollStop.current) { clearTimeout(pollStop.current); pollStop.current = null; }
+    setKycFailed(true); // show "Verification unsuccessful" right away, no 20s wait
+  };
+
+  // Entry point for the "Verify" button on each doc card (DL opens choice modal; others open iframe).
+  const handleVerify = (docType: string, productCode: string) => {
+    if (docType === "DRIVING_LICENSE") {
+      setDlChoiceOpen(true);
+      return;
+    }
+    openKwikIframe(docType, productCode);
   };
 
   const handleForeignPassportSave = async (data: ForeignPassportPhotos) => {
@@ -289,7 +487,6 @@ export default function GuestDocSelect({
           </div>
 
           <div className="w-full flex flex-col gap-3">
-            {/* Try again — re-open Kwik for same doc type */}
             {verifyingType && (() => {
               const dt = DOC_TYPES.find((d) => d.type === verifyingType);
               return dt ? (
@@ -302,7 +499,6 @@ export default function GuestDocSelect({
               ) : null;
             })()}
 
-            {/* Check again (polling timeout only) */}
             {timedOut && !kycFailed && (
               <Button
                 className="w-full h-12 bg-gradient-to-r from-[#00e0ff] to-[#7B5CF5] text-slate-950 font-semibold hover:from-[#40e8ff] hover:to-[#9274ff]"
@@ -318,7 +514,6 @@ export default function GuestDocSelect({
               </Button>
             )}
 
-            {/* Upload manually */}
             <Button
               variant="outline"
               className="w-full h-12 border-[var(--iverifi-card-border)] text-foreground"
@@ -327,7 +522,6 @@ export default function GuestDocSelect({
               📷 Upload {failedDocLabel} manually
             </Button>
 
-            {/* Try different ID */}
             <Button
               variant="outline"
               className="w-full h-12 border-[var(--iverifi-card-border)] text-muted-foreground"
@@ -370,7 +564,6 @@ export default function GuestDocSelect({
           </p>
         </div>
 
-        {/* Foreign national banner — placed prominently before the Indian ID list */}
         <button
           type="button"
           onClick={() => setForeignPassportOpen(true)}
@@ -435,7 +628,6 @@ export default function GuestDocSelect({
 
                   <div className="flex-shrink-0">
                     {verified ? (
-                      // Verified — radio selection indicator only
                       <div
                         className="w-5 h-5 rounded-full border-2 flex items-center justify-center"
                         style={{ borderColor: isSelected ? "var(--iverifi-accent)" : "#6b7280" }}
@@ -448,7 +640,6 @@ export default function GuestDocSelect({
                         )}
                       </div>
                     ) : (
-                      // Not verified — verify button
                       <Button
                         size="sm"
                         variant="outline"
@@ -470,7 +661,6 @@ export default function GuestDocSelect({
           })}
         </div>
 
-        {/* Continue button — only active when a verified doc is selected */}
         <Button
           disabled={!selectedId}
           onClick={handleContinue}
@@ -495,6 +685,119 @@ export default function GuestDocSelect({
       onSave={handleForeignPassportSave}
       onClose={() => setForeignPassportOpen(false)}
     />
+
+    {/* DL: DigiLocker vs Camera Scan choice modal */}
+    <Dialog open={dlChoiceOpen} onOpenChange={setDlChoiceOpen}>
+      <DialogContent className="max-w-sm rounded-2xl">
+        <DialogHeader>
+          <DialogTitle className="text-base font-bold">Verify Driving License</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3 pt-1">
+          <p className="text-sm text-muted-foreground">
+            Do you have a DigiLocker account with your Driving License already on it?
+          </p>
+          <Button
+            className="w-full rounded-xl bg-gradient-to-r from-[#00e0ff] to-[#7B5CF5] text-slate-950 font-semibold"
+            onClick={() => { setDlChoiceOpen(false); handleVerifyDLWithDigiLocker(); }}
+          >
+            Yes — Use DigiLocker
+          </Button>
+          <Button
+            variant="outline"
+            className="w-full rounded-xl"
+            onClick={() => { setDlChoiceOpen(false); handleVerifyDLKwik(); }}
+          >
+            No — Use Camera Scan
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+
+    {/* DL: Selfie capture modal */}
+    <Dialog
+      open={dlSelfieOpen}
+      onOpenChange={async (open) => {
+        if (!open) {
+          stopDLSelfieCamera();
+          setDlSelfieCaptured(null);
+          if (dlSelfieOpen) {
+            if (dlSelfieIsDigiLockerReturn.current) {
+              await afterDLVerification();
+            } else {
+              startDLPolling();
+            }
+          }
+        }
+        setDlSelfieOpen(open);
+      }}
+    >
+      <DialogContent className="max-w-sm rounded-2xl">
+        <DialogHeader>
+          <DialogTitle className="text-base font-bold">Take a Selfie</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3 pt-1 text-center">
+          <p className="text-sm text-muted-foreground">
+            Please take a quick selfie to complete your DL verification.
+          </p>
+          {!dlSelfieCaptured ? (
+            <>
+              <video
+                ref={dlSelfieVideoRef}
+                autoPlay
+                playsInline
+                muted
+                className="w-full rounded-xl"
+                style={{ maxHeight: 260, background: "#000" }}
+              />
+              <canvas ref={dlSelfieCanvasRef} className="hidden" />
+              <Button
+                className="w-full rounded-xl bg-gradient-to-r from-[#00e0ff] to-[#7B5CF5] text-slate-950 font-semibold"
+                onClick={captureDLSelfie}
+              >
+                Capture
+              </Button>
+            </>
+          ) : (
+            <>
+              <img src={dlSelfieCaptured} alt="selfie preview" className="w-full rounded-xl" />
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  className="flex-1 rounded-xl"
+                  onClick={() => { setDlSelfieCaptured(null); startDLSelfieCamera(); }}
+                >
+                  Retake
+                </Button>
+                <Button
+                  className="flex-1 rounded-xl bg-gradient-to-r from-[#00e0ff] to-[#7B5CF5] text-slate-950 font-semibold"
+                  disabled={dlSelfieUploading}
+                  onClick={handleDLSelfieSubmit}
+                >
+                  {dlSelfieUploading ? "Saving..." : "Submit"}
+                </Button>
+              </div>
+            </>
+          )}
+          <Button
+            variant="ghost"
+            className="w-full text-sm"
+            disabled={dlSelfieUploading}
+            onClick={async () => {
+              stopDLSelfieCamera();
+              setDlSelfieOpen(false);
+              setDlSelfieCaptured(null);
+              if (dlSelfieIsDigiLockerReturn.current) {
+                await afterDLVerification();
+              } else {
+                startDLPolling();
+              }
+            }}
+          >
+            Skip
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
     </>
   );
 }

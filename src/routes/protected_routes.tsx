@@ -73,7 +73,7 @@ const ProtectedRoute = ({ children }: { children: JSX.Element }) => {
   // Check if terms accepted from database (source of truth) for other protected routes
   // Only redirect if explicitly false (not null, not true)
   // Also check that we're not already on accept-terms to prevent redirect loops
-  if (termsAccepted === false && location.pathname !== "/accept-terms") {
+  if (termsAccepted === false && location.pathname !== "/accept-terms" && location.pathname !== "/aadhaar-test") {
     // Preserve the code query parameter if it exists
     // Check both URL params and localStorage (for cases where code is saved but not yet in URL)
     let code = searchParams.get("code");

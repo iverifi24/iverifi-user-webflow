@@ -334,7 +334,7 @@ export function ManualIdUploadDialog({ open, documentLabel, onSave, onClose }: P
               🔐 Photos stored securely. Hotel staff will review and confirm your check-in.
             </div>
             <button type="button" onClick={handleSave} disabled={saving} style={{ ...BTN_PRIMARY, marginBottom: 10, opacity: saving ? 0.6 : 1, cursor: saving ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-              {saving ? <><Loader2 className="h-4 w-4 animate-spin" /> Submitting…</> : "Submit & Check In →"}
+              {saving ? <><Loader2 className="h-4 w-4 animate-spin" /> Submitting…</> : "Next →"}
             </button>
             <button type="button" onClick={() => setStep("selfie")} disabled={saving} style={BTN_SECONDARY}>
               ← Back

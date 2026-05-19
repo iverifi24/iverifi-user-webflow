@@ -26,6 +26,7 @@ const App = () => {
         <Routes>
           {/* Guest check-in funnel — no auth required, manages its own auth internally */}
           <Route path="/checkin" element={<GuestCheckinFlow />} />
+          <Route path="/aadhaar-test" element={<AadhaarDigiLockerTest />} />
 
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
@@ -51,7 +52,6 @@ const App = () => {
             <Route path="/connections/:id" element={<ConnectionDetails />} />
             <Route path="/my-activity" element={<MyActivity />} />
             <Route path="/complete-profile" element={<ProfileCompletion />} />
-            <Route path="/aadhaar-test" element={<AadhaarDigiLockerTest />} />
             <Route path="/family-ids" element={<FamilyIds />} />
           </Route>
 
