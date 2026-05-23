@@ -179,7 +179,7 @@ export default function GuestDocSelect({
           }
         } else if (d?.status === "failed" || d?.status === "rejected" || d?.status === "error") {
           setIframeUrl(null);
-          setVerifyingType(null);
+          // Keep verifyingType so failedDocType defaults to the correct doc that failed
           setKycFailed(true);
         }
       }

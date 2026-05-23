@@ -12,7 +12,6 @@ import {
   // useSaveCFormMutation,
   useSaveForeignPassportMutation,
   useCreateCredentialMutation,
-  usePatchCredentialTypeMutation,
   useGetFamilyCredentialsQuery,
   useDeleteFamilyCredentialMutation,
   useUpdateCredentialHotelMutation,
@@ -67,14 +66,6 @@ const DOCUMENT_TYPES = [
 ] as const;
 type DocumentType = (typeof DOCUMENT_TYPES)[number];
 
-/** Backend document_type values for children's Aadhaar (Kwik: XMLM1, XMLM2, XMLM3) */
-const CHILD_AADHAAR_TYPES = [
-  "Child 1 Aadhaar",
-  "Child 2 Aadhaar",
-  "Child 3 Aadhaar",
-] as const;
-type ChildAadhaarType = (typeof CHILD_AADHAAR_TYPES)[number];
-
 const HOME_DOCUMENT_TYPES = [
   "DRIVING_LICENSE",
   "AADHAAR_CARD",
@@ -110,19 +101,8 @@ const PRODUCT_CODE_MAP: Record<DocumentType, string> = {
   "C-Form (Foreign Guest)": "PP",
 };
 
-/** Child Aadhaar uses the regular KYC (Aadhaar OTP) flow — same as adult Aadhaar.
- *  The credential is stamped with the correct child document_type after Kwik completes
- *  via the patchCredentialType backend endpoint. */
-const CHILD_PRODUCT_CODE_MAP: Record<ChildAadhaarType, string> = {
-  "Child 1 Aadhaar": "KYC",
-  "Child 2 Aadhaar": "KYC",
-  "Child 3 Aadhaar": "KYC",
-};
-
-const getProductCode = (docType: DocumentType | ChildAadhaarType): string =>
-  docType in PRODUCT_CODE_MAP
-    ? (PRODUCT_CODE_MAP as Record<string, string>)[docType]
-    : (CHILD_PRODUCT_CODE_MAP as Record<string, string>)[docType];
+const getProductCode = (docType: DocumentType): string =>
+  (PRODUCT_CODE_MAP as Record<string, string>)[docType] ?? "KYC";
 
 /** Subtitle under document name (e.g. "UIDAI Verified") */
 const DOC_TYPE_SUBTITLE: Record<string, string> = {
@@ -132,9 +112,6 @@ const DOC_TYPE_SUBTITLE: Record<string, string> = {
   PASSPORT: "Passport Seva",
   "C-Form (Foreign Guest)":
     "Auto-filled from passport · FRRO compliance for hotels",
-  "Child 1 Aadhaar": "UIDAI Verified",
-  "Child 2 Aadhaar": "UIDAI Verified",
-  "Child 3 Aadhaar": "UIDAI Verified",
 };
 
 const getDocSubtitle = (docType: string): string =>
@@ -339,33 +316,6 @@ const SHARE_SUMMARY_BY_DOC: Record<string, string[]> = {
     "Nationality",
     "Valid till",
   ],
-  "Child 1 Aadhaar": [
-    "Child photo",
-    "Child name",
-    "Aadhaar (masked)",
-    "Age indicator",
-    "City",
-    "State",
-    "Guardian name",
-  ],
-  "Child 2 Aadhaar": [
-    "Child photo",
-    "Child name",
-    "Aadhaar (masked)",
-    "Age indicator",
-    "City",
-    "State",
-    "Guardian name",
-  ],
-  "Child 3 Aadhaar": [
-    "Child photo",
-    "Child name",
-    "Aadhaar (masked)",
-    "Age indicator",
-    "City",
-    "State",
-    "Guardian name",
-  ],
   "C-Form (Foreign Guest)": [
     "Surname",
     "Given name",
@@ -449,22 +399,12 @@ const Connections = () => {
   // const [saveCForm] = useSaveCFormMutation();
   const [saveForeignPassport] = useSaveForeignPassportMutation();
   const [createCredential] = useCreateCredentialMutation();
-  const [patchCredentialType] = usePatchCredentialTypeMutation();
   const [deleteFamilyCredential] = useDeleteFamilyCredentialMutation();
   const [updateCredentialHotel] = useUpdateCredentialHotelMutation();
 
   const { data: familyData, refetch: refetchFamily } =
     useGetFamilyCredentialsQuery();
 
-  /** Tracks which child Aadhaar slot is being verified so we can stamp the correct
-   *  document_type after Kwik (KYC flow) completes.
-   *  startedAt lets patchCredentialType distinguish the newly created AADHAAR_CARD
-   *  credential from the user's pre-existing regular Aadhaar. */
-  const pendingChildVerify = useRef<{
-    sessionId: string;
-    docType: ChildAadhaarType;
-    startedAt: number;
-  } | null>(null);
   const pendingFamilyVerify = useRef(false);
   const pendingFamilyCredentialId = useRef<string | null>(null);
 
@@ -499,12 +439,6 @@ const Connections = () => {
 
   /** Prevent double-submit: stays true until API settles; only cleared on error so user can retry */
   const [isCheckInOutInFlight, setCheckInOutInFlight] = useState(false);
-
-  /**
-   * Child Aadhaar: show 1 slot by default; "+ Add child" reveals up to 3.
-   * Auto-expands when a child is verified so the next slot can appear (capped at 3).
-   */
-  const [childAadhaarSlotsVisible, setChildAadhaarSlotsVisible] = useState(1);
 
   // Family member state
   const [familyDialogOpen, setFamilyDialogOpen] = useState(false);
@@ -632,17 +566,6 @@ const Connections = () => {
       }
     }
   }, [credentialsData, verifyPollingMs, updateCredentialHotel]);
-
-  useEffect(() => {
-    let maxVerifiedChildIndex = 0;
-    CHILD_AADHAAR_TYPES.forEach((t, idx) => {
-      if (verifiedCredentialsMap[t]) maxVerifiedChildIndex = idx + 1;
-    });
-    // After a child is verified, reveal the next slot (up to 3). Default stays 1 until user adds or verifies.
-    const floor =
-      maxVerifiedChildIndex === 0 ? 1 : Math.min(3, maxVerifiedChildIndex + 1);
-    setChildAadhaarSlotsVisible((prev) => Math.max(prev, floor));
-  }, [verifiedCredentialsMap]);
 
   const selectedCredential = useMemo(() => {
     if (!selectedDocType) return null;
@@ -992,8 +915,7 @@ const Connections = () => {
     (recipientData?.data?.requests?.[0] as any)?.type === "Company";
 
   const verifiedDocTypesForShare = useMemo(() => {
-    const order = [...HOME_DOCUMENT_TYPES, ...CHILD_AADHAAR_TYPES];
-    return order.filter((docType) => {
+    return [...HOME_DOCUMENT_TYPES].filter((docType) => {
       if (!verifiedCredentialsMap[docType]) return false;
       // Hotels (Company) don't accept PAN as valid ID proof
       if (isCompanyRecipient && docType === "PAN_CARD") return false;
@@ -1050,7 +972,7 @@ const Connections = () => {
     setShareSheetOpen(true);
   }, [code, isRecipientLoading, connectedRequestorName, firstShareableDocType]);
 
-  const openHotelShareSheet = (docType?: DocumentType | ChildAadhaarType) => {
+  const openHotelShareSheet = (docType?: DocumentType) => {
     checkinFlowStartedAt.current = Date.now();
     if (
       docType &&
@@ -1147,21 +1069,6 @@ const Connections = () => {
         const wasDLKwik = (iframeUrl || "").includes("productCode=DL");
         toast.success("Verification completed.");
         setIframeUrl(null);
-        // If this was a child Aadhaar verification, stamp the correct document_type.
-        // Kwik stores it as AADHAAR_CARD (KYC flow); we override it to e.g. "Child 1 Aadhaar".
-        const pending = pendingChildVerify.current;
-        pendingChildVerify.current = null;
-        if (pending) {
-          try {
-            await patchCredentialType({
-              session_id: pending.sessionId,
-              document_type: pending.docType,
-              started_at: pending.startedAt,
-            }).unwrap();
-          } catch {
-            // non-fatal: refetch will still show the credential, worst case as AADHAAR_CARD
-          }
-        }
         if (pendingFamilyVerify.current) {
           pendingFamilyVerify.current = false;
           pendingFamilyCredentialId.current = null;
@@ -1342,7 +1249,7 @@ const Connections = () => {
 
   /** Share with a connection only (no check-in) — e.g. vault flow without ?code= */
   const handleShareCredentials = async (
-    documentType: DocumentType | ChildAadhaarType,
+    documentType: DocumentType,
   ) => {
     if (!derivedConnectionId) {
       toast.error("You need to scan a QR code to share.");
@@ -1390,7 +1297,7 @@ const Connections = () => {
    * and pending storage so the user must scan again for another property.
    */
   const handleShareAndRequestCheckIn = async (
-    documentType: DocumentType | ChildAadhaarType,
+    documentType: DocumentType,
   ) => {
     if (!derivedConnectionId) {
       toast.error("No connection found. Try scanning the QR again.");
@@ -1459,7 +1366,7 @@ const Connections = () => {
   // verify document via Kwik iframe — the original path, now called directly for non-DL docs
   // and by the DL choice modal "No — Use Camera Scan" button.
   const handleVerifyDocumentKwik = async (
-    documentType: DocumentType | ChildAadhaarType,
+    documentType: DocumentType,
   ) => {
     const currentUser = auth.currentUser;
     if (!currentUser) return toast.error("User not authenticated");
@@ -1473,28 +1380,7 @@ const Connections = () => {
         ? crypto.randomUUID()
         : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
-    // For child Aadhaar we use the KYC (regular Aadhaar) product code.
-    // Pre-create a Firestore credential doc with the correct child document_type so the
-    // webhook can detect it from the session_id and avoid overwriting AADHAAR_CARD.
-    let effectiveSessionId = sessionId;
-    if ((CHILD_AADHAAR_TYPES as readonly string[]).includes(documentType)) {
-      try {
-        const res = await createCredential({
-          document_type: documentType,
-          verifiers_name: "Kwik",
-        }).unwrap();
-        if (res.data?.document_id) effectiveSessionId = res.data.document_id;
-      } catch {
-        // non-fatal: proceed with generated sessionId; webhook may still work
-      }
-      pendingChildVerify.current = {
-        sessionId: effectiveSessionId,
-        docType: documentType as ChildAadhaarType,
-        startedAt: Date.now(),
-      };
-    } else {
-      pendingChildVerify.current = null;
-    }
+    const effectiveSessionId = sessionId;
 
     const verificationUrl =
       `${IVERIFI_ORIGIN}/user/home?client_id=iverifi&api_key=iverifi&process=U` +
@@ -1508,7 +1394,7 @@ const Connections = () => {
 
     // Link this verification to the hotel so the hotel name appears in the super-admin
     // verifications table even if the user never shares the document.
-    if (code && derivedConnectionId && !(CHILD_AADHAAR_TYPES as readonly string[]).includes(documentType)) {
+    if (code && derivedConnectionId) {
       const existingCred = verifiedCredentialsMap[documentType as string];
       if (existingCred?.id) {
         // Re-verification: credential already exists — stamp hotel_id directly on it
@@ -1527,7 +1413,7 @@ const Connections = () => {
 
   // Slim wrapper: DL → show choice modal; all other doc types → straight to Kwik
   const handleVerifyDocument = async (
-    documentType: DocumentType | ChildAadhaarType,
+    documentType: DocumentType,
   ) => {
     if (documentType === "DRIVING_LICENSE") {
       setDlDigilockerModalOpen(true);
@@ -1658,7 +1544,6 @@ const Connections = () => {
       setFamilyNickname("");
       pendingFamilyVerify.current = true;
       pendingFamilyCredentialId.current = sessionId;
-      pendingChildVerify.current = null;
       const origin = window.location.origin;
       setIframeUrl(
         `${IVERIFI_ORIGIN}/user/home?client_id=iverifi&api_key=iverifi&process=U` +
@@ -1955,99 +1840,6 @@ const Connections = () => {
                 </>
               );
             })()}
-          </div>
-
-          {/* Child Aadhaar — progressive slots (max 3); teal "+ Add child", gold Verify */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between gap-3">
-              <div className="text-[11px] font-semibold tracking-widest uppercase text-[var(--iverifi-text-muted)]">
-                CHILD AADHAAR (
-                {
-                  CHILD_AADHAAR_TYPES.filter((t) => !!verifiedCredentialsMap[t])
-                    .length
-                }
-                /3)
-              </div>
-              {childAadhaarSlotsVisible < 3 ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-8 shrink-0 gap-1 rounded-full border-0 bg-teal-100 px-3 text-xs font-semibold text-teal-700 hover:bg-teal-200 dark:bg-[rgba(0,200,180,0.22)] dark:text-[#5eead4] dark:hover:bg-[rgba(0,200,180,0.32)]"
-                  onClick={() =>
-                    setChildAadhaarSlotsVisible((n) => Math.min(3, n + 1))
-                  }
-                >
-                  <Plus className="h-3.5 w-3.5" />
-                  Add child
-                </Button>
-              ) : null}
-            </div>
-
-            <div className="space-y-2">
-              {CHILD_AADHAAR_TYPES.slice(0, childAadhaarSlotsVisible).map(
-                (docType) => {
-                  const isVerified = !!verifiedCredentialsMap[docType];
-                  const subtitle = getDocSubtitle(docType);
-                  const slot = docType.match(/Child (\d+) Aadhaar/)?.[1] ?? "";
-                  return (
-                    <div
-                      key={docType}
-                      role="button"
-                      onClick={() =>
-                        isVerified
-                          ? setSelectedDocType(docType)
-                          : handleVerifyDocument(docType)
-                      }
-                      className="flex cursor-pointer items-center justify-between gap-3 rounded-2xl border border-[color:var(--iverifi-card-border)] bg-[var(--iverifi-card)] px-4 py-3"
-                    >
-                      <div className="flex min-w-0 items-center gap-3">
-                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-amber-300 bg-amber-50 dark:border-[rgba(245,166,35,0.35)] dark:bg-[rgba(245,166,35,0.18)]">
-                          <DocumentTypeIcon
-                            documentType={docType}
-                            className="h-6 w-6 text-amber-100"
-                          />
-                        </div>
-                        <div className="min-w-0">
-                          <div className="truncate text-sm font-semibold text-[var(--iverifi-text-primary)]">
-                            Child Aadhaar
-                          </div>
-                          <div className="truncate text-xs text-[var(--iverifi-text-muted)]">
-                            {isVerified
-                              ? `${slot ? `Child ${slot}` : docType} · ${subtitle}`
-                              : "Tap to verify - DigiLocker"}
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="flex shrink-0 items-center gap-2">
-                        {isVerified ? (
-                          <>
-                            <CheckCircle className="h-4 w-4 text-emerald-600 dark:text-[#00c896]" />
-                            <ChevronRight className="h-4 w-4 text-[var(--iverifi-text-muted)]" />
-                          </>
-                        ) : (
-                          <>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              className="h-9 rounded-xl border border-amber-400 bg-transparent text-amber-600 hover:bg-amber-50 dark:border-[#f5a623] dark:text-[#f5a623] dark:hover:bg-[rgba(245,166,35,0.12)]"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleVerifyDocument(docType);
-                              }}
-                            >
-                              Verify
-                            </Button>
-                            <ChevronRight className="h-4 w-4 text-[var(--iverifi-text-muted)]" />
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  );
-                },
-              )}
-            </div>
           </div>
 
           {/* Family Member IDs */}
@@ -4121,15 +3913,11 @@ const Connections = () => {
                       try {
                         if (code && isValidQRCode(code)) {
                           await handleShareAndRequestCheckIn(
-                            shareSelectedDocType as
-                              | DocumentType
-                              | ChildAadhaarType,
+                            shareSelectedDocType as DocumentType,
                           );
                         } else {
                           await handleShareCredentials(
-                            shareSelectedDocType as
-                              | DocumentType
-                              | ChildAadhaarType,
+                            shareSelectedDocType as DocumentType,
                           );
                         }
                         setShareSheetOpen(false);
@@ -4508,15 +4296,10 @@ const Connections = () => {
               aria-label="Close"
               className="absolute top-3 right-3 inline-flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-1.5 text-sm font-medium text-foreground shadow-sm hover:bg-accent hover:border-teal-300/40 hover:text-teal-700 dark:hover:text-teal-300 transition-colors"
               onClick={async () => {
-                // Delete any pre-created ONGOING credential if the user closed without completing
-                const closedChild = pendingChildVerify.current;
+                // Delete any pre-created ONGOING family credential if the user closed without completing
                 const closedFamilyId = pendingFamilyCredentialId.current;
-                pendingChildVerify.current = null;
                 pendingFamilyVerify.current = false;
                 pendingFamilyCredentialId.current = null;
-                if (closedChild?.sessionId) {
-                  try { await deleteCredential({ credential_id: closedChild.sessionId }).unwrap(); } catch { /* non-fatal */ }
-                }
                 if (closedFamilyId) {
                   try { await deleteCredential({ credential_id: closedFamilyId }).unwrap(); } catch { /* non-fatal */ }
                 }
