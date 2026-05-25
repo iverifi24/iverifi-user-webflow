@@ -104,6 +104,14 @@ const PRODUCT_CODE_MAP: Record<DocumentType, string> = {
 const getProductCode = (docType: DocumentType): string =>
   (PRODUCT_CODE_MAP as Record<string, string>)[docType] ?? "KYC";
 
+const FAMILY_DOC_OPTIONS = [
+  { type: "FAMILY_AADHAAR",   label: "Aadhaar",         subtitle: "UIDAI Verified",          productCode: "KYC", iconType: "AADHAAR_CARD"      },
+  { type: "FAMILY_PASSPORT",  label: "Passport",        subtitle: "Passport Seva",            productCode: "PP",  iconType: "PASSPORT"          },
+  { type: "FAMILY_DL",        label: "Driving License", subtitle: "State RTO Verified",       productCode: "DL",  iconType: "DRIVING_LICENSE"   },
+  { type: "FAMILY_PAN",       label: "PAN Card",        subtitle: "Income Tax Department",    productCode: "PC",  iconType: "PAN_CARD"          },
+] as const;
+type FamilyDocType = (typeof FAMILY_DOC_OPTIONS)[number]["type"];
+
 /** Subtitle under document name (e.g. "UIDAI Verified") */
 const DOC_TYPE_SUBTITLE: Record<string, string> = {
   DRIVING_LICENSE: "State RTO Verified",
@@ -442,6 +450,7 @@ const Connections = () => {
 
   // Family member state
   const [familyDialogOpen, setFamilyDialogOpen] = useState(false);
+  const [familyDocType, setFamilyDocType] = useState<FamilyDocType>("FAMILY_AADHAAR");
   const [familyNickname, setFamilyNickname] = useState("");
   const [familyNicknameError, setFamilyNicknameError] = useState("");
   const [isStartingFamilyVerify, setIsStartingFamilyVerify] = useState(false);
@@ -1527,12 +1536,21 @@ const Connections = () => {
       setFamilyNicknameError("Please enter a nickname.");
       return;
     }
+    const existingMembers: any[] = familyData?.data?.family_members || [];
+    const isDuplicate = existingMembers.some(
+      (m) => (m.member_nickname || m.nickname || "").trim().toLowerCase() === trimmed.toLowerCase()
+    );
+    if (isDuplicate) {
+      setFamilyNicknameError(`"${trimmed}" is already used. Please choose a different nickname.`);
+      return;
+    }
     const currentUser = auth.currentUser;
     if (!currentUser) return;
+    const selectedDoc = FAMILY_DOC_OPTIONS.find((o) => o.type === familyDocType) ?? FAMILY_DOC_OPTIONS[0];
     setIsStartingFamilyVerify(true);
     try {
       const res = await createCredential({
-        document_type: "FAMILY_AADHAAR",
+        document_type: familyDocType,
         verifiers_name: "Kwik",
         // @ts-ignore — backend accepts these extra fields for family member credentials
         is_family_member: true,
@@ -1547,7 +1565,7 @@ const Connections = () => {
       const origin = window.location.origin;
       setIframeUrl(
         `${IVERIFI_ORIGIN}/user/home?client_id=iverifi&api_key=iverifi&process=U` +
-          `&productCode=KYC&user_id=${encodeURIComponent(currentUser.uid)}` +
+          `&productCode=${selectedDoc.productCode}&user_id=${encodeURIComponent(currentUser.uid)}` +
           `&session_id=${encodeURIComponent(sessionId)}&redirect_origin=${encodeURIComponent(origin)}`,
       );
     } catch (e: any) {
@@ -1857,6 +1875,7 @@ const Connections = () => {
                     size="sm"
                     className="h-8 shrink-0 gap-1 rounded-full border-0 bg-teal-100 px-3 text-xs font-semibold text-teal-700 hover:bg-teal-200 dark:bg-[rgba(0,200,180,0.22)] dark:text-[#5eead4] dark:hover:bg-[rgba(0,200,180,0.32)]"
                     onClick={() => {
+                      setFamilyDocType("FAMILY_AADHAAR");
                       setFamilyNickname("");
                       setFamilyNicknameError("");
                       setFamilyDialogOpen(true);
@@ -1871,7 +1890,7 @@ const Connections = () => {
                   {members.length === 0 && (
                     <div className="rounded-2xl border border-dashed border-[color:var(--iverifi-card-border)] bg-[var(--iverifi-card)] px-4 py-4 text-center text-xs text-[var(--iverifi-text-muted)]">
                       No family members added yet — tap Add member to verify a
-                      family member's Aadhaar.
+                      family member's ID.
                     </div>
                   )}
                   {members.map((member: any) => {
@@ -1880,6 +1899,7 @@ const Connections = () => {
                       member.nickname ||
                       "Family member";
                     const isPending = member.state !== "auto_approved";
+                    const memberDoc = FAMILY_DOC_OPTIONS.find((o) => o.type === member.document_type) ?? FAMILY_DOC_OPTIONS[0];
                     return (
                       <div
                         key={member.id}
@@ -1892,7 +1912,7 @@ const Connections = () => {
                         <div className="flex min-w-0 items-center gap-3">
                           <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-teal-300 bg-teal-50 dark:border-[rgba(0,200,180,0.35)] dark:bg-[rgba(0,200,180,0.14)]">
                             <DocumentTypeIcon
-                              documentType="AADHAAR_CARD"
+                              documentType={memberDoc.iconType}
                               className="h-6 w-6 text-teal-600 dark:text-[#00c896]"
                             />
                           </div>
@@ -1903,7 +1923,7 @@ const Connections = () => {
                             <div className="truncate text-xs text-[var(--iverifi-text-muted)]">
                               {isPending
                                 ? "Verification pending"
-                                : "Aadhaar · UIDAI Verified"}
+                                : `${memberDoc.label} · ${memberDoc.subtitle}`}
                             </div>
                           </div>
                         </div>
@@ -4198,10 +4218,39 @@ const Connections = () => {
             </DialogTitle>
           </DialogHeader>
           <p className="text-sm text-[var(--iverifi-text-muted)]">
-            Enter a nickname for this family member. They'll verify their
-            Aadhaar on this device.
+            Choose the ID type and enter a nickname. The verification will open
+            on this device.
           </p>
-          <div className="space-y-2 py-1">
+
+          {/* Doc type picker */}
+          <div className="grid grid-cols-2 gap-2 pt-1">
+            {FAMILY_DOC_OPTIONS.map((opt) => {
+              const isSelected = familyDocType === opt.type;
+              return (
+                <button
+                  key={opt.type}
+                  type="button"
+                  onClick={() => setFamilyDocType(opt.type)}
+                  className={`flex items-center gap-1.5 rounded-xl border px-2 py-2 text-left transition-colors ${
+                    isSelected
+                      ? "border-teal-500 bg-teal-50 dark:border-teal-400 dark:bg-[rgba(0,200,180,0.14)]"
+                      : "border-[color:var(--iverifi-card-border)] bg-[var(--iverifi-card)] hover:border-teal-300"
+                  }`}
+                >
+                  <DocumentTypeIcon
+                    documentType={opt.iconType}
+                    size={12}
+                    className={`shrink-0 ${isSelected ? "text-teal-600 dark:text-teal-400" : "text-[var(--iverifi-text-muted)]"}`}
+                  />
+                  <span className={`text-xs font-semibold leading-tight ${isSelected ? "text-teal-700 dark:text-teal-300" : "text-[var(--iverifi-text-primary)]"}`}>
+                    {opt.label}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="space-y-2 pt-1">
             <Label
               htmlFor="family-nickname"
               className="text-[var(--iverifi-text-primary)]"
