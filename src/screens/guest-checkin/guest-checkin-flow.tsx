@@ -184,6 +184,7 @@ export default function GuestCheckinFlow() {
         return (
           <GuestPhoneAuth
             hotelName={state.hotelInfo?.name ?? "the hotel"}
+            hotelLogoUrl={state.hotelInfo?.logo_url ?? null}
             onAuthSuccess={(phone) => advance({ phone, step: "checking" })}
             onBack={() => advance({ step: "landing" })}
           />
@@ -213,6 +214,7 @@ export default function GuestCheckinFlow() {
         return (
           <GuestKyc
             hotelName={state.hotelInfo?.name ?? "the hotel"}
+            hotelLogoUrl={state.hotelInfo?.logo_url ?? null}
             existingCredentials={state.credentials}
             connectionId={state.connectionId}
             startedAt={state.startedAt}
@@ -239,6 +241,7 @@ export default function GuestCheckinFlow() {
         return (
           <GuestDetails
             hotelName={state.hotelInfo?.name ?? "the hotel"}
+            hotelLogoUrl={state.hotelInfo?.logo_url ?? null}
             phone={state.phone}
             credential={state.selectedCredential}
             credentials={state.credentials}
@@ -256,6 +259,7 @@ export default function GuestCheckinFlow() {
         return (
           <ReturningGuest
             hotelName={state.hotelInfo?.name ?? "the hotel"}
+            hotelLogoUrl={state.hotelInfo?.logo_url ?? null}
             credentials={state.credentials}
             selectedCredential={state.selectedCredential}
             onContinue={() => advance({ step: "details" })}
@@ -278,6 +282,7 @@ export default function GuestCheckinFlow() {
         return (
           <GuestConfirmation
             hotelName={state.hotelInfo?.name ?? "the hotel"}
+            hotelLogoUrl={state.hotelInfo?.logo_url ?? null}
             credential={state.selectedCredential}
             checkInResult={state.checkInResult}
             connectionId={state.connectionId}

@@ -24,6 +24,7 @@ const SHARED_CHIPS: Record<string, string[]> = {
 
 interface Props {
   hotelName: string;
+  hotelLogoUrl?: string | null;
   credentials: FlowCredential[];
   selectedCredential: FlowCredential | null;
   onContinue: () => void;
@@ -33,6 +34,7 @@ interface Props {
 
 export default function ReturningGuest({
   hotelName,
+  hotelLogoUrl,
   credentials,
   selectedCredential,
   onContinue,
@@ -48,6 +50,15 @@ export default function ReturningGuest({
         <div className="flex justify-center">
           <IverifiLogo />
         </div>
+        {(hotelLogoUrl || hotelName) && (
+          <div className="flex items-center justify-center gap-2 rounded-full border border-[var(--iverifi-card-border)] bg-[var(--iverifi-card)] px-4 py-2">
+            {hotelLogoUrl ? (
+              <img src={hotelLogoUrl} alt="" className="h-7 w-auto max-w-[120px] object-contain" />
+            ) : (
+              <><span>🏨</span><span className="text-sm">{hotelName}</span></>
+            )}
+          </div>
+          )}
 
         <div className="text-center">
           <div

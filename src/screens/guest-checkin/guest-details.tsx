@@ -46,6 +46,7 @@ function extractNameFromCredential(cred: FlowCredential | null): { firstName: st
 
 interface Props {
   hotelName: string;
+  hotelLogoUrl?: string | null;
   phone: string;
   credential: FlowCredential | null;
   credentials: FlowCredential[];
@@ -58,6 +59,7 @@ interface Props {
 
 export default function GuestDetails({
   hotelName,
+  hotelLogoUrl,
   phone,
   credential,
   credentials,
@@ -69,6 +71,7 @@ export default function GuestDetails({
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
+  const [emailLocked, setEmailLocked] = useState(false);
   const [phoneInput, setPhoneInput] = useState(phone ?? "");
   useEffect(() => { if (phone && !phoneInput) setPhoneInput(phone); }, [phone]);
   const [submitting, setSubmitting] = useState(false);
@@ -90,7 +93,7 @@ export default function GuestDetails({
       .then((profile) => {
         if (!fn && profile.firstName) setFirstName(profile.firstName);
         if (!fn) setLastName(profile.lastName ?? "");
-        if (profile.email) setEmail((prev) => prev || profile.email || "");
+        if (profile.email) { setEmail((prev) => prev || profile.email || ""); setEmailLocked(true); }
         if (profile.phone || profile.phoneNumber) {
           setPhoneInput((prev) => prev || profile.phone || profile.phoneNumber || "");
         }
@@ -167,6 +170,15 @@ export default function GuestDetails({
         <div className="flex justify-center">
           <IverifiLogo />
         </div>
+        {(hotelLogoUrl || hotelName) && (
+          <div className="flex items-center justify-center gap-2 rounded-full border border-[var(--iverifi-card-border)] bg-[var(--iverifi-card)] px-4 py-2">
+            {hotelLogoUrl ? (
+              <img src={hotelLogoUrl} alt="" className="h-7 w-auto max-w-[120px] object-contain" />
+            ) : (
+              <><span>🏨</span><span className="text-sm">{hotelName}</span></>
+            )}
+          </div>
+          )}
 
         <div className="text-center">
           <h1 className="text-2xl font-bold text-foreground mb-1">Your details</h1>
@@ -216,15 +228,15 @@ export default function GuestDetails({
             <div className="flex flex-col gap-1.5">
               <Label className="text-xs font-medium text-muted-foreground">
                 Email{" "}
-                <span className="text-muted-foreground/60 font-normal">— optional</span>
+                {!emailLocked && <span className="text-muted-foreground/60 font-normal">— optional</span>}
               </Label>
               <Input
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="your@email.com"
                 type="email"
-                disabled={submitting}
-                className="bg-background border-[color:var(--iverifi-card-border)]"
+                disabled={submitting || emailLocked}
+                className="bg-background border-[color:var(--iverifi-card-border)] disabled:opacity-70 disabled:cursor-not-allowed"
               />
             </div>
 

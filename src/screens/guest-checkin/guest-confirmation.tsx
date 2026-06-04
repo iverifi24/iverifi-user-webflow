@@ -17,13 +17,14 @@ const DOC_LABELS: Record<string, string> = {
 
 interface Props {
   hotelName: string;
+  hotelLogoUrl?: string | null;
   credential: FlowCredential | null;
   checkInResult: "approved" | "pending" | null;
   connectionId: string;
   onDone: () => void;
 }
 
-export default function GuestConfirmation({ hotelName, credential, checkInResult, connectionId, onDone }: Props) {
+export default function GuestConfirmation({ hotelName, hotelLogoUrl, credential, checkInResult, connectionId, onDone }: Props) {
   const navigate = useNavigate();
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const docLabel = credential ? (DOC_LABELS[credential.document_type] ?? credential.document_type) : "Document";
@@ -50,6 +51,15 @@ export default function GuestConfirmation({ hotelName, credential, checkInResult
     <div className="flex min-h-screen flex-col items-center justify-center px-4 py-8">
       <div className="w-full max-w-sm flex flex-col items-center gap-5 text-center">
         <IverifiLogo />
+        {(hotelLogoUrl || hotelName) && (
+          <div className="flex items-center justify-center gap-2 rounded-full border border-[var(--iverifi-card-border)] bg-[var(--iverifi-card)] px-4 py-2">
+            {hotelLogoUrl ? (
+              <img src={hotelLogoUrl} alt="" className="h-7 w-auto max-w-[120px] object-contain" />
+            ) : (
+              <><span>🏨</span><span className="text-sm">{hotelName}</span></>
+            )}
+          </div>
+          )}
 
         {/* Success icon */}
         <div

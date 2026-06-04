@@ -29,6 +29,7 @@ const DOC_TYPES = [
 
 interface Props {
   hotelName: string;
+  hotelLogoUrl?: string | null;
   existingCredentials: FlowCredential[];
   connectionId: string;
   startedAt: number;
@@ -41,6 +42,7 @@ interface Props {
 
 export default function GuestDocSelect({
   hotelName,
+  hotelLogoUrl,
   existingCredentials,
   connectionId,
   startedAt,
@@ -556,6 +558,15 @@ export default function GuestDocSelect({
         <div className="flex justify-center">
           <IverifiLogo />
         </div>
+        {(hotelLogoUrl || hotelName) && (
+          <div className="flex items-center justify-center gap-2 rounded-full border border-[var(--iverifi-card-border)] bg-[var(--iverifi-card)] px-4 py-2">
+            {hotelLogoUrl ? (
+              <img src={hotelLogoUrl} alt="" className="h-7 w-auto max-w-[120px] object-contain" />
+            ) : (
+              <><span>🏨</span><span className="text-sm">{hotelName}</span></>
+            )}
+          </div>
+          )}
 
         <div className="text-center">
           <h1 className="text-2xl font-bold text-foreground mb-1">Choose your ID</h1>

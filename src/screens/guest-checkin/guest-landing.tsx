@@ -28,13 +28,15 @@ export default function GuestLanding({ hotelCode, onHotelInfo, onStart }: Props)
         <IverifiLogo />
 
         {/* Hotel badge */}
-        <div className="flex items-center gap-2 rounded-full border border-[var(--iverifi-card-border)] bg-[var(--iverifi-card)] px-4 py-2 text-sm font-medium text-[var(--iverifi-text-secondary)]">
+        <div className="flex items-center justify-center gap-2 rounded-full border border-[var(--iverifi-card-border)] bg-[var(--iverifi-card)] px-4 py-2">
           {logoUrl ? (
-            <img src={logoUrl} alt="" className="w-5 h-5 rounded object-cover" />
+            <img src={logoUrl} alt={hotelName} className="h-7 w-auto max-w-[120px] object-contain" />
           ) : (
-            <span>🏨</span>
+            <>
+              <span>🏨</span>
+              <span>{hotelName}</span>
+            </>
           )}
-          <span>{hotelName}</span>
         </div>
 
         {/* Headline */}
