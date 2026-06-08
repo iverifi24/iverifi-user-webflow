@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { IverifiLogo } from "@/components/iverifi-logo";
+import { HotelBadge } from "@/components/hotel-badge";
 import { PhoneLoginForm } from "@/components/phone-login-form";
 import {
   Card,
@@ -54,16 +55,8 @@ export default function GuestPhoneAuth({ onAuthSuccess, onBack, hotelName, hotel
   return (
     <div className="flex min-h-screen flex-col items-center justify-center px-4 py-8">
       <div className="w-full max-w-sm flex flex-col items-center gap-5">
-        <IverifiLogo />
-        {(hotelLogoUrl || hotelName) && (
-          <div className="flex items-center justify-center gap-2 rounded-full border border-[var(--iverifi-card-border)] bg-[var(--iverifi-card)] px-4 py-2">
-            {hotelLogoUrl ? (
-              <img src={hotelLogoUrl} alt="" className="h-7 w-auto max-w-[120px] object-contain" />
-            ) : (
-              <><span>🏨</span><span className="text-sm">{hotelName}</span></>
-            )}
-          </div>
-          )}
+        <div className="flex justify-center"><IverifiLogo /></div>
+        <HotelBadge name={hotelName} logoUrl={hotelLogoUrl} />
 
         <Card className="w-full border-[color:var(--iverifi-card-border)] bg-[var(--iverifi-card)] shadow-lg dark:shadow-[0_18px_45px_rgba(0,0,0,0.85)]">
           <CardHeader>
