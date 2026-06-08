@@ -21,29 +21,29 @@ type BottomNavItem =
     };
 
 function VaultIcon({ active }: { active: boolean }) {
-  return <Lock className="h-5 w-5" color={active ? "#00e0ff" : "#94a3b8"} />;
+  return <Lock className="h-6 w-6" color={active ? "var(--iverifi-accent)" : "var(--iverifi-inactive-icon)"} />;
 }
 function ScanIcon({ active }: { active: boolean }) {
   return (
     <ScanLine
-      className="h-5 w-5"
-      color={active ? "#00e0ff" : "#94a3b8"}
+      className="h-6 w-6"
+      color={active ? "var(--iverifi-accent)" : "var(--iverifi-inactive-icon)"}
     />
   );
 }
 function AgeIcon({ active }: { active: boolean }) {
   return (
     <BadgeCheck
-      className="h-5 w-5"
-      color={active ? "#00e0ff" : "#94a3b8"}
+      className="h-6 w-6"
+      color={active ? "var(--iverifi-accent)" : "var(--iverifi-inactive-icon)"}
     />
   );
 }
 function ActivityIcon({ active }: { active: boolean }) {
   return (
     <Activity
-      className="h-5 w-5"
-      color={active ? "#00e0ff" : "#94a3b8"}
+      className="h-6 w-6"
+      color={active ? "var(--iverifi-accent)" : "var(--iverifi-inactive-icon)"}
     />
   );
 }
@@ -143,16 +143,16 @@ export function BottomNav() {
                         <div
                           className={
                             active
-                              ? "flex h-2 w-2 items-center justify-center rounded-full bg-[#00e0ff] shadow-[0_0_18px_rgba(0,224,255,0.55)]"
-                              : "invisible h-2 w-2 rounded-full bg-[#00e0ff]"
+                              ? "flex h-2 w-2 items-center justify-center rounded-full bg-[var(--iverifi-accent)] shadow-[0_0_18px_rgba(0,224,255,0.4)]"
+                              : "invisible h-2 w-2 rounded-full bg-[var(--iverifi-accent)]"
                           }
                         />
                         <Icon active={active} />
                         <span
                           className={
                             active
-                              ? "text-[10px] font-semibold text-[#00e0ff]"
-                              : "text-[10px] font-semibold text-muted-foreground"
+                              ? "text-xs font-semibold text-[var(--iverifi-accent)]"
+                              : "text-xs font-semibold text-muted-foreground"
                           }
                         >
                           {item.label}

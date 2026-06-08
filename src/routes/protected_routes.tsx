@@ -1,6 +1,9 @@
 import { useAuth } from "@/context/auth_context";
 import { isTermsAccepted } from "@/utils/terms";
-import { peekRecipientIdFromStorage } from "@/utils/connectionFlow";
+import {
+  peekRecipientIdFromStorage,
+  saveRecipientIdForLater,
+} from "@/utils/connectionFlow";
 import type { JSX } from "react";
 import { Navigate, useLocation, useSearchParams } from "react-router-dom";
 import { useEffect, useState } from "react";
@@ -25,7 +28,7 @@ const ProtectedRoute = ({ children }: { children: JSX.Element }) => {
       setTermsAccepted(true);
       return;
     }
-  
+
     // For other paths, check database
     if (user && !loading) {
       // Check terms - the effect dependency array handles when to re-check
@@ -52,8 +55,15 @@ const ProtectedRoute = ({ children }: { children: JSX.Element }) => {
 
   // For non-allowed paths, do normal checks
   if (loading) return <LoadingScreen variant="fullPage" />;
-  
-  if (!user) return <Navigate to="/login" />;
+
+  if (!user) {
+    const code = searchParams.get("code");
+    // Save the hotel code to localStorage so the login/signup flow can restore it
+    // even if the URL param gets lost during navigation
+    if (code) saveRecipientIdForLater(code);
+    const loginUrl = code ? `/login?code=${code}` : "/login";
+    return <Navigate to={loginUrl} />;
+  }
 
   // Wait for terms check to complete
   if (termsAccepted === null) {
@@ -63,7 +73,7 @@ const ProtectedRoute = ({ children }: { children: JSX.Element }) => {
   // Check if terms accepted from database (source of truth) for other protected routes
   // Only redirect if explicitly false (not null, not true)
   // Also check that we're not already on accept-terms to prevent redirect loops
-  if (termsAccepted === false && location.pathname !== "/accept-terms") {
+  if (termsAccepted === false && location.pathname !== "/accept-terms" && location.pathname !== "/aadhaar-test") {
     // Preserve the code query parameter if it exists
     // Check both URL params and localStorage (for cases where code is saved but not yet in URL)
     let code = searchParams.get("code");

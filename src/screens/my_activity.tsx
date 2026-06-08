@@ -9,6 +9,7 @@ import {
   Calendar,
   Shield,
   FileText,
+  XCircle,
 } from "lucide-react";
 
 const formatDocType = (type: string): string => {
@@ -27,17 +28,19 @@ const getActivityIcon = (item: {
   const type = (item.type || "").toLowerCase();
   const msg = (item.message || "").toLowerCase();
   const activityType = (item.activity_type || "").toLowerCase();
+  if (activityType === "rejected" || msg.includes("rejected"))
+    return <XCircle className="h-5 w-5 shrink-0 text-red-400" />;
   if (type.includes("document")) {
     if (activityType === "deleted" || msg.includes("deleted"))
       return <FileX className="h-5 w-5 shrink-0 text-red-400" />;
-    return <FileCheck className="h-5 w-5 shrink-0 text-[#00c896]" />;
+    return <FileCheck className="h-5 w-5 shrink-0 text-emerald-600 dark:text-[#00c896]" />;
   }
   if (type.includes("connection")) {
     if (msg.includes("check-in") || msg.includes("check-in"))
-      return <CalendarCheck className="h-5 w-5 shrink-0 text-[#f5a623]" />;
+      return <CalendarCheck className="h-5 w-5 shrink-0 text-amber-500 dark:text-[#f5a623]" />;
     if (msg.includes("check-out") || msg.includes("checked out"))
       return <Calendar className="h-5 w-5 shrink-0 text-slate-400" />;
-    return <Link2 className="h-5 w-5 shrink-0 text-[#00e0ff]" />;
+    return <Link2 className="h-5 w-5 shrink-0 text-teal-600 dark:text-[#00e0ff]" />;
   }
   return <Shield className="h-5 w-5 shrink-0 text-slate-500" />;
 };
@@ -85,16 +88,20 @@ const MyActivity = () => {
         </div>
       ) : (
         <div className="space-y-2">
-          {activities.map((item: any) => (
+          {activities.map((item: any) => {
+            const isRejected =
+              (item.activity_type || "").toLowerCase() === "rejected" ||
+              (item.message || "").toLowerCase().includes("rejected");
+            return (
             <div
               key={item.id}
-              className={`${cardClass} flex items-start gap-3 transition-colors hover:bg-[var(--iverifi-card-hover)]`}
+              className={`${cardClass} flex items-start gap-3 transition-colors hover:bg-[var(--iverifi-card-hover)] ${isRejected ? "border-red-500/30" : ""}`}
             >
-              <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[color:var(--iverifi-icon-border)] bg-[var(--iverifi-muted-surface)]">
+              <div className={`mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border bg-[var(--iverifi-muted-surface)] ${isRejected ? "border-red-500/30" : "border-[color:var(--iverifi-icon-border)]"}`}>
                 {getActivityIcon(item)}
               </div>
               <div className="min-w-0 flex-1">
-                <p className="font-semibold text-[var(--iverifi-text-primary)] text-sm">
+                <p className={`font-semibold text-sm ${isRejected ? "text-red-400" : "text-[var(--iverifi-text-primary)]"}`}>
                   {item.message || "Activity"}
                 </p>
                 {(item.name || item.type) && (
@@ -104,21 +111,23 @@ const MyActivity = () => {
                       : item.name || item.type}
                   </p>
                 )}
+                {isRejected && item.rejection_reason && (
+                  <p className="text-xs text-red-400/80 mt-0.5 italic">
+                    Reason: {item.rejection_reason}
+                  </p>
+                )}
                 <p className="text-xs text-[var(--iverifi-label)] mt-1.5 font-medium">
                   {item.date
                     ? format(
-                        new Date(
-                          typeof item.date === "number"
-                            ? item.date
-                            : item.date
-                        ),
+                        new Date(typeof item.date === "number" ? item.date : item.date),
                         "MMM d, yyyy · h:mm a"
                       )
                     : "—"}
                 </p>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

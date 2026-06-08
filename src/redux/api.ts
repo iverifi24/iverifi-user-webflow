@@ -16,6 +16,7 @@ export const api = createApi({
     "connections",
     "credentials",
     "activity",
+    "familyCredentials",
   ],
   endpoints: (builder) => ({
     getCredentials: builder.query<any, void>({
@@ -24,6 +25,27 @@ export const api = createApi({
         method: "GET",
       }),
       providesTags: ["credentials"],
+    }),
+    createCredential: builder.mutation<
+      { status: number; data: { document_id: string }; hasError: boolean; message: string },
+      { document_type: string; verifiers_name?: string }
+    >({
+      query: (body) => ({
+        url: "/document/createCredentials",
+        method: "POST",
+        body,
+      }),
+    }),
+    patchCredentialType: builder.mutation<
+      { status: number; hasError: boolean; message: string },
+      { session_id: string; document_type: string; started_at?: number }
+    >({
+      query: (body) => ({
+        url: "/document/patchCredentialType",
+        method: "POST",
+        body,
+      }),
+      invalidatesTags: ["credentials"],
     }),
     deleteCredential: builder.mutation<{ data: { credential_id: string } }, { credential_id: string }>({
       query: ({ credential_id }) => ({
@@ -70,19 +92,20 @@ export const api = createApi({
       invalidatesTags: ["connections", "activity"],
     }),
     updateCredentialsRequest: builder.mutation({
-      query: ({ credential_request_id, credentials, action }) => ({
+      query: ({ credential_request_id, credentials, action, pending_credential_id }) => ({
         url: "/users/updateCredentialsRequest",
         method: "POST",
         body: {
           credential_request_id,
           credentials,
           ...(action && { action }),
+          ...(pending_credential_id && { pending_credential_id }),
         },
       }),
       invalidatesTags: ["connections", "activity"],
     }),
     updateCheckInStatus: builder.mutation({
-      query: ({ credential_request_id, credentials, status, credential_id, cform_data }) => ({
+      query: ({ credential_request_id, credentials, status, credential_id, cform_data, client_started_at, document_type }) => ({
         url: "/users/updateCheckInStatus",
         method: "POST",
         body: {
@@ -91,6 +114,8 @@ export const api = createApi({
           status,
           ...(credential_id != null && credential_id !== "" && { credential_id }),
           ...(cform_data != null && { cform_data }),
+          ...(client_started_at != null && { client_started_at }),
+          ...(document_type != null && { document_type }),
         },
       }),
       invalidatesTags: ["connections", "activity"],
@@ -109,6 +134,48 @@ export const api = createApi({
         url: "/users/saveCForm",
         method: "POST",
         body: { credential_request_id, cform_data },
+      }),
+    }),
+    saveForeignPassport: builder.mutation<
+      { success: boolean; message: string },
+      { credential_request_id: string; foreign_passport_data: { passportPhotoUrl: string; visaPhotoUrl: string; selfiePhotoUrl: string } }
+    >({
+      query: ({ credential_request_id, foreign_passport_data }) => ({
+        url: "/users/saveForeignPassport",
+        method: "POST",
+        body: { credential_request_id, foreign_passport_data },
+      }),
+    }),
+    getFamilyCredentials: builder.query<any, void>({
+      query: () => ({
+        url: "/users/listFamilyCredentials",
+        method: "GET",
+      }),
+      providesTags: ["familyCredentials"],
+    }),
+    deleteFamilyCredential: builder.mutation<{ message: string }, { member_id: string }>({
+      query: ({ member_id }) => ({
+        url: "/users/deleteFamilyCredential",
+        method: "POST",
+        body: { member_id },
+      }),
+      invalidatesTags: ["familyCredentials"],
+    }),
+    updateCredentialHotel: builder.mutation<{ success: boolean }, { credential_id: string; credential_request_id: string }>({
+      query: (body) => ({
+        url: "/users/updateCredentialHotel",
+        method: "POST",
+        body,
+      }),
+    }),
+    submitFeedback: builder.mutation<
+      { success: boolean; message: string },
+      { credential_request_id: string; rating: number; feedback_message?: string }
+    >({
+      query: (body) => ({
+        url: "/users/submitFeedback",
+        method: "POST",
+        body,
       }),
     }),
     login: builder.mutation({
@@ -311,12 +378,36 @@ export const api = createApi({
       }),
       invalidatesTags: ["userManagement"],
     }),
+
+    getHotelPublicInfo: builder.query<
+      { hasError: boolean; data: { name: string; logo_url: string | null } | null; message: string },
+      string
+    >({
+      query: (recipient_id) => ({
+        url: `/users/public/hotel-info`,
+        method: "GET",
+        params: { recipient_id },
+      }),
+    }),
+    markKycStarted: builder.mutation<
+      { hasError: boolean; message: string },
+      { credential_request_id: string; session_id: string; document_type: string }
+    >({
+      query: (body) => ({
+        url: "/users/markKycStarted",
+        method: "POST",
+        body,
+      }),
+    }),
   }),
 });
 export const {
   useGetCredentialsQuery,
+  useCreateCredentialMutation,
+  usePatchCredentialTypeMutation,
   useDeleteCredentialMutation,
   useSaveCFormMutation,
+  useSaveForeignPassportMutation,
   useGetConnectionsQuery,
   useGetRecipientCredentialsQuery,
   useGetMyActivityQuery,
@@ -351,4 +442,10 @@ export const {
   useGetUserByIdQuery,
   useAdminCreateUserMutation,
   useUpdateAdminUserMutation,
+  useSubmitFeedbackMutation,
+  useGetFamilyCredentialsQuery,
+  useDeleteFamilyCredentialMutation,
+  useUpdateCredentialHotelMutation,
+  useGetHotelPublicInfoQuery,
+  useMarkKycStartedMutation,
 } = api;

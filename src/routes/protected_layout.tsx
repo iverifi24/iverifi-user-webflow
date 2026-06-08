@@ -4,6 +4,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { IverifiLogo } from "@/components/iverifi-logo";
 import { HeaderProfileMenu } from "@/components/header-profile-menu";
 import { BottomNav } from "@/components/bottom-nav";
+import { SupportWidget } from "@/components/support-widget";
 import { Sun, Moon } from "lucide-react";
 import { useTheme } from "@/context/theme_context";
 import { useAuth } from "@/context/auth_context";
@@ -51,9 +52,6 @@ const ProtectedLayout = () => {
                 className="h-[56px] w-[90px] min-w-[90px] shrink-0 object-contain object-left align-bottom md:w-[75px] md:min-w-[75px]"
               />
             </div>
-            <div className="hidden flex-col justify-center md:flex">
-              <span className="text-sm font-semibold text-foreground">iVerifi</span>
-            </div>
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <button
@@ -81,6 +79,7 @@ const ProtectedLayout = () => {
       </SidebarInset>
 
       {showBottomNav && <BottomNav />}
+      {showBottomNav && <SupportWidget />}
 
       {/* PIN lock / setup overlay */}
       {showPinScreen && user && (

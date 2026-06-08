@@ -121,9 +121,9 @@ export default function ProfileCompletion() {
 
         {/* Form card */}
         <div className="w-full max-w-md shrink-0">
-          <Card className="border-[rgba(255,255,255,0.08)] bg-[rgba(10,16,30,0.98)] text-slate-50 shadow-[0_18px_45px_rgba(0,0,0,0.85)]">
+          <Card className="border-[color:var(--iverifi-card-border)] bg-[var(--iverifi-card)] text-[var(--iverifi-text-primary)] shadow-lg dark:shadow-[0_18px_45px_rgba(0,0,0,0.85)]">
             <CardHeader>
-              <CardTitle className="text-lg md:text-xl text-slate-50">
+              <CardTitle className="text-lg md:text-xl text-[var(--iverifi-text-primary)]">
                 Complete your profile
               </CardTitle>
               <CardDescription className="text-xs md:text-sm text-slate-400">
@@ -147,7 +147,7 @@ export default function ProfileCompletion() {
                     required
                     aria-required="true"
                     disabled={isSubmitting}
-                    className="border-slate-800/80 bg-slate-900/60 text-slate-50 placeholder:text-slate-500 focus-visible:ring-sky-500/70"
+                    className="border-[color:var(--iverifi-card-border)] bg-[var(--iverifi-muted-surface)] text-[var(--iverifi-text-primary)] placeholder:text-[var(--iverifi-text-muted)]"
                   />
                 </div>
 
@@ -164,7 +164,7 @@ export default function ProfileCompletion() {
                     required
                     aria-required="true"
                     disabled={isSubmitting}
-                    className="border-slate-800/80 bg-slate-900/60 text-slate-50 placeholder:text-slate-500 focus-visible:ring-sky-500/70"
+                    className="border-[color:var(--iverifi-card-border)] bg-[var(--iverifi-muted-surface)] text-[var(--iverifi-text-primary)] placeholder:text-[var(--iverifi-text-muted)]"
                   />
                 </div>
 
@@ -182,7 +182,7 @@ export default function ProfileCompletion() {
                       required
                       aria-required="true"
                       disabled={isSubmitting}
-                      className="border-slate-800/80 bg-slate-900/60 text-slate-50 placeholder:text-slate-500 focus-visible:ring-sky-500/70"
+                      className="border-[color:var(--iverifi-card-border)] bg-[var(--iverifi-muted-surface)] text-[var(--iverifi-text-primary)] placeholder:text-[var(--iverifi-text-muted)]"
                     />
                   </div>
                 ) : (
@@ -200,7 +200,7 @@ export default function ProfileCompletion() {
                       required
                       aria-required="true"
                       disabled={isSubmitting}
-                      className="border-slate-800/80 bg-slate-900/60 text-slate-50 placeholder:text-slate-500 focus-visible:ring-sky-500/70"
+                      className="border-[color:var(--iverifi-card-border)] bg-[var(--iverifi-muted-surface)] text-[var(--iverifi-text-primary)] placeholder:text-[var(--iverifi-text-muted)]"
                     />
                   </div>
                 )}

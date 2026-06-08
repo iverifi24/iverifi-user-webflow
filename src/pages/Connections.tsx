@@ -9,16 +9,40 @@ import {
   useUpdateCredentialsRequestMutation,
   useUpdateCheckInStatusMutation,
   useDeleteCredentialMutation,
-  useSaveCFormMutation,
+  // useSaveCFormMutation,
+  useSaveForeignPassportMutation,
+  useCreateCredentialMutation,
+  useGetFamilyCredentialsQuery,
+  useDeleteFamilyCredentialMutation,
+  useUpdateCredentialHotelMutation,
 } from "@/redux/api";
-import { CFormDialog } from "@/components/c-form-dialog";
-import type { CFormData, CFormPassportData } from "@/components/c-form-dialog";
+// import { CFormDialog } from "@/components/c-form-dialog";
+// import type { CFormData, CFormPassportData } from "@/components/c-form-dialog";
+import { ForeignPassportDialog } from "@/components/foreign-passport-dialog";
+import type { ForeignPassportPhotos } from "@/components/foreign-passport-dialog";
 import { determineConnectionType, isValidQRCode } from "@/utils/qr-code-utils";
 import { addDays, format } from "date-fns";
-import { CheckCircle, ChevronRight, Loader2, Lock, Plus, Share2, X } from "lucide-react";
+import {
+  CheckCircle,
+  ChevronRight,
+  Loader2,
+  Lock,
+  Plus,
+  Share2,
+  X,
+} from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { clearPendingRecipientId } from "@/utils/connectionFlow";
+import {
+  useLocation,
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from "react-router-dom";
+import {
+  clearPendingRecipientId,
+  saveRecipientIdForLater,
+  getRecipientIdFromStorage,
+} from "@/utils/connectionFlow";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -29,6 +53,7 @@ import {
 import { VerifierBadge } from "@/components/verifier-badge";
 import { DocumentTypeIcon } from "@/components/document-type-icon";
 import { QRScannerModal } from "@/components/qr-scanner-modal";
+import { FeedbackModal } from "@/components/feedback-modal";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
@@ -41,11 +66,31 @@ const DOCUMENT_TYPES = [
 ] as const;
 type DocumentType = (typeof DOCUMENT_TYPES)[number];
 
-/** Backend document_type values for children's Aadhaar (Kwik: XMLM1, XMLM2, XMLM3) */
-const CHILD_AADHAAR_TYPES = ["Child 1 Aadhaar", "Child 2 Aadhaar", "Child 3 Aadhaar"] as const;
-type ChildAadhaarType = (typeof CHILD_AADHAAR_TYPES)[number];
+const HOME_DOCUMENT_TYPES = [
+  "DRIVING_LICENSE",
+  "AADHAAR_CARD",
+  "PAN_CARD",
+  "PASSPORT",
+] as const;
 
-const HOME_DOCUMENT_TYPES = ["DRIVING_LICENSE", "AADHAAR_CARD", "PAN_CARD", "PASSPORT"] as const;
+/* Derive a 3-char hotel code from the hotel name for C-Form reference numbers.
+function hotelCodeFromName(name: string): string {
+  const stops = new Set(["the", "a", "an", "and", "&", "hotel", "inn", "resort", "lodge", "suites", "palace"]);
+  const words = name.trim().split(/\s+/).filter((w) => !stops.has(w.toLowerCase()));
+  if (words.length === 0) return "HTL";
+  if (words.length === 1) return words[0].slice(0, 3).toUpperCase().padEnd(3, "X");
+  return words.slice(0, 3).map((w) => w[0].toUpperCase()).join("").padEnd(3, "X");
+} */
+
+/* Generate a sequential C-Form reference: CF-YYYY-XXX-NNN (counter persisted in localStorage).
+function generateCFormRef(hotelName: string): string {
+  const code = hotelCodeFromName(hotelName);
+  const year = new Date().getFullYear();
+  const key = `cf_seq_${code}_${year}`;
+  const seq = (parseInt(localStorage.getItem(key) || "0", 10)) + 1;
+  localStorage.setItem(key, String(seq));
+  return `CF-${year}-${code}-${String(seq).padStart(3, "0")}`;
+} */
 
 const PRODUCT_CODE_MAP: Record<DocumentType, string> = {
   AADHAAR_CARD: "KYC",
@@ -56,17 +101,16 @@ const PRODUCT_CODE_MAP: Record<DocumentType, string> = {
   "C-Form (Foreign Guest)": "PP",
 };
 
-/** Kwik product codes for child Aadhaar (minor XML flow) */
-const CHILD_PRODUCT_CODE_MAP: Record<ChildAadhaarType, string> = {
-  "Child 1 Aadhaar": "XMLM1",
-  "Child 2 Aadhaar": "XMLM2",
-  "Child 3 Aadhaar": "XMLM3",
-};
+const getProductCode = (docType: DocumentType): string =>
+  (PRODUCT_CODE_MAP as Record<string, string>)[docType] ?? "KYC";
 
-const getProductCode = (docType: DocumentType | ChildAadhaarType): string =>
-  docType in PRODUCT_CODE_MAP
-    ? (PRODUCT_CODE_MAP as Record<string, string>)[docType]
-    : (CHILD_PRODUCT_CODE_MAP as Record<string, string>)[docType];
+const FAMILY_DOC_OPTIONS = [
+  { type: "FAMILY_AADHAAR",   label: "Aadhaar",         subtitle: "UIDAI Verified",          productCode: "KYC", iconType: "AADHAAR_CARD"      },
+  { type: "FAMILY_PASSPORT",  label: "Passport",        subtitle: "Passport Seva",            productCode: "PP",  iconType: "PASSPORT"          },
+  { type: "FAMILY_DL",        label: "Driving License", subtitle: "State RTO Verified",       productCode: "DL",  iconType: "DRIVING_LICENSE"   },
+  { type: "FAMILY_PAN",       label: "PAN Card",        subtitle: "Income Tax Department",    productCode: "PC",  iconType: "PAN_CARD"          },
+] as const;
+type FamilyDocType = (typeof FAMILY_DOC_OPTIONS)[number]["type"];
 
 /** Subtitle under document name (e.g. "UIDAI Verified") */
 const DOC_TYPE_SUBTITLE: Record<string, string> = {
@@ -74,10 +118,8 @@ const DOC_TYPE_SUBTITLE: Record<string, string> = {
   AADHAAR_CARD: "UIDAI Verified",
   PAN_CARD: "Income Tax Department",
   PASSPORT: "Passport Seva",
-  "C-Form (Foreign Guest)": "Auto-filled from passport · FRRO compliance for hotels",
-  "Child 1 Aadhaar": "UIDAI Verified",
-  "Child 2 Aadhaar": "UIDAI Verified",
-  "Child 3 Aadhaar": "UIDAI Verified",
+  "C-Form (Foreign Guest)":
+    "Auto-filled from passport · FRRO compliance for hotels",
 };
 
 const getDocSubtitle = (docType: string): string =>
@@ -130,9 +172,20 @@ const getAddressPart = (details: Record<string, any>, keys: string[]) => {
   return null;
 };
 
-const flattenSources = (source: Record<string, any> | null | undefined): Record<string, any> => {
+const flattenSources = (
+  source: Record<string, any> | null | undefined,
+): Record<string, any> => {
   if (!source || typeof source !== "object") return {};
-  const nestedKeys = ["details", "display", "data", "payload", "document_data", "parsed_data", "metadata", "response"];
+  const nestedKeys = [
+    "details",
+    "display",
+    "data",
+    "payload",
+    "document_data",
+    "parsed_data",
+    "metadata",
+    "response",
+  ];
   const merged: Record<string, any> = { ...source };
   nestedKeys.forEach((key) => {
     let value = source[key];
@@ -150,7 +203,10 @@ const flattenSources = (source: Record<string, any> | null | undefined): Record<
   return merged;
 };
 
-const deepFlatten = (value: any, out: Record<string, any> = {}): Record<string, any> => {
+const deepFlatten = (
+  value: any,
+  out: Record<string, any> = {},
+): Record<string, any> => {
   if (!value || typeof value !== "object") return out;
   Object.entries(value).forEach(([k, v]) => {
     if (v == null) return;
@@ -169,21 +225,71 @@ const deepFlatten = (value: any, out: Record<string, any> = {}): Record<string, 
   return out;
 };
 
-const extractKwikOcr = (credential: Record<string, any>): Record<string, any> => {
+const extractKwikOcr = (
+  credential: Record<string, any>,
+): Record<string, any> => {
   const step =
-    credential?.session_data_array?.extras?.session_data?.summary_data?.data?.[0] ??
-    credential?.sessionDataArray?.extras?.session_data?.summary_data?.data?.[0] ??
+    credential?.session_data_array?.extras?.session_data?.summary_data
+      ?.data?.[0] ??
+    credential?.sessionDataArray?.extras?.session_data?.summary_data
+      ?.data?.[0] ??
     null;
   const ocr = step?.ocr && typeof step.ocr === "object" ? step.ocr : {};
-  const images = step?.images && typeof step.images === "object" ? step.images : {};
-  return { ...ocr, ...images };
+  const images =
+    step?.images && typeof step.images === "object" ? step.images : {};
+
+  // DigiLocker flow — data lives in digilocker_data[0].data
+  const digilockerRaw = step?.digilocker_data?.[0]?.data;
+  const digilockerData =
+    digilockerRaw && typeof digilockerRaw === "object" ? digilockerRaw : {};
+  // Derive aadhaar last 4 from masked number like "xxxxxxxx4080"
+  const maskedNumber = digilockerData.number
+    ? String(digilockerData.number)
+    : "";
+  const derivedLast4 = maskedNumber
+    ? maskedNumber.replace(/[^0-9]/g, "").slice(-4)
+    : undefined;
+  const digilockerExtras: Record<string, any> = { ...digilockerData };
+  if (derivedLast4) digilockerExtras.aadhaarLast4 = derivedLast4;
+  // Map user_photo (base64) so existing photo extraction finds it
+  if (digilockerData.user_photo)
+    digilockerExtras.photo_base64 = digilockerData.user_photo;
+
+  return { ...ocr, ...images, ...digilockerExtras };
+};
+
+const parseDob = (raw: unknown): Date | null => {
+  if (!raw) return null;
+  const s = String(raw).trim();
+  // DD/MM/YYYY or DD-MM-YYYY
+  const dmy = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+  if (dmy)
+    return new Date(
+      `${dmy[3]}-${dmy[2].padStart(2, "0")}-${dmy[1].padStart(2, "0")}`,
+    );
+  // YYYY/MM/DD or YYYY-MM-DD
+  const ymd = s.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/);
+  if (ymd)
+    return new Date(
+      `${ymd[1]}-${ymd[2].padStart(2, "0")}-${ymd[3].padStart(2, "0")}`,
+    );
+  // DDMMYYYY (8 digits, no separator) — DigiLocker DL format e.g. "06061999"
+  const ddmmyyyy = s.match(/^(\d{2})(\d{2})(\d{4})$/);
+  if (ddmmyyyy)
+    return new Date(`${ddmmyyyy[3]}-${ddmmyyyy[2]}-${ddmmyyyy[1]}`);
+  const d = new Date(s);
+  return Number.isNaN(d.getTime()) ? null : d;
 };
 
 const pickByIncludes = (obj: Record<string, any>, includes: string[]): any => {
   const entries = Object.entries(obj);
   for (const [key, value] of entries) {
     const normalized = key.toLowerCase().replace(/[^a-z0-9]/g, "");
-    if (includes.some((part) => normalized.includes(part)) && value != null && value !== "") {
+    if (
+      includes.some((part) => normalized.includes(part)) &&
+      value != null &&
+      value !== ""
+    ) {
       return value;
     }
   }
@@ -191,14 +297,47 @@ const pickByIncludes = (obj: Record<string, any>, includes: string[]): any => {
 };
 
 const SHARE_SUMMARY_BY_DOC: Record<string, string[]> = {
-  AADHAAR_CARD: ["Photo", "Full name", "Aadhaar (masked)", "Age 18+", "Address", "City", "State", "Pincode"],
+  AADHAAR_CARD: [
+    "Photo",
+    "Full name",
+    "Aadhaar (masked)",
+    "Age 18+",
+    "Address",
+    "City",
+    "State",
+    "Pincode",
+  ],
   PAN_CARD: ["Photo", "Full name", "PAN number", "Date of birth", "Age 18+"],
-  DRIVING_LICENSE: ["Photo", "Full name", "Licence number", "Valid till", "Vehicle class", "City", "State"],
-  PASSPORT: ["Photo", "Full name", "Passport No. (masked)", "Nationality", "Valid till"],
-  "Child 1 Aadhaar": ["Child photo", "Child name", "Aadhaar (masked)", "Age indicator", "City", "State", "Guardian name"],
-  "Child 2 Aadhaar": ["Child photo", "Child name", "Aadhaar (masked)", "Age indicator", "City", "State", "Guardian name"],
-  "Child 3 Aadhaar": ["Child photo", "Child name", "Aadhaar (masked)", "Age indicator", "City", "State", "Guardian name"],
-  "C-Form (Foreign Guest)": ["Surname", "Given name", "Nationality", "Passport No.", "Date of birth", "Sex", "Arrival date", "Port of arrival", "Visa No.", "Visa type", "Address in India"],
+  DRIVING_LICENSE: [
+    "Photo",
+    "Full name",
+    "Licence number",
+    "Valid till",
+    "Vehicle class",
+    "City",
+    "State",
+  ],
+  PASSPORT: [
+    "Photo",
+    "Full name",
+    "Passport No. (masked)",
+    "Nationality",
+    "Valid till",
+  ],
+  "C-Form (Foreign Guest)": [
+    "Surname",
+    "Given name",
+    "Nationality",
+    "Passport No.",
+    "Date of birth",
+    "Sex",
+    "Arrival date",
+    "Port of arrival",
+    "Visa No.",
+    "Visa type",
+    "Address in India",
+  ],
+  "Foreign Passport": ["Passport photo", "Visa / immigration stamp", "Selfie"],
 };
 
 const Connections = () => {
@@ -214,7 +353,9 @@ const Connections = () => {
   // );
 
   // track the just-created connection id (to avoid waiting on recipientData)
-  const [activeConnectionId, setActiveConnectionId] = useState<string | null>(null);
+  const [activeConnectionId, setActiveConnectionId] = useState<string | null>(
+    null,
+  );
 
   // track if credentials are available for check-in/out
   const [hasCredentials, setHasCredentials] = useState<boolean | null>(null);
@@ -229,17 +370,27 @@ const Connections = () => {
   const codeFromPath = (params.code as string) || null;
   const code = codeFromQuery || codeFromPath || null;
 
+  // Poll credentials after verification until new credential appears (max 15 s)
+  const [verifyPollingMs, setVerifyPollingMs] = useState(0);
+  const verifyPollStopRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const credCountBeforeVerifyRef = useRef(0);
+  // IDs of credentials before KYC started — used to find the newly-created credential doc
+  const credIdsBeforeVerifyRef = useRef<Set<string>>(new Set());
+  // When user verifies via hotel QR (first-time, doc doesn't exist yet), remember the
+  // credential_request_id so we can link once the new credential appears in polling
+  const pendingHotelLinkRef = useRef<string | null>(null);
+  // Always-current mirror of credentialsData — avoids stale closure in onMessage handler
+  const latestCredentialsRef = useRef<any>(null);
+
   // api
   const {
     data: credentialsData,
     isLoading: isCredentialsLoading,
     refetch: refetchCredentials,
-  } = useGetCredentialsQuery();
+  } = useGetCredentialsQuery(undefined, { pollingInterval: verifyPollingMs });
 
-  const {
-    data: connectionsData,
-    isLoading: isConnectionsLoading,
-  } = useGetConnectionsQuery();
+  const { data: connectionsData, isLoading: isConnectionsLoading } =
+    useGetConnectionsQuery();
 
   const {
     data: recipientData,
@@ -248,36 +399,116 @@ const Connections = () => {
   } = useGetRecipientCredentialsQuery(code || "", { skip: !code });
 
   const [updateCredentials] = useUpdateCredentialsRequestMutation();
-  const [updateCheckInStatus, { isLoading: isCheckInUpdating }] = useUpdateCheckInStatusMutation();
+  const [updateCheckInStatus, { isLoading: isCheckInUpdating }] =
+    useUpdateCheckInStatusMutation();
   const [addConnection] = useAddConnectionMutation();
-  const [deleteCredential, { isLoading: isDeleting }] = useDeleteCredentialMutation();
-  const [saveCForm] = useSaveCFormMutation();
+  const [deleteCredential, { isLoading: isDeleting }] =
+    useDeleteCredentialMutation();
+  // const [saveCForm] = useSaveCFormMutation();
+  const [saveForeignPassport] = useSaveForeignPassportMutation();
+  const [createCredential] = useCreateCredentialMutation();
+  const [deleteFamilyCredential] = useDeleteFamilyCredentialMutation();
+  const [updateCredentialHotel] = useUpdateCredentialHotelMutation();
 
-  const [deleteTarget, setDeleteTarget] = useState<{ id: string; document_type: string } | null>(null);
+  const { data: familyData, refetch: refetchFamily } =
+    useGetFamilyCredentialsQuery();
+
+  const pendingFamilyVerify = useRef(false);
+  const pendingFamilyCredentialId = useRef<string | null>(null);
+
+  const [deleteTarget, setDeleteTarget] = useState<{
+    id: string;
+    document_type: string;
+  } | null>(null);
   const [selectedDocType, setSelectedDocType] = useState<string | null>(null);
   const [shareSheetOpen, setShareSheetOpen] = useState(false);
-  const [shareSelectedDocType, setShareSelectedDocType] = useState<string | null>(null);
+  const [shareSelectedDocType, setShareSelectedDocType] = useState<
+    string | null
+  >(null);
   const [shareExpiryHours, setShareExpiryHours] = useState("24");
   const [scannerOpen, setScannerOpen] = useState(false);
   /** Type-to-confirm for delete: user must type "DELETE" to enable the Delete button */
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
 
   // C-Form dialog
-  const [cformDialogOpen, setCformDialogOpen] = useState(false);
+  // const [cformDialogOpen, setCformDialogOpen] = useState(false);
+  // const [cformRef, setCformRef] = useState("");
+  const [foreignPassportDialogOpen, setForeignPassportDialogOpen] =
+    useState(false);
+
+  // Tracks when the user opened the check-in flow (share sheet or C-Form dialog)
+  const checkinFlowStartedAt = useRef<number | null>(null);
+
+  // Feedback modal — shown after successful check-in
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const [feedbackRequestId, setFeedbackRequestId] = useState<string | null>(
+    null,
+  );
 
   /** Prevent double-submit: stays true until API settles; only cleared on error so user can retry */
   const [isCheckInOutInFlight, setCheckInOutInFlight] = useState(false);
 
-  /**
-   * Child Aadhaar: show 1 slot by default; "+ Add child" reveals up to 3.
-   * Auto-expands when a child is verified so the next slot can appear (capped at 3).
-   */
-  const [childAadhaarSlotsVisible, setChildAadhaarSlotsVisible] = useState(1);
+  // Family member state
+  const [familyDialogOpen, setFamilyDialogOpen] = useState(false);
+  const [familyDocType, setFamilyDocType] = useState<FamilyDocType>("FAMILY_AADHAAR");
+  const [familyNickname, setFamilyNickname] = useState("");
+  const [familyNicknameError, setFamilyNicknameError] = useState("");
+  const [isStartingFamilyVerify, setIsStartingFamilyVerify] = useState(false);
+  const [familyDeleteTarget, setFamilyDeleteTarget] = useState<{
+    id: string;
+    nickname: string;
+  } | null>(null);
+  const [selectedFamilyMember, setSelectedFamilyMember] = useState<any | null>(
+    null,
+  );
+
+  // DL choice modal + selfie
+  const [dlDigilockerModalOpen, setDlDigilockerModalOpen] = useState(false);
+  const [dlSelfieModalOpen, setDlSelfieModalOpen] = useState(false);
+  const dlSelfieStreamRef = useRef<MediaStream | null>(null);
+  const dlSelfieVideoRef = useRef<HTMLVideoElement | null>(null);
+  const dlSelfieCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const [dlSelfieCaptured, setDlSelfieCaptured] = useState<string | null>(null);
+  const [dlSelfieUploading, setDlSelfieUploading] = useState(false);
 
   // helper to robustly pick connection id from addConnection response
   const pickConnectionId = (res: any): string | null => {
-    return res?.data?.request_id ?? res?.data?.id ?? res?.request_id ?? res?.id ?? res?.data?.request?.id ?? null;
+    return (
+      res?.data?.credential_request_id ??
+      res?.data?.request_id ??
+      res?.data?.id ??
+      res?.request_id ??
+      res?.id ??
+      res?.data?.request?.id ??
+      null
+    );
   };
+
+  // Start/stop camera when selfie modal opens/closes
+  useEffect(() => {
+    if (dlSelfieModalOpen) {
+      startDLSelfieCamera();
+    } else {
+      stopDLSelfieCamera();
+      setDlSelfieCaptured(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dlSelfieModalOpen]);
+
+  // Detect DigiLocker DL redirect on mount (?dl_verified=1 or ?dl_error=...)
+  useEffect(() => {
+    const dlVerified = searchParams.get("dl_verified");
+    const dlError = searchParams.get("dl_error");
+    if (!dlVerified && !dlError) return;
+    if (dlVerified === "1") {
+      setDlSelfieModalOpen(true); // selfie first; polling starts after selfie submit
+    }
+    if (dlError) {
+      toast.error("DigiLocker verification was cancelled. You can use camera scan instead.");
+    }
+    navigate(location.pathname, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Add connection once on first load if we have a valid code, and capture its ID
   useEffect(() => {
@@ -310,24 +541,40 @@ const Connections = () => {
     if (!credentialsData?.data?.credential) return {};
     const map: Record<string, Credential> = {};
     credentialsData.data.credential.forEach((cred: Credential) => {
-      const docType = cred.document_type || cred.details?.document_type;
-      if (docType) map[docType] = cred;
+      const rawDocType = cred.document_type || cred.details?.document_type;
+      if (!rawDocType) return;
+      // DigiLocker Aadhaar arrives as "DIGILOCKER" — normalise to AADHAAR_CARD
+      const docType = rawDocType === "DIGILOCKER" ? "AADHAAR_CARD" : rawDocType;
+      map[docType] = cred;
     });
     return map;
   }, [credentialsData]);
 
+  // Keep latestCredentialsRef in sync so onMessage always reads current data
+  useEffect(() => { latestCredentialsRef.current = credentialsData; }, [credentialsData]);
+
+  // Stop polling when a new credential appears; link it to the hotel if applicable
   useEffect(() => {
-    let maxVerifiedChildIndex = 0;
-    CHILD_AADHAAR_TYPES.forEach((t, idx) => {
-      if (verifiedCredentialsMap[t]) maxVerifiedChildIndex = idx + 1;
-    });
-    // After a child is verified, reveal the next slot (up to 3). Default stays 1 until user adds or verifies.
-    const floor =
-      maxVerifiedChildIndex === 0
-        ? 1
-        : Math.min(3, maxVerifiedChildIndex + 1);
-    setChildAadhaarSlotsVisible((prev) => Math.max(prev, floor));
-  }, [verifiedCredentialsMap]);
+    if (verifyPollingMs === 0) return;
+    const creds: any[] = credentialsData?.data?.credential ?? [];
+    const count = creds.length;
+    if (count > credCountBeforeVerifyRef.current) {
+      setVerifyPollingMs(0);
+      if (verifyPollStopRef.current) { clearTimeout(verifyPollStopRef.current); verifyPollStopRef.current = null; }
+      // Find the new credential doc (one that wasn't there before KYC)
+      const credReqId = pendingHotelLinkRef.current;
+      if (credReqId) {
+        pendingHotelLinkRef.current = null;
+        const newCred = creds.find((c: any) => !credIdsBeforeVerifyRef.current.has(c.id));
+        if (newCred?.id) {
+          updateCredentialHotel({
+            credential_id: newCred.id,
+            credential_request_id: credReqId,
+          });
+        }
+      }
+    }
+  }, [credentialsData, verifyPollingMs, updateCredentialHotel]);
 
   const selectedCredential = useMemo(() => {
     if (!selectedDocType) return null;
@@ -337,13 +584,18 @@ const Connections = () => {
   const selectedDetails = useMemo(() => {
     if (!selectedCredential) return null;
     const kwikOcr = extractKwikOcr(selectedCredential as Record<string, any>);
-    const merged = { ...flattenSources(selectedCredential as Record<string, any>), ...kwikOcr };
+    const merged = {
+      ...flattenSources(selectedCredential as Record<string, any>),
+      ...kwikOcr,
+    };
     return deepFlatten(merged);
   }, [selectedCredential]);
 
   const selectedDocTitle = useMemo(() => {
     if (!selectedDocType) return "";
-    return selectedDocType.includes("_") ? titleCase(selectedDocType) : selectedDocType;
+    return selectedDocType.includes("_")
+      ? titleCase(selectedDocType)
+      : selectedDocType;
   }, [selectedDocType]);
 
   const selectedDocPhoto = useMemo(() => {
@@ -352,16 +604,39 @@ const Connections = () => {
       ...flattenSources(selectedCredential as Record<string, any>),
       ...extractKwikOcr(selectedCredential as Record<string, any>),
     };
-    const directPhoto = pickFirst(details, ["photo", "profile_photo", "image_url"]);
-    if (typeof directPhoto === "string" && directPhoto.trim()) return directPhoto;
-    const ocrFace = pickFirst(details, ["face_url", "ps_face_url", "selfie_url"]);
-    if (typeof ocrFace === "string" && ocrFace.trim()) return ocrFace;
-    const images = (selectedCredential as any)?.images;
-    if (Array.isArray(images) && images.length > 0) {
-      const first = images[0];
-      if (typeof first === "string" && first.trim()) return first;
-      const objectUrl = first?.url_org || first?.url_original || first?.url || null;
-      if (typeof objectUrl === "string" && objectUrl.trim()) return objectUrl;
+    const isEncrypted = (v: unknown) =>
+      typeof v === "string" && v.startsWith("enc:v1:");
+    // Our S3 face_url first (decrypted server-side), then Kwik's ps_face_url as fallback
+    const rootFace = pickFirst(details, ["face_url"]);
+    if (
+      typeof rootFace === "string" &&
+      rootFace.trim() &&
+      !isEncrypted(rootFace)
+    )
+      return rootFace;
+    const faceSpecific = pickFirst(details, ["ps_face_url", "selfie_url"]);
+    if (
+      typeof faceSpecific === "string" &&
+      faceSpecific.trim() &&
+      !isEncrypted(faceSpecific)
+    )
+      return faceSpecific;
+    // Generic photo fields (not image_url — that's usually the document scan)
+    const directPhoto = pickFirst(details, ["photo", "profile_photo"]);
+    if (
+      typeof directPhoto === "string" &&
+      directPhoto.trim() &&
+      !isEncrypted(directPhoto)
+    )
+      return directPhoto;
+    // Child Aadhaar XML provides photo as base64 — convert to data URI for display
+    const photoBase64 = pickFirst(details, ["photo_base64"]);
+    if (
+      typeof photoBase64 === "string" &&
+      photoBase64.trim() &&
+      !isEncrypted(photoBase64)
+    ) {
+      return `data:image/jpeg;base64,${photoBase64}`;
     }
     return null;
   }, [selectedCredential]);
@@ -378,15 +653,35 @@ const Connections = () => {
         "given_name",
         "applicant_name",
         "holder_name",
-      ]) ?? pickByIncludes(selectedDetails, ["fullname", "holdername", "applicantname", "name"]);
-    const isAbove18Raw = pickFirst(selectedDetails, ["isAbove18", "is_above_18", "isAbove18Verified", "age_verified"]);
+      ]) ??
+      pickByIncludes(selectedDetails, [
+        "fullname",
+        "holdername",
+        "applicantname",
+        "name",
+      ]);
+    const isAbove18Raw = pickFirst(selectedDetails, [
+      "isAbove18",
+      "is_above_18",
+      "isAbove18Verified",
+      "age_verified",
+    ]);
     const dobRaw =
-      pickFirst(selectedDetails, ["dob", "dateOfBirth", "date_of_birth", "birth_date"]) ??
+      pickFirst(selectedDetails, [
+        "dob",
+        "dateOfBirth",
+        "date_of_birth",
+        "birth_date",
+        "Dob",
+        "DOB",
+      ]) ??
       pickByIncludes(selectedDetails, ["dateofbirth", "birthdate", "dob"]);
-    const parsedDob = dobRaw ? new Date(String(dobRaw)) : null;
+    const parsedDob = parseDob(dobRaw);
     const computedAge =
       parsedDob && !Number.isNaN(parsedDob.getTime())
-        ? Math.floor((Date.now() - parsedDob.getTime()) / (365.25 * 24 * 60 * 60 * 1000))
+        ? Math.floor(
+            (Date.now() - parsedDob.getTime()) / (365.25 * 24 * 60 * 60 * 1000),
+          )
         : null;
     const age =
       computedAge != null
@@ -401,30 +696,49 @@ const Connections = () => {
             ? "Above 18 ✓"
             : "—";
 
-    const explicitLast4 = pickFirst(selectedDetails, [
-      "aadhaarLast4",
-      "aadhaar_last4",
-      "last4",
-      "id_last4",
-      "last_4",
-    ]) ?? pickByIncludes(selectedDetails, ["last4"]);
-    const fullId = pickFirst(selectedDetails, [
-      "aadhaar",
-      "aadhaar_number",
-      "id_number",
-      "document_number",
-      "number",
-      "pan",
-      "pa_number",
-      "Pa Number",
-      "pan_number",
-      "passportNo",
-      "passport_number",
-      "license_number",
-      "dl_number",
-    ]) ?? pickByIncludes(selectedDetails, ["aadhaar", "pan", "passport", "licence", "license", "documentnumber", "idnumber"]);
-    const tailFromFull = fullId ? String(fullId).replace(/[^a-zA-Z0-9]/g, "").slice(-4) : "";
-    const last4 = explicitLast4 ? String(explicitLast4).replace(/[^a-zA-Z0-9]/g, "").slice(-4) : tailFromFull;
+    const explicitLast4 =
+      pickFirst(selectedDetails, [
+        "aadhaarLast4",
+        "aadhaar_last4",
+        "last4",
+        "id_last4",
+        "last_4",
+      ]) ?? pickByIncludes(selectedDetails, ["last4"]);
+    const fullId =
+      pickFirst(selectedDetails, [
+        "aadhaar",
+        "aadhaar_number",
+        "id_number",
+        "document_number",
+        "number",
+        "pan",
+        "pa_number",
+        "Pa Number",
+        "pan_number",
+        "passportNo",
+        "passport_number",
+        "license_number",
+        "dl_number",
+      ]) ??
+      pickByIncludes(selectedDetails, [
+        "aadhaar",
+        "pan",
+        "passport",
+        "licence",
+        "license",
+        "documentnumber",
+        "idnumber",
+      ]);
+    const tailFromFull = fullId
+      ? String(fullId)
+          .replace(/[^a-zA-Z0-9]/g, "")
+          .slice(-4)
+      : "";
+    const last4 = explicitLast4
+      ? String(explicitLast4)
+          .replace(/[^a-zA-Z0-9]/g, "")
+          .slice(-4)
+      : tailFromFull;
 
     return {
       name: String(name ?? "—"),
@@ -434,11 +748,17 @@ const Connections = () => {
   }, [selectedDetails]);
 
   const selectedDocFields = useMemo(() => {
-    if (!selectedDocType || !selectedDetails) return [] as Array<{ label: string; value: string }>;
+    if (!selectedDocType || !selectedDetails)
+      return [] as Array<{ label: string; value: string }>;
     const fallbackEntries = Object.entries(selectedDetails)
       .filter(([key, value]) => {
         if (value == null || value === "") return false;
-        if (["photo", "images", "document_type", "id", "credential_id"].includes(key)) return false;
+        if (
+          ["photo", "images", "document_type", "id", "credential_id"].includes(
+            key,
+          )
+        )
+          return false;
         if (typeof value === "object") return false;
         return true;
       })
@@ -448,8 +768,14 @@ const Connections = () => {
         value: String(value),
       }));
 
-    if (selectedDocType === "AADHAAR_CARD" || selectedDocType.startsWith("Child ")) {
-      const aadhaarLast4 = pickFirst(selectedDetails, ["aadhaarLast4", "aadhaar_last4"]);
+    if (
+      selectedDocType === "AADHAAR_CARD" ||
+      selectedDocType.startsWith("Child ")
+    ) {
+      const aadhaarLast4 = pickFirst(selectedDetails, [
+        "aadhaarLast4",
+        "aadhaar_last4",
+      ]);
       const aadhaar = pickFirst(selectedDetails, ["aadhaar", "aadhaar_number"]);
       const maskedAadhaar = aadhaarLast4
         ? `XXXX XXXX ${String(aadhaarLast4)}`
@@ -458,8 +784,15 @@ const Connections = () => {
           : "XXXX XXXX ****";
       const city = getAddressPart(selectedDetails, ["city"]);
       const state = getAddressPart(selectedDetails, ["state"]);
-      const pincode = getAddressPart(selectedDetails, ["pincode", "pinCode", "postalCode"]);
-      const guardian = pickFirst(selectedDetails, ["guardianName", "guardian_name"]);
+      const pincode = getAddressPart(selectedDetails, [
+        "pincode",
+        "pinCode",
+        "postalCode",
+      ]);
+      const guardian = pickFirst(selectedDetails, [
+        "guardianName",
+        "guardian_name",
+      ]);
       const base = [
         { label: "Aadhaar", value: String(maskedAadhaar) },
         { label: "City", value: String(city ?? "—") },
@@ -467,27 +800,36 @@ const Connections = () => {
         { label: "Pincode", value: String(pincode ?? "—") },
         ...(guardian ? [{ label: "Guardian", value: String(guardian) }] : []),
       ];
-      return base.filter((field) => field.value !== "—" || field.label === "Aadhaar");
+      return base.filter(
+        (field) => field.value !== "—" || field.label === "Aadhaar",
+      );
     }
 
     if (selectedDocType === "PAN_CARD") {
-      const dob = pickFirst(selectedDetails, ["dob", "dateOfBirth", "Date of Birth", "date_of_birth"]);
-      const isAbove18Raw = pickFirst(selectedDetails, ["isAbove18", "is_above_18", "isAbove18Verified"]);
-      const isAbove18 = typeof isAbove18Raw === "boolean" ? isAbove18Raw : String(isAbove18Raw).toLowerCase() === "true";
-      const base = [
-        { label: "DOB", value: String(dob ?? "—") },
-      ];
-      if (isAbove18) base.push({ label: "Age", value: "Above 18" });
-      return base.filter((field) => field.value !== "—");
+      // Age is already shown in the summary card (selectedIdentityInfo.age), so no extra fields needed
+      return [];
     }
 
     if (selectedDocType === "DRIVING_LICENSE") {
-      const number = pickFirst(selectedDetails, ["number", "license_number", "dl_number"]);
-      const validTill = pickFirst(selectedDetails, ["validTill", "valid_till", "expiry_date"]);
-      const licenseClass = pickFirst(selectedDetails, ["class", "vehicle_class"]);
+      const number = pickFirst(selectedDetails, [
+        "number",
+        "license_number",
+        "dl_number",
+      ]);
+      const last4 = number ? String(number).replace(/[^a-zA-Z0-9]/g, "").slice(-4) : null;
+      const maskedNumber = last4 ? `XXXXXXXX${last4}` : null;
+      const validTill = pickFirst(selectedDetails, [
+        "validTill",
+        "valid_till",
+        "expiry_date",
+      ]);
+      const licenseClass = pickFirst(selectedDetails, [
+        "class",
+        "vehicle_class",
+      ]);
       const city = getAddressPart(selectedDetails, ["city"]);
       const base = [
-        { label: "Licence No.", value: String(number ?? "—") },
+        { label: "Licence No.", value: String(maskedNumber ?? "—") },
         { label: "Valid Till", value: String(validTill ?? "—") },
         { label: "Class", value: String(licenseClass ?? "—") },
         { label: "City", value: String(city ?? "—") },
@@ -496,11 +838,24 @@ const Connections = () => {
     }
 
     if (selectedDocType === "PASSPORT") {
-      const number = pickFirst(selectedDetails, ["passportNo", "passport_number", "number"]);
+      const number = pickFirst(selectedDetails, [
+        "passportNo",
+        "passport_number",
+        "number",
+      ]);
       const nationality = pickFirst(selectedDetails, ["nationality"]);
-      const validTill = pickFirst(selectedDetails, ["validTill", "valid_till", "expiry_date"]);
+      const validTill = pickFirst(selectedDetails, [
+        "validTill",
+        "valid_till",
+        "expiry_date",
+      ]);
       return [
-        { label: "Passport No.", value: number ? `${String(number).slice(0, 2)}*****${String(number).slice(-2)}` : "—" },
+        {
+          label: "Passport No.",
+          value: number
+            ? `${String(number).slice(0, 2)}*****${String(number).slice(-2)}`
+            : "—",
+        },
         { label: "Nationality", value: String(nationality ?? "—") },
         { label: "Valid Till", value: String(validTill ?? "—") },
       ].filter((field) => field.value !== "—");
@@ -508,14 +863,30 @@ const Connections = () => {
 
     if (selectedDocType === "C-Form (Foreign Guest)") {
       const surname = pickFirst(selectedDetails, ["surname"]);
-      const givenName = pickFirst(selectedDetails, ["givenName", "given_name", "name"]);
+      const givenName = pickFirst(selectedDetails, [
+        "givenName",
+        "given_name",
+        "name",
+      ]);
       const nationality = pickFirst(selectedDetails, ["nationality"]);
-      const passportNo = pickFirst(selectedDetails, ["passportNo", "passport_number"]);
-      const passportExpiry = pickFirst(selectedDetails, ["passportExpiry", "passport_expiry"]);
+      const passportNo = pickFirst(selectedDetails, [
+        "passportNo",
+        "passport_number",
+      ]);
+      const passportExpiry = pickFirst(selectedDetails, [
+        "passportExpiry",
+        "passport_expiry",
+      ]);
       const dateOfBirth = pickFirst(selectedDetails, ["dateOfBirth", "dob"]);
       const sex = pickFirst(selectedDetails, ["sex", "gender"]);
-      const arrivalDate = pickFirst(selectedDetails, ["arrivalDate", "arrival_date"]);
-      const portOfArrival = pickFirst(selectedDetails, ["portOfArrival", "port_of_arrival"]);
+      const arrivalDate = pickFirst(selectedDetails, [
+        "arrivalDate",
+        "arrival_date",
+      ]);
+      const portOfArrival = pickFirst(selectedDetails, [
+        "portOfArrival",
+        "port_of_arrival",
+      ]);
       const visaNo = pickFirst(selectedDetails, ["visaNo", "visa_number"]);
       const visaType = pickFirst(selectedDetails, ["visaType", "visa_type"]);
       const address = pickFirst(selectedDetails, ["addressInIndia", "address"]);
@@ -525,7 +896,18 @@ const Connections = () => {
         { label: "Nationality", value: String(nationality ?? "—") },
         { label: "Passport No.", value: String(passportNo ?? "—") },
         { label: "Passport Expiry", value: String(passportExpiry ?? "—") },
-        { label: "Date of Birth", value: String(dateOfBirth ?? "—") },
+        {
+          label: "Age",
+          value: (() => {
+            const d = parseDob(dateOfBirth);
+            if (!d) return "—";
+            return Math.floor(
+              (Date.now() - d.getTime()) / (365.25 * 24 * 60 * 60 * 1000),
+            ) >= 18
+              ? "Above 18"
+              : "Below 18";
+          })(),
+        },
         { label: "Sex", value: String(sex ?? "—") },
         { label: "Arrival Date", value: String(arrivalDate ?? "—") },
         { label: "Port of Arrival", value: String(portOfArrival ?? "—") },
@@ -538,13 +920,17 @@ const Connections = () => {
     return fallbackEntries;
   }, [selectedDocType, selectedDetails]);
 
+  const isCompanyRecipient =
+    (recipientData?.data?.requests?.[0] as any)?.type === "Company";
+
   const verifiedDocTypesForShare = useMemo(() => {
-    const order = [
-      ...HOME_DOCUMENT_TYPES,
-      ...CHILD_AADHAAR_TYPES,
-    ];
-    return order.filter((docType) => !!verifiedCredentialsMap[docType]);
-  }, [verifiedCredentialsMap]);
+    return [...HOME_DOCUMENT_TYPES].filter((docType) => {
+      if (!verifiedCredentialsMap[docType]) return false;
+      // Hotels (Company) don't accept PAN as valid ID proof
+      if (isCompanyRecipient && docType === "PAN_CARD") return false;
+      return true;
+    });
+  }, [verifiedCredentialsMap, isCompanyRecipient]);
 
   const firstShareableDocType = verifiedDocTypesForShare[0] ?? null;
 
@@ -557,6 +943,14 @@ const Connections = () => {
 
   const shareSummary = useMemo(() => {
     if (!shareSelectedDocType) return [];
+    if (shareSelectedDocType.startsWith("FAMILY:"))
+      return (
+        SHARE_SUMMARY_BY_DOC["AADHAAR_CARD"] ?? [
+          "Full name",
+          "Aadhaar (masked)",
+          "Age indicator",
+        ]
+      );
     return SHARE_SUMMARY_BY_DOC[shareSelectedDocType] ?? ["Full name"];
   }, [shareSelectedDocType]);
 
@@ -568,6 +962,12 @@ const Connections = () => {
     );
   }, [recipientData]);
 
+  const connectedRequestorLogo = useMemo(() => {
+    return (
+      (recipientData?.data?.requests?.[0]?.recipients?.logo as string) || null
+    );
+  }, [recipientData]);
+
   // QR scan / deep link: show the same "Share now" sheet as vault share, without extra taps
   useEffect(() => {
     if (!code || !isValidQRCode(code)) return;
@@ -575,12 +975,14 @@ const Connections = () => {
     if (!connectedRequestorName) return;
     if (autoShareSheetOpenedForCodeRef.current === code) return;
     autoShareSheetOpenedForCodeRef.current = code;
+    checkinFlowStartedAt.current = Date.now();
     setShareSelectedDocType(firstShareableDocType);
     setShareExpiryHours("24");
     setShareSheetOpen(true);
   }, [code, isRecipientLoading, connectedRequestorName, firstShareableDocType]);
 
-  const openHotelShareSheet = (docType?: DocumentType | ChildAadhaarType) => {
+  const openHotelShareSheet = (docType?: DocumentType) => {
+    checkinFlowStartedAt.current = Date.now();
     if (
       docType &&
       docType !== "C-Form (Foreign Guest)" &&
@@ -619,19 +1021,27 @@ const Connections = () => {
     return requests[0] || null;
   }, [recipientData, code]);
 
+  // True when user has an approved check-in that hasn't been checked out yet
+  const isCurrentlyCheckedIn = useMemo(() => {
+    if (!currentConnection) return false;
+    const hasCheckIn = !!currentConnection.check_in_time;
+    const hasCheckOut = !!currentConnection.check_out_time;
+    return hasCheckIn && !hasCheckOut;
+  }, [currentConnection]);
+
   // Check credentials availability from API response instead of Firestore
   const hasCredentialsFromAPI = useMemo(() => {
     if (!currentConnection) return null;
-    
+
     // Check if credentials array exists and has at least one active credential
     const credentials = currentConnection.credentials;
     if (!credentials || !Array.isArray(credentials)) return false;
-    
+
     // Check if there's at least one credential with status "Active"
     const hasActiveCredential = credentials.some(
-      (cred: any) => cred?.status === "Active" && cred?.document_type
+      (cred: any) => cred?.status === "Active" && cred?.document_type,
     );
-    
+
     return hasActiveCredential;
   }, [currentConnection]);
 
@@ -652,19 +1062,61 @@ const Connections = () => {
   // postMessage listener to close iframe and refresh
   useEffect(() => {
     const onMessage = async (event: MessageEvent) => {
-      if (typeof event.origin !== "string" || !event.origin.startsWith(IVERIFI_ORIGIN)) return;
+      if (
+        typeof event.origin !== "string" ||
+        !event.origin.startsWith(IVERIFI_ORIGIN)
+      )
+        return;
       const data = event.data;
-      if (data && typeof data === "object" && data.type === "iverifi" && data.status === "completed") {
+      if (
+        data &&
+        typeof data === "object" &&
+        data.type === "iverifi" &&
+        data.status === "completed"
+      ) {
+        // Check if this was a DL Kwik verification before clearing iframeUrl
+        const wasDLKwik = (iframeUrl || "").includes("productCode=DL");
         toast.success("Verification completed.");
         setIframeUrl(null);
-        // setVerifyingDocType(null);
-        await refetchCredentials();
-        if (code) await refetchRecipient();
+        if (pendingFamilyVerify.current) {
+          pendingFamilyVerify.current = false;
+          pendingFamilyCredentialId.current = null;
+          await refetchFamily();
+        } else if (wasDLKwik) {
+          // DL Kwik path: open selfie modal; polling starts after selfie submit
+          setDlSelfieModalOpen(true);
+        } else {
+          // Snapshot credential IDs + count before polling so we can find the new doc.
+          // Use latestCredentialsRef (not closure value) so a delete-then-reverify scenario
+          // sees the post-delete count, not the stale pre-delete count.
+          const currentCreds: any[] = latestCredentialsRef.current?.data?.credential ?? [];
+          credCountBeforeVerifyRef.current = currentCreds.length;
+          credIdsBeforeVerifyRef.current = new Set(currentCreds.map((c: any) => c.id));
+          // Immediate refetch, then poll every 2 s until a new credential appears (max 15 s)
+          await refetchCredentials();
+          if (verifyPollStopRef.current) clearTimeout(verifyPollStopRef.current);
+          setVerifyPollingMs(2000);
+          verifyPollStopRef.current = setTimeout(() => { setVerifyPollingMs(0); verifyPollStopRef.current = null; }, 15000);
+          // Restore hotel code if Kwik navigation cleared it from the URL
+          const currentCode = new URLSearchParams(window.location.search).get("code");
+          if (currentCode) {
+            await refetchRecipient();
+            // Allow share sheet to re-open now that user has a verified document
+            autoShareSheetOpenedForCodeRef.current = null;
+          } else {
+            const savedCode = getRecipientIdFromStorage();
+            if (savedCode) {
+              autoShareSheetOpenedForCodeRef.current = null;
+              processedCodeRef.current = null;
+              navigate(`/?code=${savedCode}`, { replace: true });
+            }
+          }
+        }
       }
     };
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
-  }, [refetchCredentials, refetchRecipient, code]);
+  }, [refetchCredentials, refetchRecipient, code, navigate, iframeUrl]);
 
   const handleDeleteDoc = async () => {
     if (!deleteTarget) return;
@@ -677,7 +1129,9 @@ const Connections = () => {
       await refetchCredentials();
       if (code) await refetchRecipient();
     } catch (e: any) {
-      toast.error(e?.data?.message || e?.message || "Failed to delete document");
+      toast.error(
+        e?.data?.message || e?.message || "Failed to delete document",
+      );
     }
   };
 
@@ -689,7 +1143,7 @@ const Connections = () => {
     }
   };
 
-  /** Extract passport data from the verified PASSPORT credential for the C-Form dialog */
+  /* Extract passport data from the verified PASSPORT credential for the C-Form dialog
   const passportDataForCform = useMemo((): CFormPassportData => {
     const passportCred = verifiedCredentialsMap["PASSPORT"];
     if (!passportCred) return { surname: "", givenName: "", nationality: "", passportNo: "", passportExpiry: "", dateOfBirth: "" };
@@ -704,9 +1158,9 @@ const Connections = () => {
       dateOfBirth: String(pickFirst(flat, ["dateOfBirth", "dob", "date_of_birth"]) ?? ""),
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [verifiedCredentialsMap]);
+  }, [verifiedCredentialsMap]); */
 
-  /** C-Form: filled fresh per check-in, saves + triggers check-in in one go */
+  /* C-Form: filled fresh per check-in, saves + triggers check-in in one go
   const handleCFormSave = async (data: CFormData) => {
     if (!derivedConnectionId) {
       toast.error("No connection found. Try scanning the QR again.");
@@ -715,7 +1169,7 @@ const Connections = () => {
     if (isCheckInOutInFlight || isCheckInUpdating) return;
     setCheckInOutInFlight(true);
     try {
-      await saveCForm({ credential_request_id: derivedConnectionId, cform_data: data }).unwrap();
+      await saveCForm({ credential_request_id: derivedConnectionId, cform_data: { ...data, ref_number: cformRef } }).unwrap();
 
       // Use passport credential for check-in if available
       const passportCred = verifiedCredentialsMap["PASSPORT"];
@@ -733,7 +1187,8 @@ const Connections = () => {
         credentials: [],
         status: "checkin",
         credential_id: credentialId,
-        cform_data: data,
+        cform_data: { ...data, ref_number: cformRef },
+        ...(checkinFlowStartedAt.current != null ? { client_started_at: checkinFlowStartedAt.current } : {}),
       }).unwrap();
 
       setCformDialogOpen(false);
@@ -743,6 +1198,8 @@ const Connections = () => {
       navigate(location.pathname, { replace: true });
       toast.success("C-Form submitted. Check-in request sent to the property.");
       await refetchCredentials();
+      setFeedbackRequestId(derivedConnectionId);
+      setFeedbackOpen(true);
     } catch (error: any) {
       toast.error(
         error?.data?.message ? String(error.data.message) : "Could not submit C-Form. Please try again."
@@ -750,10 +1207,59 @@ const Connections = () => {
     } finally {
       setCheckInOutInFlight(false);
     }
+  }; */
+
+  /** Foreign Passport: saves 3 photos + triggers check-in */
+  const handleForeignPassportSave = async (data: ForeignPassportPhotos) => {
+    if (!derivedConnectionId) {
+      toast.error("No connection found. Try scanning the QR again.");
+      return;
+    }
+    if (isCheckInOutInFlight || isCheckInUpdating) return;
+    setCheckInOutInFlight(true);
+    try {
+      await saveForeignPassport({
+        credential_request_id: derivedConnectionId,
+        foreign_passport_data: data,
+      }).unwrap();
+
+      await updateCheckInStatus({
+        credential_request_id: derivedConnectionId,
+        credentials: [],
+        status: "checkin",
+        credential_id: null,
+        document_type: "FOREIGN_PASSPORT",
+        ...(checkinFlowStartedAt.current != null
+          ? { client_started_at: checkinFlowStartedAt.current }
+          : {}),
+      }).unwrap();
+
+      setForeignPassportDialogOpen(false);
+      setShareSheetOpen(false);
+      clearPendingRecipientId();
+      processedCodeRef.current = null;
+      navigate(location.pathname, { replace: true });
+      toast.success(
+        "Foreign Passport submitted. Check-in request sent to the property.",
+      );
+      await refetchCredentials();
+      setFeedbackRequestId(derivedConnectionId);
+      setFeedbackOpen(true);
+    } catch (error: any) {
+      toast.error(
+        error?.data?.message
+          ? String(error.data.message)
+          : "Could not submit. Please try again.",
+      );
+    } finally {
+      setCheckInOutInFlight(false);
+    }
   };
 
   /** Share with a connection only (no check-in) — e.g. vault flow without ?code= */
-  const handleShareCredentials = async (documentType: DocumentType | ChildAadhaarType) => {
+  const handleShareCredentials = async (
+    documentType: DocumentType,
+  ) => {
     if (!derivedConnectionId) {
       toast.error("You need to scan a QR code to share.");
       throw new Error("missing-connection");
@@ -765,7 +1271,8 @@ const Connections = () => {
     }
 
     try {
-      const credentialId = credential.credential_id || credential.id || credential.credentialId;
+      const credentialId =
+        credential.credential_id || credential.id || credential.credentialId;
       if (!credentialId) {
         toast.error("Invalid credential ID");
         throw new Error("invalid-credential-id");
@@ -787,7 +1294,9 @@ const Connections = () => {
 
       await refetchRecipient();
     } catch (error: any) {
-      toast.error(error?.data?.message ? String(error.data.message) : "Failed to share");
+      toast.error(
+        error?.data?.message ? String(error.data.message) : "Failed to share",
+      );
       throw error;
     }
   };
@@ -796,7 +1305,9 @@ const Connections = () => {
    * Hotel QR flow: share selected document + request check-in in one step, then clear ?code=
    * and pending storage so the user must scan again for another property.
    */
-  const handleShareAndRequestCheckIn = async (documentType: DocumentType | ChildAadhaarType) => {
+  const handleShareAndRequestCheckIn = async (
+    documentType: DocumentType,
+  ) => {
     if (!derivedConnectionId) {
       toast.error("No connection found. Try scanning the QR again.");
       throw new Error("missing-connection");
@@ -807,7 +1318,8 @@ const Connections = () => {
       throw new Error("missing-credential");
     }
 
-    const credentialId = credential.credential_id || credential.id || credential.credentialId;
+    const credentialId =
+      credential.credential_id || credential.id || credential.credentialId;
     if (!credentialId) {
       toast.error("Invalid credential ID");
       throw new Error("invalid-credential-id");
@@ -834,8 +1346,10 @@ const Connections = () => {
         credentials: [],
         status: "checkin",
         credential_id: credentialId,
+        ...(checkinFlowStartedAt.current != null
+          ? { client_started_at: checkinFlowStartedAt.current }
+          : {}),
       }).unwrap();
-
 
       clearPendingRecipientId();
       processedCodeRef.current = null;
@@ -844,11 +1358,13 @@ const Connections = () => {
       toast.success("Document shared. Check-in request sent to the property.");
 
       await refetchCredentials();
+      setFeedbackRequestId(derivedConnectionId);
+      setFeedbackOpen(true);
     } catch (error: any) {
       toast.error(
         error?.data?.message
           ? String(error.data.message)
-          : "Could not share or request check-in. Please try again."
+          : "Could not share or request check-in. Please try again.",
       );
       throw error;
     } finally {
@@ -856,8 +1372,11 @@ const Connections = () => {
     }
   };
 
-  // verify document → open iframe overlay (no popup). Supports main docs and children's Aadhaar.
-  const handleVerifyDocument = async (documentType: DocumentType | ChildAadhaarType) => {
+  // verify document via Kwik iframe — the original path, now called directly for non-DL docs
+  // and by the DL choice modal "No — Use Camera Scan" button.
+  const handleVerifyDocumentKwik = async (
+    documentType: DocumentType,
+  ) => {
     const currentUser = auth.currentUser;
     if (!currentUser) return toast.error("User not authenticated");
 
@@ -865,13 +1384,213 @@ const Connections = () => {
     const productCode = getProductCode(documentType);
     const origin = window.location.origin;
 
+    const sessionId =
+      typeof crypto !== "undefined" && crypto.randomUUID
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+    const effectiveSessionId = sessionId;
+
     const verificationUrl =
       `${IVERIFI_ORIGIN}/user/home?client_id=iverifi&api_key=iverifi&process=U` +
       `&productCode=${encodeURIComponent(productCode)}` +
       `&user_id=${encodeURIComponent(userId)}` +
+      `&session_id=${encodeURIComponent(effectiveSessionId)}` +
       `&redirect_origin=${encodeURIComponent(origin)}`;
 
+    // Save hotel code before opening iframe in case Kwik navigation clears the URL param
+    if (code) saveRecipientIdForLater(code);
+
+    // Link this verification to the hotel so the hotel name appears in the super-admin
+    // verifications table even if the user never shares the document.
+    if (code && derivedConnectionId) {
+      const existingCred = verifiedCredentialsMap[documentType as string];
+      if (existingCred?.id) {
+        // Re-verification: credential already exists — stamp hotel_id directly on it
+        updateCredentialHotel({
+          credential_id: existingCred.id,
+          credential_request_id: derivedConnectionId,
+        });
+      } else {
+        // First verification: credential will be created by webhook — find it via polling
+        pendingHotelLinkRef.current = derivedConnectionId;
+      }
+    }
+
     setIframeUrl(verificationUrl);
+  };
+
+  // Slim wrapper: DL → show choice modal; all other doc types → straight to Kwik
+  const handleVerifyDocument = async (
+    documentType: DocumentType,
+  ) => {
+    if (documentType === "DRIVING_LICENSE") {
+      setDlDigilockerModalOpen(true);
+      return;
+    }
+    return handleVerifyDocumentKwik(documentType);
+  };
+
+  const handleVerifyDLWithDigiLocker = () => {
+    const currentUser = auth.currentUser;
+    if (!currentUser) return toast.error("User not authenticated");
+    if (code) saveRecipientIdForLater(code);
+    const apiBase = ((import.meta as any).env.VITE_BASE_URL as string || "").replace(/\/$/, "");
+    window.location.assign(
+      `${apiBase}/webhook/digilocker-aadhaar-oauth-start` +
+      `?applicant_id=${encodeURIComponent(currentUser.uid)}&doc_type=DL`,
+    );
+  };
+
+  const startDLSelfieCamera = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
+      dlSelfieStreamRef.current = stream;
+      if (dlSelfieVideoRef.current) dlSelfieVideoRef.current.srcObject = stream;
+      setDlSelfieCaptured(null);
+    } catch {
+      toast.error("Could not access camera. Please allow camera permission.");
+    }
+  };
+
+  const stopDLSelfieCamera = () => {
+    dlSelfieStreamRef.current?.getTracks().forEach((t) => t.stop());
+    dlSelfieStreamRef.current = null;
+  };
+
+  const captureDLSelfie = () => {
+    const video = dlSelfieVideoRef.current;
+    const canvas = dlSelfieCanvasRef.current;
+    if (!video || !canvas) return;
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext("2d")?.drawImage(video, 0, 0);
+    setDlSelfieCaptured(canvas.toDataURL("image/jpeg", 0.85));
+    stopDLSelfieCamera();
+  };
+
+  const startDLPolling = async () => {
+    const currentCreds: any[] = latestCredentialsRef.current?.data?.credential ?? [];
+    credCountBeforeVerifyRef.current = currentCreds.length;
+    credIdsBeforeVerifyRef.current = new Set(currentCreds.map((c: any) => c.id));
+    await refetchCredentials();
+    if (verifyPollStopRef.current) clearTimeout(verifyPollStopRef.current);
+    setVerifyPollingMs(2000);
+    verifyPollStopRef.current = setTimeout(() => {
+      setVerifyPollingMs(0);
+      verifyPollStopRef.current = null;
+    }, 15000);
+    const savedCode = getRecipientIdFromStorage();
+    if (savedCode && !new URLSearchParams(window.location.search).get("code")) {
+      autoShareSheetOpenedForCodeRef.current = null;
+      processedCodeRef.current = null;
+      navigate(`/?code=${savedCode}`, { replace: true });
+    }
+  };
+
+  const handleDLSelfieSubmit = async () => {
+    setDlSelfieUploading(true);
+    try {
+      const currentUser = auth.currentUser;
+      if (dlSelfieCaptured && currentUser) {
+        const res = await fetch(dlSelfieCaptured);
+        const blob = await res.blob();
+        const file = new File([blob], "dl_selfie.jpg", { type: "image/jpeg" });
+        const apiBase = ((import.meta as any).env.VITE_BASE_URL as string || "").replace(/\/$/, "");
+        const form = new FormData();
+        form.append("file", file);
+        form.append("fileType", "dl_selfie");
+        const uploadRes = await fetch(`${apiBase}/users/uploadImage`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${await currentUser.getIdToken()}` },
+          body: form,
+        });
+        const uploadJson = await uploadRes.json();
+        const s3url: string = uploadJson?.data?.s3url;
+        if (s3url) {
+          await fetch(`${apiBase}/users/updateDLSelfie`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${await currentUser.getIdToken()}`,
+            },
+            body: JSON.stringify({ face_url: s3url }),
+          });
+        }
+      }
+      toast.success("Driving License verified.");
+    } catch {
+      toast.error("Could not save selfie. Continuing anyway.");
+    } finally {
+      setDlSelfieUploading(false);
+      setDlSelfieModalOpen(false);
+      setDlSelfieCaptured(null);
+      stopDLSelfieCamera();
+      await startDLPolling();
+    }
+  };
+
+  const handleStartFamilyVerification = async () => {
+    const trimmed = familyNickname.trim();
+    if (!trimmed) {
+      setFamilyNicknameError("Please enter a nickname.");
+      return;
+    }
+    const existingMembers: any[] = familyData?.data?.family_members || [];
+    const isDuplicate = existingMembers.some(
+      (m) => (m.member_nickname || m.nickname || "").trim().toLowerCase() === trimmed.toLowerCase()
+    );
+    if (isDuplicate) {
+      setFamilyNicknameError(`"${trimmed}" is already used. Please choose a different nickname.`);
+      return;
+    }
+    const currentUser = auth.currentUser;
+    if (!currentUser) return;
+    const selectedDoc = FAMILY_DOC_OPTIONS.find((o) => o.type === familyDocType) ?? FAMILY_DOC_OPTIONS[0];
+    setIsStartingFamilyVerify(true);
+    try {
+      const res = await createCredential({
+        document_type: familyDocType,
+        verifiers_name: "Kwik",
+        // @ts-ignore — backend accepts these extra fields for family member credentials
+        is_family_member: true,
+        member_nickname: trimmed,
+      }).unwrap();
+      const sessionId = res?.data?.document_id;
+      if (!sessionId) throw new Error("No session ID returned.");
+      setFamilyDialogOpen(false);
+      setFamilyNickname("");
+      pendingFamilyVerify.current = true;
+      pendingFamilyCredentialId.current = sessionId;
+      const origin = window.location.origin;
+      setIframeUrl(
+        `${IVERIFI_ORIGIN}/user/home?client_id=iverifi&api_key=iverifi&process=U` +
+          `&productCode=${selectedDoc.productCode}&user_id=${encodeURIComponent(currentUser.uid)}` +
+          `&session_id=${encodeURIComponent(sessionId)}&redirect_origin=${encodeURIComponent(origin)}`,
+      );
+    } catch (e: any) {
+      toast.error(
+        e?.data?.message || e?.message || "Failed to start verification.",
+      );
+    } finally {
+      setIsStartingFamilyVerify(false);
+    }
+  };
+
+  const handleDeleteFamilyMember = async () => {
+    if (!familyDeleteTarget) return;
+    try {
+      await deleteFamilyCredential({
+        member_id: familyDeleteTarget.id,
+      }).unwrap();
+      toast.success(`${familyDeleteTarget.nickname} removed.`);
+      setFamilyDeleteTarget(null);
+      await refetchFamily();
+    } catch (e: any) {
+      toast.error(
+        e?.data?.message || e?.message || "Failed to remove family member.",
+      );
+    }
   };
 
   // Don’t block the vault home on recipient fetch when ?code= — share sheet + banner handle loading
@@ -888,8 +1607,8 @@ const Connections = () => {
   return (
     <div className="min-h-0 flex-1 bg-[var(--iverifi-page)] text-[var(--iverifi-text-primary)] overflow-hidden">
       <div className="w-full max-w-5xl mx-auto space-y-6 overflow-y-auto pr-1">
-      {/* Header */}
-      {/* <div className="flex items-center justify-between">
+        {/* Header */}
+        {/* <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Connections</h1>
         {code && (
           <Button variant="outline" size="sm" onClick={navigateToCleanConnections}>
@@ -898,57 +1617,68 @@ const Connections = () => {
         )}
       </div> */}
 
-      {/* Vault home always; QR scan only adds this strip + share popup */}
-      {code && isValidQRCode(code) && (
-        <div className="rounded-2xl border border-[rgba(0,224,255,0.18)] bg-[rgba(0,224,255,0.06)] px-4 py-3 space-y-3 mb-1">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div className="min-w-0">
-              <div className="text-[10px] font-semibold tracking-widest uppercase text-[#00e0ff]/80">
-                Active property
+        {/* Vault home always; QR scan only adds this strip + share popup */}
+        {code && isValidQRCode(code) && (
+          <div className="rounded-2xl border border-[var(--iverifi-accent-border)] bg-[var(--iverifi-accent-soft)] px-4 py-3 space-y-3 mb-1">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div className="min-w-0">
+                <div className="text-[10px] font-semibold tracking-widest uppercase text-teal-600/80 dark:text-[#00e0ff]/80">
+                  Active property
+                </div>
+                <div className="truncate text-sm font-semibold text-[var(--iverifi-text-primary)]">
+                  {isRecipientLoading
+                    ? "Loading…"
+                    : connectedRequestorName || "Property"}
+                </div>
+                <p className="text-xs text-[var(--iverifi-text-muted)] mt-1">
+                  Select an ID below and tap Share — your check-in request will
+                  be sent automatically.
+                </p>
               </div>
-              <div className="truncate text-sm font-semibold text-[var(--iverifi-text-primary)]">
-                {isRecipientLoading
-                  ? "Loading…"
-                  : connectedRequestorName || "Property"}
-              </div>
-              <p className="text-xs text-[var(--iverifi-text-muted)] mt-1">
-                Pick a document in the sheet and confirm once — we share it and send your check-in request together.
-              </p>
+              <Button
+                type="button"
+                disabled={
+                  currentConnection?.check_in_status === "pending" ||
+                  isCurrentlyCheckedIn
+                }
+                className="h-10 shrink-0 rounded-xl bg-gradient-to-r from-[#00e0ff] to-[#7B5CF5] text-white font-semibold px-4 hover:opacity-95 disabled:opacity-40 disabled:cursor-not-allowed"
+                onClick={() => {
+                  void refetchRecipient();
+                  openHotelShareSheet();
+                }}
+              >
+                Choose document
+              </Button>
             </div>
-            <Button
-              type="button"
-              disabled={currentConnection?.check_in_status === "pending"}
-              className="h-10 shrink-0 rounded-xl bg-gradient-to-r from-[#00e0ff] to-[#7B5CF5] text-white font-semibold px-4 hover:opacity-95 disabled:opacity-40 disabled:cursor-not-allowed"
-              onClick={() => {
-                void refetchRecipient();
-                openHotelShareSheet();
-              }}
-            >
-              Choose document
-            </Button>
+            {isCurrentlyCheckedIn && (
+              <p className="text-xs text-emerald-200/90 bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-3 py-2">
+                You are currently checked in. Please check out before checking
+                in again.
+              </p>
+            )}
+            {currentConnection?.check_in_status === "pending" &&
+              !currentConnection?.check_in_time && (
+                <p className="text-xs text-amber-200/90 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
+                  Check-in is waiting for the property to approve.
+                </p>
+              )}
+            {hasCredentials === false && (
+              <p className="text-xs text-amber-200/90 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
+                Verify a document in your vault below first.
+              </p>
+            )}
           </div>
-          {currentConnection?.check_in_status === "pending" && !currentConnection?.check_in_time && (
-            <p className="text-xs text-amber-200/90 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
-              Check-in is waiting for the property to approve.
-            </p>
-          )}
-          {hasCredentials === false && (
-            <p className="text-xs text-amber-200/90 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
-              Verify a document in your vault below first.
-            </p>
-          )}
-        </div>
-      )}
+        )}
 
-      <div className="space-y-6 pt-2">
+        <div className="space-y-6 pt-2">
           {/* Top stats (iVerifi app style) */}
           <div className="grid grid-cols-3 gap-3">
             <div className="rounded-2xl border border-[color:var(--iverifi-stat-border)] bg-[var(--iverifi-stat-bg)] p-4">
               <div className="text-center">
-                <div className="text-xl font-semibold text-[#00e0ff]">
+                <div className="text-xl font-semibold text-teal-600 dark:text-[#00e0ff]">
                   {
                     HOME_DOCUMENT_TYPES.filter(
-                      (t) => !!verifiedCredentialsMap[t]
+                      (t) => !!verifiedCredentialsMap[t],
                     ).length
                   }
                 </div>
@@ -959,7 +1689,7 @@ const Connections = () => {
             </div>
             <div className="rounded-2xl border border-[color:var(--iverifi-stat-border)] bg-[var(--iverifi-stat-bg)] p-4">
               <div className="text-center">
-                <div className="text-xl font-semibold text-[#00e0ff]">
+                <div className="text-xl font-semibold text-teal-600 dark:text-[#00e0ff]">
                   {connectionsData?.data?.requests?.length ?? 0}
                 </div>
                 <div className="mt-1 text-center text-[11px] font-semibold tracking-widest uppercase text-[var(--iverifi-text-muted)]">
@@ -969,10 +1699,10 @@ const Connections = () => {
             </div>
             <div className="rounded-2xl border border-[color:var(--iverifi-stat-border)] bg-[var(--iverifi-stat-bg)] p-4">
               <div className="text-center">
-                <div className="text-xl font-semibold text-[#00e0ff]">
+                <div className="text-xl font-semibold text-teal-600 dark:text-[#00e0ff]">
                   {
                     (connectionsData?.data?.requests ?? []).filter(
-                      (r: any) => r?.check_in_status === "pending"
+                      (r: any) => r?.check_in_status === "pending",
                     ).length
                   }
                 </div>
@@ -1015,11 +1745,18 @@ const Connections = () => {
                     key={docType}
                     className="flex cursor-pointer items-center justify-between gap-3 rounded-2xl border border-[color:var(--iverifi-card-border)] bg-[var(--iverifi-card)] px-4 py-3"
                     role="button"
-                    onClick={() => isVerified ? setSelectedDocType(docType) : handleVerifyDocument(docType)}
+                    onClick={() =>
+                      isVerified
+                        ? setSelectedDocType(docType)
+                        : handleVerifyDocument(docType)
+                    }
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[color:var(--iverifi-icon-border)] bg-[var(--iverifi-muted-surface)]">
-                        <DocumentTypeIcon documentType={docType} className="text-[var(--iverifi-text-secondary)]" />
+                        <DocumentTypeIcon
+                          documentType={docType}
+                          className="text-[var(--iverifi-text-secondary)]"
+                        />
                       </div>
                       <div className="min-w-0">
                         <div className="truncate text-sm font-semibold text-[var(--iverifi-text-primary)]">
@@ -1034,7 +1771,7 @@ const Connections = () => {
                     <div className="flex items-center gap-2 shrink-0">
                       {isVerified ? (
                         <>
-                          <CheckCircle className="h-4 w-4 text-[#00c896]" />
+                          <CheckCircle className="h-4 w-4 text-emerald-600 dark:text-[#00c896]" />
                           <ChevronRight className="h-4 w-4 text-[var(--iverifi-text-muted)]" />
                         </>
                       ) : (
@@ -1042,8 +1779,11 @@ const Connections = () => {
                           <Button
                             type="button"
                             variant="outline"
-                            className="h-9 rounded-xl border border-[#f5a623] bg-transparent text-[#f5a623] hover:bg-[rgba(245,166,35,0.12)]"
-                            onClick={(e) => { e.stopPropagation(); handleVerifyDocument(docType); }}
+                            className="h-9 rounded-xl border border-amber-400 bg-transparent text-amber-600 hover:bg-amber-50 dark:border-[#f5a623] dark:text-[#f5a623] dark:hover:bg-[rgba(245,166,35,0.12)]"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleVerifyDocument(docType);
+                            }}
                           >
                             Verify
                           </Button>
@@ -1056,117 +1796,166 @@ const Connections = () => {
               })}
             </div>
 
-            <div className="flex items-center justify-between gap-3 rounded-2xl border border-[color:var(--iverifi-card-border)] bg-[var(--iverifi-card)] px-4 py-3 opacity-50">
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[color:var(--iverifi-icon-border)] bg-[var(--iverifi-muted-surface)]">
-                  <DocumentTypeIcon documentType="C-Form (Foreign Guest)" className="text-[var(--iverifi-text-secondary)]" />
-                </div>
-                <div className="min-w-0">
-                  <div className="truncate text-sm font-semibold text-[var(--iverifi-text-primary)]">{"C-Form (Foreign Guest)"}</div>
-                  <div className="truncate text-xs text-[var(--iverifi-text-muted)]">{"Scan hotel QR to fill & submit"}</div>
-                </div>
-              </div>
-              <Lock className="h-4 w-4 shrink-0 text-[var(--iverifi-text-muted)]" />
-            </div>
-          </div>
-
-          {/* Child Aadhaar — progressive slots (max 3); teal "+ Add child", gold Verify */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between gap-3">
-              <div className="text-[11px] font-semibold tracking-widest uppercase text-[var(--iverifi-text-muted)]">
-                CHILD AADHAAR (
-                {
-                  CHILD_AADHAAR_TYPES.filter(
-                    (t) => !!verifiedCredentialsMap[t]
-                  ).length
-                }
-                /3)
-              </div>
-              {childAadhaarSlotsVisible < 3 ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-8 shrink-0 gap-1 rounded-full border-0 bg-[rgba(0,200,180,0.22)] px-3 text-xs font-semibold text-[#5eead4] hover:bg-[rgba(0,200,180,0.32)]"
-                  onClick={() =>
-                    setChildAadhaarSlotsVisible((n) => Math.min(3, n + 1))
-                  }
-                >
-                  <Plus className="h-3.5 w-3.5" />
-                  Add child
-                </Button>
-              ) : null}
-            </div>
-
-            <div className="space-y-2">
-              {CHILD_AADHAAR_TYPES.slice(0, childAadhaarSlotsVisible).map(
-                (docType) => {
-                  const isVerified = !!verifiedCredentialsMap[docType];
-                  const subtitle = getDocSubtitle(docType);
-                  const slot =
-                    docType.match(/Child (\d+) Aadhaar/)?.[1] ?? "";
-                  return (
-                    <div
-                      key={docType}
-                      role="button"
-                      onClick={() =>
-                        isVerified
-                          ? setSelectedDocType(docType)
-                          : handleVerifyDocument(docType)
-                      }
-                      className="flex cursor-pointer items-center justify-between gap-3 rounded-2xl border border-[color:var(--iverifi-card-border)] bg-[var(--iverifi-card)] px-4 py-3"
-                    >
-                      <div className="flex min-w-0 items-center gap-3">
-                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[rgba(245,166,35,0.35)] bg-[rgba(245,166,35,0.18)]">
-                          <DocumentTypeIcon
-                            documentType={docType}
-                            className="h-6 w-6 text-amber-100"
-                          />
-                        </div>
-                        <div className="min-w-0">
-                          <div className="truncate text-sm font-semibold text-[var(--iverifi-text-primary)]">
-                            Child Aadhaar
-                          </div>
-                          <div className="truncate text-xs text-[var(--iverifi-text-muted)]">
-                            {isVerified
-                              ? `${slot ? `Child ${slot}` : docType} · ${subtitle}`
-                              : "Tap to verify - DigiLocker"}
-                          </div>
-                        </div>
+            {(() => {
+              const qrActive = !!(code && isValidQRCode(code));
+              return (
+                <>
+                  {/* C-Form card — hidden */}
+                  {/* <div
+                    className={`flex items-center justify-between gap-3 rounded-2xl border border-[color:var(--iverifi-card-border)] bg-[var(--iverifi-card)] px-4 py-3 ${qrActive ? "cursor-pointer hover:bg-[var(--iverifi-card-hover)]" : "opacity-50"}`}
+                    role={qrActive ? "button" : undefined}
+                    onClick={() => {
+                      if (!qrActive) return;
+                      checkinFlowStartedAt.current = Date.now();
+                      setShareSelectedDocType("C-Form (Foreign Guest)");
+                      setShareSheetOpen(true);
+                    }}
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[color:var(--iverifi-icon-border)] bg-[var(--iverifi-muted-surface)]">
+                        <DocumentTypeIcon documentType="C-Form (Foreign Guest)" className="text-[var(--iverifi-text-secondary)]" />
                       </div>
-
-                      <div className="flex shrink-0 items-center gap-2">
-                        {isVerified ? (
-                          <>
-                            <CheckCircle className="h-4 w-4 text-[#00c896]" />
-                            <ChevronRight className="h-4 w-4 text-[var(--iverifi-text-muted)]" />
-                          </>
-                        ) : (
-                          <>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              className="h-9 rounded-xl border border-[#f5a623] bg-transparent text-[#f5a623] hover:bg-[rgba(245,166,35,0.12)]"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleVerifyDocument(docType);
-                              }}
-                            >
-                              Verify
-                            </Button>
-                            <ChevronRight className="h-4 w-4 text-[var(--iverifi-text-muted)]" />
-                          </>
-                        )}
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-semibold text-[var(--iverifi-text-primary)]">{"C-Form (Foreign Guest)"}</div>
+                        <div className="truncate text-xs text-[var(--iverifi-text-muted)]">{qrActive ? "Fill & submit on check-in" : "Scan hotel QR to fill & submit"}</div>
                       </div>
                     </div>
-                  );
-                }
-              )}
-            </div>
+                    {qrActive ? <ChevronRight className="h-4 w-4 shrink-0 text-[var(--iverifi-text-muted)]" /> : <Lock className="h-4 w-4 shrink-0 text-[var(--iverifi-text-muted)]" />}
+                  </div> */}
+
+                  {/* Foreign Passport card */}
+                  <div
+                    className={`flex items-center justify-between gap-3 rounded-2xl border border-[color:var(--iverifi-card-border)] bg-[var(--iverifi-card)] px-4 py-3 ${qrActive ? "cursor-pointer hover:bg-[var(--iverifi-card-hover)]" : "opacity-50"}`}
+                    role={qrActive ? "button" : undefined}
+                    onClick={() => {
+                      if (!qrActive) return;
+                      checkinFlowStartedAt.current = Date.now();
+                      setShareSelectedDocType("Foreign Passport");
+                      setShareSheetOpen(true);
+                    }}
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[color:var(--iverifi-icon-border)] bg-[var(--iverifi-muted-surface)]">
+                        <span className="text-lg">🛂</span>
+                      </div>
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-semibold text-[var(--iverifi-text-primary)]">
+                          Foreign Passport
+                        </div>
+                        <div className="truncate text-xs text-[var(--iverifi-text-muted)]">
+                          {qrActive
+                            ? "Upload passport, visa & selfie"
+                            : "Scan hotel QR to upload & submit"}
+                        </div>
+                      </div>
+                    </div>
+                    {qrActive ? (
+                      <ChevronRight className="h-4 w-4 shrink-0 text-[var(--iverifi-text-muted)]" />
+                    ) : (
+                      <Lock className="h-4 w-4 shrink-0 text-[var(--iverifi-text-muted)]" />
+                    )}
+                  </div>
+                </>
+              );
+            })()}
           </div>
 
-        </div>
+          {/* Family Member IDs */}
+          {(() => {
+            const members: any[] = familyData?.data?.family_members || [];
+            return (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="text-[11px] font-semibold tracking-widest uppercase text-[var(--iverifi-text-muted)]">
+                    FAMILY IDS ({members.length})
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-8 shrink-0 gap-1 rounded-full border-0 bg-teal-100 px-3 text-xs font-semibold text-teal-700 hover:bg-teal-200 dark:bg-[rgba(0,200,180,0.22)] dark:text-[#5eead4] dark:hover:bg-[rgba(0,200,180,0.32)]"
+                    onClick={() => {
+                      setFamilyDocType("FAMILY_AADHAAR");
+                      setFamilyNickname("");
+                      setFamilyNicknameError("");
+                      setFamilyDialogOpen(true);
+                    }}
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    Add member
+                  </Button>
+                </div>
 
+                <div className="space-y-2">
+                  {members.length === 0 && (
+                    <div className="rounded-2xl border border-dashed border-[color:var(--iverifi-card-border)] bg-[var(--iverifi-card)] px-4 py-4 text-center text-xs text-[var(--iverifi-text-muted)]">
+                      No family members added yet — tap Add member to verify a
+                      family member's ID.
+                    </div>
+                  )}
+                  {members.map((member: any) => {
+                    const displayName =
+                      member.member_nickname ||
+                      member.nickname ||
+                      "Family member";
+                    const isPending = member.state !== "auto_approved";
+                    const memberDoc = FAMILY_DOC_OPTIONS.find((o) => o.type === member.document_type) ?? FAMILY_DOC_OPTIONS[0];
+                    return (
+                      <div
+                        key={member.id}
+                        className="flex cursor-pointer items-center justify-between gap-3 rounded-2xl border border-[color:var(--iverifi-card-border)] bg-[var(--iverifi-card)] px-4 py-3"
+                        role="button"
+                        onClick={() =>
+                          !isPending && setSelectedFamilyMember(member)
+                        }
+                      >
+                        <div className="flex min-w-0 items-center gap-3">
+                          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-teal-300 bg-teal-50 dark:border-[rgba(0,200,180,0.35)] dark:bg-[rgba(0,200,180,0.14)]">
+                            <DocumentTypeIcon
+                              documentType={memberDoc.iconType}
+                              className="h-6 w-6 text-teal-600 dark:text-[#00c896]"
+                            />
+                          </div>
+                          <div className="min-w-0">
+                            <div className="truncate text-sm font-semibold text-[var(--iverifi-text-primary)]">
+                              {displayName}
+                            </div>
+                            <div className="truncate text-xs text-[var(--iverifi-text-muted)]">
+                              {isPending
+                                ? "Verification pending"
+                                : `${memberDoc.label} · ${memberDoc.subtitle}`}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex shrink-0 items-center gap-2">
+                          {!isPending && (
+                            <CheckCircle className="h-4 w-4 text-emerald-600 dark:text-[#00c896]" />
+                          )}
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 rounded-lg text-[var(--iverifi-text-muted)] hover:text-red-500"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setFamilyDeleteTarget({
+                                id: member.id,
+                                nickname: displayName,
+                              });
+                            }}
+                            aria-label="Remove family member"
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()}
+        </div>
       </div>
       {/* max-w-2xl end */}
 
@@ -1198,9 +1987,24 @@ const Connections = () => {
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div style={{ width: 36, height: 4, borderRadius: 2, background: "var(--iverifi-sheet-handle)", margin: "0 auto 20px" }} />
+            <div
+              style={{
+                width: 36,
+                height: 4,
+                borderRadius: 2,
+                background: "var(--iverifi-sheet-handle)",
+                margin: "0 auto 20px",
+              }}
+            />
 
-            <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 16 }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 14,
+                marginBottom: 16,
+              }}
+            >
               <div
                 style={{
                   width: 52,
@@ -1214,10 +2018,21 @@ const Connections = () => {
                   border: "1px solid var(--iverifi-icon-box-border)",
                 }}
               >
-                <DocumentTypeIcon documentType={selectedDocType} className="text-[var(--iverifi-text-primary)]" />
+                <DocumentTypeIcon
+                  documentType={selectedDocType}
+                  className="text-[var(--iverifi-text-primary)]"
+                />
               </div>
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 19, fontWeight: 800, color: "var(--iverifi-text-primary)" }}>{selectedDocTitle}</div>
+                <div
+                  style={{
+                    fontSize: 19,
+                    fontWeight: 800,
+                    color: "var(--iverifi-text-primary)",
+                  }}
+                >
+                  {selectedDocTitle}
+                </div>
                 <div style={{ marginTop: 5 }}>
                   <VerifierBadge documentType={selectedDocType} />
                 </div>
@@ -1256,14 +2071,25 @@ const Connections = () => {
                   <img
                     src={selectedDocPhoto}
                     alt="Document holder"
-                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "cover",
+                    }}
                   />
                 ) : (
                   "👤"
                 )}
               </div>
               <div>
-                <div style={{ fontSize: 16, fontWeight: 800, color: "var(--iverifi-text-primary)", marginBottom: 4 }}>
+                <div
+                  style={{
+                    fontSize: 16,
+                    fontWeight: 800,
+                    color: "var(--iverifi-text-primary)",
+                    marginBottom: 4,
+                  }}
+                >
                   {selectedIdentityInfo.name}
                 </div>
                 {(() => {
@@ -1281,9 +2107,13 @@ const Connections = () => {
                         borderRadius: 20,
                         fontSize: 12,
                         fontWeight: 700,
-                        background: isAbove18 ? "rgba(0,200,150,0.1)" : "rgba(245,166,35,0.1)",
-                        color: isAbove18 ? "#00c896" : "#f5a623",
-                        border: `1px solid ${isAbove18 ? "rgba(0,200,150,0.2)" : "rgba(245,166,35,0.2)"}`,
+                        background: isAbove18
+                          ? "var(--iverifi-success-soft)"
+                          : "var(--iverifi-warning-soft)",
+                        color: isAbove18
+                          ? "var(--iverifi-success)"
+                          : "var(--iverifi-warning)",
+                        border: `1px solid ${isAbove18 ? "var(--iverifi-success-border)" : "var(--iverifi-warning-border)"}`,
                       }}
                     >
                       {isAbove18 ? "✓ Age 18+" : "Under 18"}
@@ -1306,7 +2136,12 @@ const Connections = () => {
                 { label: "Name", value: selectedIdentityInfo.name },
                 { label: "Age", value: selectedIdentityInfo.age },
                 ...(selectedDocType === "PAN_CARD"
-                  ? [{ label: "PAN", value: `******${selectedIdentityInfo.last4}` }]
+                  ? [
+                      {
+                        label: "PAN",
+                        value: `******${selectedIdentityInfo.last4}`,
+                      },
+                    ]
                   : []),
               ].map((field) => (
                 <div
@@ -1319,10 +2154,12 @@ const Connections = () => {
                     borderBottom: "1px solid var(--iverifi-row-divider)",
                   }}
                 >
-                  <span style={{ fontSize: 12, color: "var(--iverifi-label)" }}>{field.label}</span>
+                  <span style={{ fontSize: 14, color: "var(--iverifi-label)" }}>
+                    {field.label}
+                  </span>
                   <span
                     style={{
-                      fontSize: 13,
+                      fontSize: 15,
                       color: "var(--iverifi-text-primary)",
                       fontFamily: "monospace",
                       textAlign: "right",
@@ -1341,13 +2178,18 @@ const Connections = () => {
                     justifyContent: "space-between",
                     alignItems: "center",
                     padding: "12px 0",
-                    borderBottom: index === selectedDocFields.length - 1 ? "none" : "1px solid var(--iverifi-row-divider)",
+                    borderBottom:
+                      index === selectedDocFields.length - 1
+                        ? "none"
+                        : "1px solid var(--iverifi-row-divider)",
                   }}
                 >
-                  <span style={{ fontSize: 12, color: "var(--iverifi-label)" }}>{field.label}</span>
+                  <span style={{ fontSize: 14, color: "var(--iverifi-label)" }}>
+                    {field.label}
+                  </span>
                   <span
                     style={{
-                      fontSize: 13,
+                      fontSize: 15,
                       color: "var(--iverifi-text-primary)",
                       fontFamily: "monospace",
                       textAlign: "right",
@@ -1381,6 +2223,7 @@ const Connections = () => {
               <button
                 type="button"
                 onClick={() => {
+                  checkinFlowStartedAt.current = Date.now();
                   setShareSelectedDocType(selectedDocType);
                   setShareExpiryHours("24");
                   setSelectedDocType(null);
@@ -1390,9 +2233,9 @@ const Connections = () => {
                   width: "100%",
                   padding: "15px",
                   borderRadius: 14,
-                  background: "rgba(0,200,150,0.12)",
-                  border: "1px solid rgba(0,200,150,0.25)",
-                  color: "#00c896",
+                  background: "var(--iverifi-success-soft)",
+                  border: "1px solid var(--iverifi-success-border)",
+                  color: "var(--iverifi-success)",
                   fontSize: 15,
                   fontWeight: 700,
                   cursor: "pointer",
@@ -1423,7 +2266,7 @@ const Connections = () => {
                   borderRadius: 14,
                   background: "rgba(255,77,109,0.08)",
                   border: "1px solid rgba(255,77,109,0.2)",
-                  color: "#ff4d6d",
+                  color: "var(--iverifi-danger)",
                   fontSize: 15,
                   fontWeight: 700,
                   cursor: "pointer",
@@ -1439,7 +2282,7 @@ const Connections = () => {
                   marginTop: 2,
                   padding: "14px",
                   borderRadius: 12,
-                  background: "rgba(255,255,255,0.04)",
+                  background: "var(--iverifi-muted-surface)",
                   border: "1px solid var(--iverifi-border-subtle)",
                   color: "var(--iverifi-label)",
                   fontSize: 14,
@@ -1452,6 +2295,374 @@ const Connections = () => {
           </div>
         </div>
       )}
+
+      {/* Family member view sheet */}
+      {!!selectedFamilyMember &&
+        (() => {
+          const member = selectedFamilyMember;
+          const nickname =
+            member.member_nickname || member.nickname || "Family member";
+          const kwikOcr = extractKwikOcr(member as Record<string, any>);
+          const flat = deepFlatten({
+            ...flattenSources(member as Record<string, any>),
+            ...kwikOcr,
+          });
+          const isEncrypted = (v: unknown) =>
+            typeof v === "string" && v.startsWith("enc:v1:");
+          const name = String(
+            pickFirst(flat, [
+              "name",
+              "Name",
+              "full_name",
+              "fullName",
+              "givenName",
+              "given_name",
+              "applicant_name",
+              "holder_name",
+            ]) ?? "—",
+          );
+          const dobRaw = pickFirst(flat, [
+            "dob",
+            "dateOfBirth",
+            "date_of_birth",
+            "birth_date",
+            "Dob",
+            "DOB",
+          ]);
+          const parsedDob = parseDob(dobRaw);
+          const computedAge =
+            parsedDob && !Number.isNaN(parsedDob.getTime())
+              ? Math.floor(
+                  (Date.now() - parsedDob.getTime()) /
+                    (365.25 * 24 * 60 * 60 * 1000),
+                )
+              : null;
+          const isAbove18 = computedAge != null ? computedAge >= 18 : null;
+          const ageLabel =
+            computedAge != null
+              ? computedAge >= 18
+                ? "Above 18 ✓"
+                : "Below 18 ✗"
+              : "—";
+          const last4 = String(
+            pickFirst(flat, ["aadhaarLast4", "aadhaar_last4", "last4"]) ??
+              "****",
+          );
+          let photo: string | null = null;
+          const rootFace = pickFirst(flat, ["face_url"]);
+          if (
+            typeof rootFace === "string" &&
+            rootFace.trim() &&
+            !isEncrypted(rootFace)
+          )
+            photo = rootFace;
+          else {
+            const ps = pickFirst(flat, [
+              "ps_face_url",
+              "selfie_url",
+              "photo",
+              "profile_photo",
+            ]);
+            if (typeof ps === "string" && ps.trim() && !isEncrypted(ps))
+              photo = ps;
+            else {
+              const b64 = pickFirst(flat, ["photo_base64"]);
+              if (typeof b64 === "string" && b64.trim() && !isEncrypted(b64))
+                photo = `data:image/jpeg;base64,${b64}`;
+            }
+          }
+          return (
+            <div
+              style={{
+                position: "fixed",
+                inset: 0,
+                background: "var(--iverifi-overlay)",
+                backdropFilter: "blur(4px)",
+                zIndex: 10050,
+                display: "flex",
+                alignItems: "flex-end",
+              }}
+              onClick={() => setSelectedFamilyMember(null)}
+            >
+              <div
+                style={{
+                  width: "100%",
+                  maxHeight: "96dvh",
+                  background: "var(--iverifi-sheet)",
+                  borderRadius: "24px 24px 0 0",
+                  border: "1px solid var(--iverifi-sheet-border)",
+                  borderBottom: "none",
+                  overflowY: "auto",
+                  padding:
+                    "8px 20px calc(88px + env(safe-area-inset-bottom,0px))",
+                  animation: "slide-up .3s cubic-bezier(.34,1.56,.64,1)",
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div
+                  style={{
+                    width: 36,
+                    height: 4,
+                    borderRadius: 2,
+                    background: "var(--iverifi-sheet-handle)",
+                    margin: "0 auto 20px",
+                  }}
+                />
+                {/* Header */}
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 14,
+                    marginBottom: 16,
+                  }}
+                >
+                  <div
+                    style={{
+                      width: 52,
+                      height: 52,
+                      borderRadius: 15,
+                      flexShrink: 0,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      background: "var(--iverifi-icon-box-bg)",
+                      border: "1px solid var(--iverifi-icon-box-border)",
+                    }}
+                  >
+                    <DocumentTypeIcon
+                      documentType="AADHAAR_CARD"
+                      className="text-[var(--iverifi-text-primary)]"
+                    />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div
+                      style={{
+                        fontSize: 19,
+                        fontWeight: 800,
+                        color: "var(--iverifi-text-primary)",
+                      }}
+                    >
+                      {nickname}
+                    </div>
+                    <div style={{ marginTop: 5 }}>
+                      <VerifierBadge documentType="AADHAAR_CARD" />
+                    </div>
+                  </div>
+                </div>
+                {/* Photo + name + age */}
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 16,
+                    marginBottom: 14,
+                    padding: 14,
+                    background: "var(--iverifi-surface-1)",
+                    border: "1px solid var(--iverifi-border-subtle)",
+                    borderRadius: 16,
+                  }}
+                >
+                  <div
+                    style={{
+                      width: 72,
+                      height: 72,
+                      borderRadius: 14,
+                      flexShrink: 0,
+                      overflow: "hidden",
+                      background: "var(--iverifi-surface-2)",
+                      border: "1px solid var(--iverifi-border-subtle)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      color: "var(--iverifi-hint-text)",
+                      fontSize: 28,
+                    }}
+                  >
+                    {photo ? (
+                      <img
+                        src={photo}
+                        alt="Member photo"
+                        style={{
+                          width: "100%",
+                          height: "100%",
+                          objectFit: "cover",
+                        }}
+                      />
+                    ) : (
+                      "👤"
+                    )}
+                  </div>
+                  <div>
+                    <div
+                      style={{
+                        fontSize: 16,
+                        fontWeight: 800,
+                        color: "var(--iverifi-text-primary)",
+                        marginBottom: 4,
+                      }}
+                    >
+                      {name}
+                    </div>
+                    {isAbove18 != null && (
+                      <div
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 6,
+                          padding: "4px 10px",
+                          borderRadius: 20,
+                          fontSize: 12,
+                          fontWeight: 700,
+                          background: isAbove18
+                            ? "var(--iverifi-success-soft)"
+                            : "var(--iverifi-warning-soft)",
+                          color: isAbove18
+                            ? "var(--iverifi-success)"
+                            : "var(--iverifi-warning)",
+                          border: `1px solid ${isAbove18 ? "var(--iverifi-success-border)" : "var(--iverifi-warning-border)"}`,
+                        }}
+                      >
+                        {ageLabel}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                {/* Fields */}
+                <div
+                  style={{
+                    background: "var(--iverifi-surface-1)",
+                    borderRadius: 14,
+                    padding: "0 16px",
+                    marginBottom: 14,
+                    border: "1px solid var(--iverifi-border-subtle)",
+                  }}
+                >
+                  {[
+                    { label: "Name", value: name },
+                    { label: "Age", value: ageLabel },
+                    { label: "Aadhaar", value: `******${last4}` },
+                  ].map((field, idx, arr) => (
+                    <div
+                      key={field.label}
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        padding: "12px 0",
+                        borderBottom:
+                          idx === arr.length - 1
+                            ? "none"
+                            : "1px solid var(--iverifi-row-divider)",
+                      }}
+                    >
+                      <span
+                        style={{ fontSize: 14, color: "var(--iverifi-label)" }}
+                      >
+                        {field.label}
+                      </span>
+                      <span
+                        style={{
+                          fontSize: 15,
+                          color: "var(--iverifi-text-primary)",
+                          fontFamily: "monospace",
+                          textAlign: "right",
+                          maxWidth: "60%",
+                        }}
+                      >
+                        {field.value}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                <div
+                  style={{
+                    padding: 12,
+                    background: "var(--iverifi-hint-bg)",
+                    border: "1px solid var(--iverifi-hint-border)",
+                    borderRadius: 12,
+                    marginBottom: 16,
+                    fontSize: 12,
+                    color: "var(--iverifi-hint-text)",
+                    lineHeight: 1.6,
+                  }}
+                >
+                  🔒 Full Aadhaar number never stored. DPDP Act 2023.
+                </div>
+                {/* Actions */}
+                <div
+                  style={{ display: "flex", flexDirection: "column", gap: 10 }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => {
+                      checkinFlowStartedAt.current = Date.now();
+                      setShareSelectedDocType(`FAMILY:${member.id}`);
+                      setShareExpiryHours("24");
+                      setSelectedFamilyMember(null);
+                      setShareSheetOpen(true);
+                    }}
+                    style={{
+                      width: "100%",
+                      padding: "15px",
+                      borderRadius: 14,
+                      background: "var(--iverifi-success-soft)",
+                      border: "1px solid var(--iverifi-success-border)",
+                      color: "var(--iverifi-success)",
+                      fontSize: 15,
+                      fontWeight: 700,
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 8,
+                    }}
+                  >
+                    <Share2 className="h-4 w-4" />
+                    Share this document
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedFamilyMember(null);
+                      setFamilyDeleteTarget({ id: member.id, nickname });
+                    }}
+                    style={{
+                      width: "100%",
+                      padding: "15px",
+                      borderRadius: 14,
+                      background: "rgba(255,77,109,0.08)",
+                      border: "1px solid rgba(255,77,109,0.2)",
+                      color: "var(--iverifi-danger)",
+                      fontSize: 15,
+                      fontWeight: 700,
+                      cursor: "pointer",
+                    }}
+                  >
+                    Remove member
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedFamilyMember(null)}
+                    style={{
+                      width: "100%",
+                      marginTop: 2,
+                      padding: "14px",
+                      borderRadius: 12,
+                      background: "var(--iverifi-muted-surface)",
+                      border: "1px solid var(--iverifi-border-subtle)",
+                      color: "var(--iverifi-label)",
+                      fontSize: 14,
+                      cursor: "pointer",
+                    }}
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
       {shareSheetOpen ? (
         <div
@@ -1484,15 +2695,39 @@ const Connections = () => {
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div style={{ width: 36, height: 4, borderRadius: 2, background: "var(--iverifi-sheet-handle)", margin: "0 auto 20px" }} />
+            <div
+              style={{
+                width: 36,
+                height: 4,
+                borderRadius: 2,
+                background: "var(--iverifi-sheet-handle)",
+                margin: "0 auto 20px",
+              }}
+            />
 
-            {verifiedDocTypesForShare.length === 0 ? (
+            {verifiedDocTypesForShare.length === 0 &&
+            !(code && isValidQRCode(code)) ? (
               <div style={{ textAlign: "center", padding: "16px 0 8px" }}>
                 <div style={{ fontSize: 40, marginBottom: 12 }}>🪪</div>
-                <div id="share-sheet-title" style={{ fontSize: 19, fontWeight: 800, color: "var(--iverifi-text-primary)", marginBottom: 8 }}>
+                <div
+                  id="share-sheet-title"
+                  style={{
+                    fontSize: 19,
+                    fontWeight: 800,
+                    color: "var(--iverifi-text-primary)",
+                    marginBottom: 8,
+                  }}
+                >
                   No verified documents
                 </div>
-                <div style={{ fontSize: 13, color: "var(--iverifi-label)", marginBottom: 20, lineHeight: 1.5 }}>
+                <div
+                  style={{
+                    fontSize: 13,
+                    color: "var(--iverifi-label)",
+                    marginBottom: 20,
+                    lineHeight: 1.5,
+                  }}
+                >
                   Verify at least one document before sharing.
                 </div>
                 <button
@@ -1504,9 +2739,9 @@ const Connections = () => {
                     width: "100%",
                     padding: "15px",
                     borderRadius: 14,
-                    background: "rgba(0,200,150,0.12)",
-                    border: "1px solid rgba(0,200,150,0.25)",
-                    color: "#00c896",
+                    background: "var(--iverifi-success-soft)",
+                    border: "1px solid var(--iverifi-success-border)",
+                    color: "var(--iverifi-success)",
                     fontSize: 15,
                     fontWeight: 700,
                     cursor: "pointer",
@@ -1518,19 +2753,54 @@ const Connections = () => {
             ) : !connectedRequestorName ? (
               code ? (
                 isRecipientLoading ? (
-                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "40px 0", gap: 16 }}>
-                    <Loader2 className="h-10 w-10 animate-spin text-[#00e0ff]" aria-hidden />
-                    <div id="share-sheet-title" style={{ fontSize: 15, color: "var(--iverifi-hint-text)", textAlign: "center" }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      padding: "40px 0",
+                      gap: 16,
+                    }}
+                  >
+                    <Loader2
+                      className="h-10 w-10 animate-spin text-teal-600 dark:text-[#00e0ff]"
+                      aria-hidden
+                    />
+                    <div
+                      id="share-sheet-title"
+                      style={{
+                        fontSize: 15,
+                        color: "var(--iverifi-hint-text)",
+                        textAlign: "center",
+                      }}
+                    >
                       Loading property…
                     </div>
                   </div>
                 ) : (
                   <div style={{ textAlign: "center", padding: "8px 0 16px" }}>
-                    <div id="share-sheet-title" style={{ fontSize: 19, fontWeight: 800, color: "var(--iverifi-text-primary)", marginBottom: 10 }}>
+                    <div
+                      id="share-sheet-title"
+                      style={{
+                        fontSize: 19,
+                        fontWeight: 800,
+                        color: "var(--iverifi-text-primary)",
+                        marginBottom: 10,
+                      }}
+                    >
                       Couldn&apos;t load this stay
                     </div>
-                    <p style={{ fontSize: 13, color: "var(--iverifi-label)", marginBottom: 20, lineHeight: 1.5 }}>
-                      Check your connection, then try again. Your QR scan is saved in the link.
+                    <p
+                      style={{
+                        fontSize: 13,
+                        color: "var(--iverifi-label)",
+                        marginBottom: 20,
+                        lineHeight: 1.5,
+                      }}
+                    >
+                      Check your connection, then try again. Your QR scan is
+                      saved in the link.
                     </p>
                     <button
                       type="button"
@@ -1541,7 +2811,7 @@ const Connections = () => {
                         borderRadius: 14,
                         background: "rgba(0,200,150,0.12)",
                         border: "1px solid rgba(0,200,150,0.25)",
-                        color: "#00c896",
+                        color: "var(--iverifi-success)",
                         fontSize: 15,
                         fontWeight: 700,
                         cursor: "pointer",
@@ -1558,7 +2828,7 @@ const Connections = () => {
                         marginTop: 2,
                         padding: "14px",
                         borderRadius: 12,
-                        background: "rgba(255,255,255,0.04)",
+                        background: "var(--iverifi-muted-surface)",
                         border: "1px solid var(--iverifi-border-subtle)",
                         color: "var(--iverifi-label)",
                         fontSize: 14,
@@ -1577,23 +2847,51 @@ const Connections = () => {
                       width: 80,
                       height: 80,
                       borderRadius: 20,
-                      border: "1px solid rgba(0,224,255,0.3)",
-                      background: "linear-gradient(135deg, rgba(0,224,255,0.12), rgba(123,92,245,0.12))",
+                      border: "1px solid var(--iverifi-accent-border)",
+                      background:
+                        "linear-gradient(135deg, var(--iverifi-accent-soft), rgba(123,92,245,0.12))",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
                     }}
                   >
-                    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#00e0ff" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true">
+                    <svg
+                      width="36"
+                      height="36"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="var(--iverifi-accent)"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      aria-hidden="true"
+                    >
                       <path d="M4 7V5a1 1 0 0 1 1-1h2M4 17v2a1 1 0 0 0 1 1h2M20 7V5a1 1 0 0 0-1-1h-2M20 17v2a1 1 0 0 1-1 1h-2" />
                       <rect x="9" y="9" width="6" height="6" rx="1" />
                     </svg>
                   </div>
-                  <div id="share-sheet-title" style={{ fontSize: 19, fontWeight: 800, color: "var(--iverifi-text-primary)", marginBottom: 10, textAlign: "center" }}>
+                  <div
+                    id="share-sheet-title"
+                    style={{
+                      fontSize: 19,
+                      fontWeight: 800,
+                      color: "var(--iverifi-text-primary)",
+                      marginBottom: 10,
+                      textAlign: "center",
+                    }}
+                  >
                     Scan to connect first
                   </div>
-                  <div style={{ fontSize: 13, color: "var(--iverifi-label)", lineHeight: 1.6, marginBottom: 20, textAlign: "center" }}>
-                    Scan the hotel&apos;s iVerifi QR (from Vault → Share, or the Scan tab). Then pick a document and confirm in one step.
+                  <div
+                    style={{
+                      fontSize: 13,
+                      color: "var(--iverifi-label)",
+                      lineHeight: 1.6,
+                      marginBottom: 20,
+                      textAlign: "center",
+                    }}
+                  >
+                    Scan the hotel&apos;s iVerifi QR (from Vault → Share, or the
+                    Scan tab). Then pick a document and confirm in one step.
                   </div>
                   <div
                     style={{
@@ -1605,19 +2903,39 @@ const Connections = () => {
                     }}
                   >
                     {[
-                      ["📷", "Scan their QR", "Ask the property to show their iVerifi QR"],
-                      ["✓", "Connection verified", "Their identity is confirmed by iVerifi"],
-                      ["📤", "Choose & share", "Pick a document and share securely"],
+                      [
+                        "📷",
+                        "Scan their QR",
+                        "Ask the property to show their iVerifi QR",
+                      ],
+                      [
+                        "✓",
+                        "Connection verified",
+                        "Their identity is confirmed by iVerifi",
+                      ],
+                      [
+                        "📤",
+                        "Choose & share",
+                        "Pick a document and share securely",
+                      ],
                     ].map(([icon, title, desc]) => (
-                      <div key={title} style={{ display: "flex", gap: 12, alignItems: "flex-start", marginBottom: title === "Choose & share" ? 0 : 12 }}>
+                      <div
+                        key={title}
+                        style={{
+                          display: "flex",
+                          gap: 12,
+                          alignItems: "flex-start",
+                          marginBottom: title === "Choose & share" ? 0 : 12,
+                        }}
+                      >
                         <div
                           style={{
                             width: 32,
                             height: 32,
                             flexShrink: 0,
                             borderRadius: 10,
-                            border: "1px solid rgba(0,224,255,0.2)",
-                            background: "rgba(0,224,255,0.08)",
+                            border: "1px solid var(--iverifi-accent-border)",
+                            background: "var(--iverifi-accent-soft)",
                             display: "flex",
                             alignItems: "center",
                             justifyContent: "center",
@@ -1627,43 +2945,110 @@ const Connections = () => {
                           {icon}
                         </div>
                         <div>
-                          <div style={{ fontSize: 14, fontWeight: 700, color: "var(--iverifi-text-primary)" }}>{title}</div>
-                          <div style={{ fontSize: 12, color: "var(--iverifi-label)", marginTop: 2 }}>{desc}</div>
+                          <div
+                            style={{
+                              fontSize: 14,
+                              fontWeight: 700,
+                              color: "var(--iverifi-text-primary)",
+                            }}
+                          >
+                            {title}
+                          </div>
+                          <div
+                            style={{
+                              fontSize: 12,
+                              color: "var(--iverifi-label)",
+                              marginTop: 2,
+                            }}
+                          >
+                            {desc}
+                          </div>
                         </div>
                       </div>
                     ))}
                   </div>
-                  {/* C-Form preview — disabled until QR scanned */}
-                  <div
-                    style={{
-                      background: "var(--iverifi-surface-1)",
-                      borderRadius: 14,
-                      padding: "4px 12px",
-                      marginBottom: 14,
-                      border: "1px solid var(--iverifi-border-subtle)",
-                      opacity: 0.45,
-                    }}
-                  >
-                    <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 4px" }}>
+                  {/* C-Form & Foreign Passport — disabled until QR scanned */}
+                  {[
+                    // { label: "C-Form (Foreign Guest)", subtitle: "Scan hotel QR to fill & submit C-Form", icon: <DocumentTypeIcon documentType="C-Form (Foreign Guest)" className="text-[var(--iverifi-text-primary)] h-5 w-5" /> },
+                    {
+                      label: "Foreign Passport",
+                      subtitle: "Scan hotel QR to upload & submit",
+                      icon: <span style={{ fontSize: 18 }}>🛂</span>,
+                    },
+                  ].map((opt) => (
+                    <div
+                      key={opt.label}
+                      style={{
+                        background: "var(--iverifi-surface-1)",
+                        borderRadius: 14,
+                        padding: "4px 12px",
+                        marginBottom: 8,
+                        border: "1px solid var(--iverifi-border-subtle)",
+                        opacity: 0.45,
+                      }}
+                    >
                       <div
                         style={{
-                          width: 40, height: 40, flexShrink: 0, borderRadius: 12,
-                          border: "1px solid rgba(0,224,255,0.18)",
-                          background: "rgba(0,224,255,0.08)",
-                          display: "flex", alignItems: "center", justifyContent: "center",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 12,
+                          padding: "12px 4px",
                         }}
                       >
-                        <DocumentTypeIcon documentType="C-Form (Foreign Guest)" className="text-[var(--iverifi-text-primary)] h-5 w-5" />
+                        <div
+                          style={{
+                            width: 40,
+                            height: 40,
+                            flexShrink: 0,
+                            borderRadius: 12,
+                            border: "1px solid var(--iverifi-accent-border)",
+                            background: "var(--iverifi-accent-soft)",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                          }}
+                        >
+                          {opt.icon}
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div
+                            style={{
+                              fontSize: 14,
+                              fontWeight: 700,
+                              color: "var(--iverifi-text-primary)",
+                            }}
+                          >
+                            {opt.label}
+                          </div>
+                          <div
+                            style={{
+                              fontSize: 11,
+                              color: "var(--iverifi-label)",
+                            }}
+                          >
+                            {opt.subtitle}
+                          </div>
+                        </div>
+                        <div
+                          style={{
+                            width: 20,
+                            height: 20,
+                            borderRadius: "50%",
+                            border: "2px solid var(--iverifi-ring-muted)",
+                            flexShrink: 0,
+                          }}
+                        />
                       </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 14, fontWeight: 700, color: "var(--iverifi-text-primary)" }}>C-Form (Foreign Guest)</div>
-                        <div style={{ fontSize: 11, color: "var(--iverifi-label)" }}>Scan hotel QR to fill &amp; submit C-Form</div>
-                      </div>
-                      <div style={{ width: 20, height: 20, borderRadius: "50%", border: "2px solid var(--iverifi-ring-muted)", flexShrink: 0 }} />
                     </div>
-                  </div>
+                  ))}
 
-                  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 10,
+                    }}
+                  >
                     <button
                       type="button"
                       onClick={() => {
@@ -1676,7 +3061,7 @@ const Connections = () => {
                         borderRadius: 14,
                         background: "rgba(0,200,150,0.12)",
                         border: "1px solid rgba(0,200,150,0.25)",
-                        color: "#00c896",
+                        color: "var(--iverifi-success)",
                         fontSize: 15,
                         fontWeight: 700,
                         cursor: "pointer",
@@ -1692,7 +3077,7 @@ const Connections = () => {
                         marginTop: 2,
                         padding: "14px",
                         borderRadius: 12,
-                        background: "rgba(255,255,255,0.04)",
+                        background: "var(--iverifi-muted-surface)",
                         border: "1px solid var(--iverifi-border-subtle)",
                         color: "var(--iverifi-label)",
                         fontSize: 14,
@@ -1706,7 +3091,14 @@ const Connections = () => {
               )
             ) : (
               <div>
-                <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 16 }}>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 14,
+                    marginBottom: 16,
+                  }}
+                >
                   <div
                     style={{
                       width: 52,
@@ -1716,11 +3108,27 @@ const Connections = () => {
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
-                      background: "rgba(0,224,255,0.08)",
-                      border: "1px solid rgba(0,224,255,0.2)",
+                      background: "var(--iverifi-accent-soft)",
+                      border: "1px solid var(--iverifi-accent-border)",
+                      overflow: "hidden",
                     }}
                   >
-                    <Share2 className="h-6 w-6 text-[var(--iverifi-text-primary)]" strokeWidth={2} />
+                    {connectedRequestorLogo ? (
+                      <img
+                        src={connectedRequestorLogo}
+                        alt="Hotel Logo"
+                        style={{
+                          width: "80%",
+                          height: "80%",
+                          objectFit: "contain",
+                        }}
+                      />
+                    ) : (
+                      <Share2
+                        className="h-6 w-6 text-[var(--iverifi-text-primary)]"
+                        strokeWidth={2}
+                      />
+                    )}
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div
@@ -1738,36 +3146,66 @@ const Connections = () => {
                         ? connectedRequestorName || "Property"
                         : "Share a document"}
                     </div>
-                    <div style={{ marginTop: 6, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                    <div
+                      style={{
+                        marginTop: 6,
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 8,
+                        flexWrap: "wrap",
+                      }}
+                    >
                       <span
                         style={{
                           display: "inline-flex",
                           alignItems: "center",
                           borderRadius: 999,
-                          border: "1px solid rgba(0,200,150,0.2)",
-                          background: "rgba(0,200,150,0.12)",
+                          border: "1px solid var(--iverifi-success-border)",
+                          background: "var(--iverifi-success-soft)",
                           padding: "2px 8px",
                           fontSize: 10,
                           fontWeight: 700,
-                          color: "#00c896",
+                          color: "var(--iverifi-success)",
                         }}
                       >
-                        {code && isValidQRCode(code) ? "✓ Verified" : `✓ ${connectedRequestorName}`}
+                        {code && isValidQRCode(code)
+                          ? "✓ Verified"
+                          : `✓ ${connectedRequestorName}`}
                       </span>
-                      <span style={{ fontSize: 10, color: "var(--iverifi-label)" }}>
-                        {code && isValidQRCode(code) ? "by iVerifi" : "iVerifi verified"}
+                      <span
+                        style={{ fontSize: 10, color: "var(--iverifi-label)" }}
+                      >
+                        {code && isValidQRCode(code)
+                          ? "by iVerifi"
+                          : "iVerifi verified"}
                       </span>
                     </div>
                   </div>
                 </div>
 
-                <div style={{ fontSize: 13, color: "var(--iverifi-label)", marginBottom: 14, lineHeight: 1.5 }}>
+                <div
+                  style={{
+                    fontSize: 13,
+                    color: "var(--iverifi-label)",
+                    marginBottom: 14,
+                    lineHeight: 1.5,
+                  }}
+                >
                   {code && isValidQRCode(code)
-                    ? `Choose what to send. We’ll share it and submit your check-in request in one go.`
+                    ? `Select an ID below and tap Share — your check-in request will be sent automatically.`
                     : `Choose which document to share with ${connectedRequestorName}.`}
                 </div>
 
-                <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--iverifi-label)", marginBottom: 8 }}>
+                <div
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 700,
+                    letterSpacing: "0.08em",
+                    textTransform: "uppercase",
+                    color: "var(--iverifi-label)",
+                    marginBottom: 8,
+                  }}
+                >
                   Choose document
                 </div>
 
@@ -1780,9 +3218,66 @@ const Connections = () => {
                     border: "1px solid var(--iverifi-border-subtle)",
                   }}
                 >
+                  {verifiedDocTypesForShare.length === 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setShareSheetOpen(false)}
+                      style={{
+                        width: "100%",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 12,
+                        padding: "14px 4px",
+                        border: "none",
+                        background: "transparent",
+                        cursor: "pointer",
+                        textAlign: "left",
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: 40,
+                          height: 40,
+                          flexShrink: 0,
+                          borderRadius: 12,
+                          border: "1px solid var(--iverifi-success-border)",
+                          background: "var(--iverifi-success-soft)",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontSize: 18,
+                        }}
+                      >
+                        +
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div
+                          style={{
+                            fontSize: 14,
+                            fontWeight: 700,
+                            color: "var(--iverifi-success)",
+                          }}
+                        >
+                          Add a document
+                        </div>
+                        <div
+                          style={{
+                            fontSize: 11,
+                            color: "var(--iverifi-label)",
+                            marginTop: 2,
+                          }}
+                        >
+                          Verify your Aadhaar, Driving Licence, or Passport to
+                          check in
+                        </div>
+                      </div>
+                    </button>
+                  )}
                   {verifiedDocTypesForShare.map((docType, idx) => {
                     const selected = shareSelectedDocType === docType;
-                    const label = docType.includes("_") ? titleCase(docType) : docType;
+                    const label = docType.includes("_")
+                      ? titleCase(docType)
+                      : docType;
                     return (
                       <button
                         key={docType}
@@ -1795,8 +3290,13 @@ const Connections = () => {
                           gap: 12,
                           padding: "12px 4px",
                           border: "none",
-                          borderBottom: idx === verifiedDocTypesForShare.length - 1 ? "none" : "1px solid var(--iverifi-row-divider)",
-                          background: selected ? "rgba(0,224,255,0.06)" : "transparent",
+                          borderBottom:
+                            idx === verifiedDocTypesForShare.length - 1
+                              ? "none"
+                              : "1px solid var(--iverifi-row-divider)",
+                          background: selected
+                            ? "rgba(0,224,255,0.06)"
+                            : "transparent",
                           cursor: "pointer",
                           textAlign: "left",
                           borderRadius: selected ? 8 : 0,
@@ -1815,95 +3315,318 @@ const Connections = () => {
                             justifyContent: "center",
                           }}
                         >
-                          <DocumentTypeIcon documentType={docType} className="text-[var(--iverifi-text-primary)] h-5 w-5" />
+                          <DocumentTypeIcon
+                            documentType={docType}
+                            className="text-[var(--iverifi-text-primary)] h-5 w-5"
+                          />
                         </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: 14, fontWeight: 700, color: selected ? "#00e0ff" : "var(--iverifi-text-primary)" }}>{label}</div>
-                          <div style={{ fontSize: 11, color: "var(--iverifi-label)" }}>Verified</div>
+                          <div
+                            style={{
+                              fontSize: 14,
+                              fontWeight: 700,
+                              color: selected
+                                ? "var(--iverifi-accent)"
+                                : "var(--iverifi-text-primary)",
+                            }}
+                          >
+                            {label}
+                          </div>
+                          <div
+                            style={{
+                              fontSize: 11,
+                              color: "var(--iverifi-label)",
+                            }}
+                          >
+                            Verified
+                          </div>
                         </div>
                         <div
                           style={{
                             width: 20,
                             height: 20,
                             borderRadius: "50%",
-                            border: selected ? "2px solid #00e0ff" : "2px solid var(--iverifi-ring-muted)",
-                            background: selected ? "#00e0ff" : "transparent",
+                            border: selected
+                              ? "2px solid var(--iverifi-accent)"
+                              : "2px solid var(--iverifi-ring-muted)",
+                            background: selected
+                              ? "var(--iverifi-accent)"
+                              : "transparent",
                             display: "flex",
                             alignItems: "center",
                             justifyContent: "center",
                             flexShrink: 0,
                           }}
                         >
-                          {selected ? <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#000" }} /> : null}
+                          {selected ? (
+                            <div
+                              style={{
+                                width: 8,
+                                height: 8,
+                                borderRadius: "50%",
+                                background: "#000",
+                              }}
+                            />
+                          ) : null}
                         </div>
                       </button>
                     );
                   })}
                 </div>
 
-                {/* C-Form — always visible; disabled (no interaction) when no QR scanned */}
+                {/* Family IDs in share sheet */}
+                {(() => {
+                  const verifiedMembers = (
+                    familyData?.data?.family_members || []
+                  ).filter((m: any) => m.state === "auto_approved");
+                  if (verifiedMembers.length === 0) return null;
+                  return (
+                    <div style={{ marginTop: 12 }}>
+                      <div
+                        style={{
+                          fontSize: 11,
+                          fontWeight: 700,
+                          letterSpacing: "0.08em",
+                          textTransform: "uppercase",
+                          color: "var(--iverifi-label)",
+                          marginBottom: 8,
+                        }}
+                      >
+                        Family IDs
+                      </div>
+                      <div
+                        style={{
+                          background: "var(--iverifi-surface-1)",
+                          borderRadius: 14,
+                          padding: "4px 12px",
+                          border: "1px solid var(--iverifi-border-subtle)",
+                        }}
+                      >
+                        {verifiedMembers.map((member: any, idx: number) => {
+                          const nickname =
+                            member.member_nickname ||
+                            member.nickname ||
+                            "Family member";
+                          const key = `FAMILY:${member.id}`;
+                          const isSelected = shareSelectedDocType === key;
+                          return (
+                            <button
+                              key={key}
+                              type="button"
+                              onClick={() => setShareSelectedDocType(key)}
+                              style={{
+                                width: "100%",
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 12,
+                                padding: "12px 4px",
+                                border: "none",
+                                borderBottom:
+                                  idx === verifiedMembers.length - 1
+                                    ? "none"
+                                    : "1px solid var(--iverifi-row-divider)",
+                                background: isSelected
+                                  ? "rgba(0,224,255,0.06)"
+                                  : "transparent",
+                                cursor: "pointer",
+                                textAlign: "left",
+                                borderRadius: isSelected ? 8 : 0,
+                              }}
+                            >
+                              <div
+                                style={{
+                                  width: 40,
+                                  height: 40,
+                                  flexShrink: 0,
+                                  borderRadius: 12,
+                                  border: "1px solid rgba(0,224,255,0.18)",
+                                  background: "rgba(0,224,255,0.08)",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                }}
+                              >
+                                <DocumentTypeIcon
+                                  documentType="AADHAAR_CARD"
+                                  className="text-[var(--iverifi-text-primary)] h-5 w-5"
+                                />
+                              </div>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div
+                                  style={{
+                                    fontSize: 14,
+                                    fontWeight: 700,
+                                    color: isSelected
+                                      ? "var(--iverifi-accent)"
+                                      : "var(--iverifi-text-primary)",
+                                    overflow: "hidden",
+                                    textOverflow: "ellipsis",
+                                    whiteSpace: "nowrap",
+                                  }}
+                                >
+                                  {nickname}
+                                </div>
+                                <div
+                                  style={{
+                                    fontSize: 11,
+                                    color: "var(--iverifi-label)",
+                                  }}
+                                >
+                                  Aadhaar · UIDAI Verified
+                                </div>
+                              </div>
+                              <div
+                                style={{
+                                  width: 20,
+                                  height: 20,
+                                  borderRadius: "50%",
+                                  border: isSelected
+                                    ? "2px solid var(--iverifi-accent)"
+                                    : "2px solid var(--iverifi-ring-muted)",
+                                  background: isSelected
+                                    ? "var(--iverifi-accent)"
+                                    : "transparent",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  flexShrink: 0,
+                                }}
+                              >
+                                {isSelected ? (
+                                  <div
+                                    style={{
+                                      width: 8,
+                                      height: 8,
+                                      borderRadius: "50%",
+                                      background: "#000",
+                                    }}
+                                  />
+                                ) : null}
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* Foreign options — C-Form and Foreign Passport — only enabled when a hotel QR has been scanned */}
                 {(() => {
                   const qrActive = !!(code && isValidQRCode(code));
-                  const isSelected = shareSelectedDocType === "C-Form (Foreign Guest)";
-                  return (
-                    <button
-                      key="C-Form (Foreign Guest)"
-                      type="button"
-                      disabled={!qrActive}
-                      onClick={() => qrActive && setShareSelectedDocType("C-Form (Foreign Guest)")}
-                      style={{
-                        width: "100%",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 12,
-                        padding: "12px 4px",
-                        border: "none",
-                        borderTop: verifiedDocTypesForShare.length > 0 ? "1px solid var(--iverifi-row-divider)" : "none",
-                        background: isSelected ? "rgba(0,224,255,0.06)" : "transparent",
-                        cursor: qrActive ? "pointer" : "not-allowed",
-                        textAlign: "left",
-                        borderRadius: isSelected ? 8 : 0,
-                        opacity: qrActive ? 1 : 0.45,
-                      }}
-                    >
-                      <div
+                  const foreignOptions = [
+                    // {
+                    //   key: "C-Form (Foreign Guest)",
+                    //   label: "C-Form (Foreign Guest)",
+                    //   subtitle: qrActive ? "FRRO compliance · Fill & submit on check-in" : "Scan a hotel QR to use C-Form",
+                    //   icon: <DocumentTypeIcon documentType="C-Form (Foreign Guest)" className="text-[var(--iverifi-text-primary)] h-5 w-5" />,
+                    // },
+                    {
+                      key: "Foreign Passport",
+                      label: "Foreign Passport",
+                      subtitle: qrActive
+                        ? "Upload passport, visa & selfie on check-in"
+                        : "Scan a hotel QR to use this option",
+                      icon: <span style={{ fontSize: 18 }}>🛂</span>,
+                    },
+                  ];
+                  return foreignOptions.map((opt, idx) => {
+                    const isSelected = shareSelectedDocType === opt.key;
+                    return (
+                      <button
+                        key={opt.key}
+                        type="button"
+                        disabled={!qrActive}
+                        onClick={() =>
+                          qrActive && setShareSelectedDocType(opt.key)
+                        }
                         style={{
-                          width: 40,
-                          height: 40,
-                          flexShrink: 0,
-                          borderRadius: 12,
-                          border: "1px solid rgba(0,224,255,0.18)",
-                          background: "rgba(0,224,255,0.08)",
+                          width: "100%",
                           display: "flex",
                           alignItems: "center",
-                          justifyContent: "center",
+                          gap: 12,
+                          padding: "12px 4px",
+                          border: "none",
+                          borderTop:
+                            verifiedDocTypesForShare.length > 0 || idx > 0
+                              ? "1px solid var(--iverifi-row-divider)"
+                              : "none",
+                          background: isSelected
+                            ? "var(--iverifi-accent-soft)"
+                            : "transparent",
+                          cursor: qrActive ? "pointer" : "not-allowed",
+                          textAlign: "left",
+                          borderRadius: isSelected ? 8 : 0,
+                          opacity: qrActive ? 1 : 0.4,
                         }}
                       >
-                        <DocumentTypeIcon documentType="C-Form (Foreign Guest)" className="text-[var(--iverifi-text-primary)] h-5 w-5" />
-                      </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 14, fontWeight: 700, color: isSelected ? "#00e0ff" : "var(--iverifi-text-primary)" }}>C-Form (Foreign Guest)</div>
-                        <div style={{ fontSize: 11, color: "var(--iverifi-label)" }}>
-                          {qrActive ? "FRRO compliance · Fill & submit on check-in" : "Scan hotel QR to fill & submit C-Form"}
+                        <div
+                          style={{
+                            width: 40,
+                            height: 40,
+                            flexShrink: 0,
+                            borderRadius: 12,
+                            border: "1px solid var(--iverifi-accent-border)",
+                            background: "var(--iverifi-accent-soft)",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                          }}
+                        >
+                          {opt.icon}
                         </div>
-                      </div>
-                      <div
-                        style={{
-                          width: 20,
-                          height: 20,
-                          borderRadius: "50%",
-                          border: isSelected ? "2px solid #00e0ff" : "2px solid var(--iverifi-ring-muted)",
-                          background: isSelected ? "#00e0ff" : "transparent",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          flexShrink: 0,
-                        }}
-                      >
-                        {isSelected ? <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#000" }} /> : null}
-                      </div>
-                    </button>
-                  );
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div
+                            style={{
+                              fontSize: 14,
+                              fontWeight: 700,
+                              color: isSelected
+                                ? "var(--iverifi-accent)"
+                                : "var(--iverifi-text-primary)",
+                            }}
+                          >
+                            {opt.label}
+                          </div>
+                          <div
+                            style={{
+                              fontSize: 11,
+                              color: "var(--iverifi-label)",
+                            }}
+                          >
+                            {opt.subtitle}
+                          </div>
+                        </div>
+                        <div
+                          style={{
+                            width: 20,
+                            height: 20,
+                            borderRadius: "50%",
+                            flexShrink: 0,
+                            border: isSelected
+                              ? "2px solid var(--iverifi-accent)"
+                              : "2px solid var(--iverifi-ring-muted)",
+                            background: isSelected
+                              ? "var(--iverifi-accent)"
+                              : "transparent",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                          }}
+                        >
+                          {isSelected ? (
+                            <div
+                              style={{
+                                width: 8,
+                                height: 8,
+                                borderRadius: "50%",
+                                background: "#000",
+                              }}
+                            />
+                          ) : null}
+                        </div>
+                      </button>
+                    );
+                  });
                 })()}
 
                 {shareSelectedDocType ? (
@@ -1916,7 +3639,16 @@ const Connections = () => {
                       padding: 14,
                     }}
                   >
-                    <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--iverifi-label)", marginBottom: 10 }}>
+                    <div
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 700,
+                        letterSpacing: "0.08em",
+                        textTransform: "uppercase",
+                        color: "var(--iverifi-label)",
+                        marginBottom: 10,
+                      }}
+                    >
                       What gets shared
                     </div>
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
@@ -1925,11 +3657,11 @@ const Connections = () => {
                           key={field}
                           style={{
                             borderRadius: 999,
-                            border: "1px solid rgba(0,224,255,0.15)",
-                            background: "rgba(0,224,255,0.08)",
+                            border: "1px solid var(--iverifi-accent-border)",
+                            background: "var(--iverifi-accent-soft)",
                             padding: "4px 12px",
                             fontSize: 12,
-                            color: "#00e0ff",
+                            color: "var(--iverifi-accent)",
                           }}
                         >
                           {field}
@@ -1941,10 +3673,27 @@ const Connections = () => {
 
                 {!code || !isValidQRCode(code) ? (
                   <>
-                    <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--iverifi-label)", marginTop: 4, marginBottom: 8 }}>
+                    <div
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 700,
+                        letterSpacing: "0.08em",
+                        textTransform: "uppercase",
+                        color: "var(--iverifi-label)",
+                        marginTop: 4,
+                        marginBottom: 8,
+                      }}
+                    >
                       Link expires after
                     </div>
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginBottom: 16 }}>
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "repeat(3, 1fr)",
+                        gap: 8,
+                        marginBottom: 16,
+                      }}
+                    >
                       {[
                         ["1", "1 hour"],
                         ["24", "24 hours"],
@@ -1959,10 +3708,16 @@ const Connections = () => {
                             borderRadius: 12,
                             border:
                               shareExpiryHours === value
-                                ? "1px solid rgba(0,224,255,0.45)"
+                                ? "1px solid var(--iverifi-accent)"
                                 : "1px solid var(--iverifi-ring-muted)",
-                            background: shareExpiryHours === value ? "rgba(0,224,255,0.10)" : "var(--iverifi-surface-1)",
-                            color: shareExpiryHours === value ? "#00e0ff" : "var(--iverifi-hint-text)",
+                            background:
+                              shareExpiryHours === value
+                                ? "var(--iverifi-accent-soft)"
+                                : "var(--iverifi-surface-1)",
+                            color:
+                              shareExpiryHours === value
+                                ? "var(--iverifi-accent)"
+                                : "var(--iverifi-hint-text)",
                             fontSize: 11,
                             fontWeight: 600,
                             cursor: "pointer",
@@ -1978,8 +3733,8 @@ const Connections = () => {
                 <div
                   style={{
                     padding: 12,
-                    background: "rgba(0,224,255,0.05)",
-                    border: "1px solid rgba(0,224,255,0.1)",
+                    background: "var(--iverifi-accent-soft)",
+                    border: "1px solid var(--iverifi-accent-border)",
                     borderRadius: 12,
                     marginBottom: 16,
                     fontSize: 12,
@@ -1987,27 +3742,66 @@ const Connections = () => {
                     lineHeight: 1.6,
                   }}
                 >
-                  ℹ️ Recipient cannot re-share. Revocable from Activity. DPDP Act 2023.
+                  ℹ️ Recipient cannot re-share. Revocable from Activity. DPDP
+                  Act 2023.
                   {code && isValidQRCode(code) ? (
-                    <span style={{ display: "block", marginTop: 6, color: "var(--iverifi-label)" }}>
-                      After you confirm, this property link clears — scan again if you need another stay.
+                    <span
+                      style={{
+                        display: "block",
+                        marginTop: 6,
+                        color: "var(--iverifi-label)",
+                      }}
+                    >
+                      After you confirm, this property link clears — scan again
+                      if you need another stay.
                     </span>
                   ) : null}
                 </div>
 
-                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                <div
+                  style={{ display: "flex", flexDirection: "column", gap: 10 }}
+                >
+                  {isCurrentlyCheckedIn && (
+                    <p
+                      style={{
+                        fontSize: 12,
+                        color: "var(--iverifi-success)",
+                        background: "var(--iverifi-success-soft)",
+                        border: "1px solid var(--iverifi-success-border)",
+                        borderRadius: 8,
+                        padding: "8px 12px",
+                        marginBottom: 4,
+                      }}
+                    >
+                      You are currently checked in. Please check out before
+                      checking in again.
+                    </p>
+                  )}
                   {currentConnection?.check_in_status === "pending" && (
-                    <p style={{ fontSize: 12, color: "#f59e0b", background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.2)", borderRadius: 8, padding: "8px 12px", marginBottom: 4 }}>
+                    <p
+                      style={{
+                        fontSize: 12,
+                        color: "var(--iverifi-warning)",
+                        background: "var(--iverifi-warning-soft)",
+                        border: "1px solid var(--iverifi-warning-border)",
+                        borderRadius: 8,
+                        padding: "8px 12px",
+                        marginBottom: 4,
+                      }}
+                    >
                       Check-in is waiting for the property to approve.
                     </p>
                   )}
                   <button
                     type="button"
                     disabled={
+                      isCurrentlyCheckedIn ||
                       currentConnection?.check_in_status === "pending" ||
                       !shareSelectedDocType ||
                       !connectedRequestorName ||
-                      (!!code && isValidQRCode(code) && (isCheckInOutInFlight || isCheckInUpdating))
+                      (!!code &&
+                        isValidQRCode(code) &&
+                        (isCheckInOutInFlight || isCheckInUpdating))
                     }
                     style={{
                       width: "100%",
@@ -2015,21 +3809,27 @@ const Connections = () => {
                       borderRadius: 14,
                       background: "rgba(0,200,150,0.12)",
                       border: "1px solid rgba(0,200,150,0.25)",
-                      color: "#00c896",
+                      color: "var(--iverifi-success)",
                       fontSize: 15,
                       fontWeight: 700,
                       cursor:
+                        isCurrentlyCheckedIn ||
                         currentConnection?.check_in_status === "pending" ||
                         !shareSelectedDocType ||
                         !connectedRequestorName ||
-                        (!!code && isValidQRCode(code) && (isCheckInOutInFlight || isCheckInUpdating))
+                        (!!code &&
+                          isValidQRCode(code) &&
+                          (isCheckInOutInFlight || isCheckInUpdating))
                           ? "not-allowed"
                           : "pointer",
                       opacity:
+                        isCurrentlyCheckedIn ||
                         currentConnection?.check_in_status === "pending" ||
                         !shareSelectedDocType ||
                         !connectedRequestorName ||
-                        (!!code && isValidQRCode(code) && (isCheckInOutInFlight || isCheckInUpdating))
+                        (!!code &&
+                          isValidQRCode(code) &&
+                          (isCheckInOutInFlight || isCheckInUpdating))
                           ? 0.45
                           : 1,
                       display: "flex",
@@ -2039,21 +3839,106 @@ const Connections = () => {
                     }}
                     onClick={async () => {
                       if (!shareSelectedDocType) return;
-                      // C-Form: require passport first, then open fill dialog
+                      // C-Form: open fill dialog
                       if (shareSelectedDocType === "C-Form (Foreign Guest)") {
-                        if (!verifiedCredentialsMap["PASSPORT"]) {
-                          toast.error("Please verify your Passport first to fill the C-Form.");
-                          handleVerifyDocument("PASSPORT");
+                        // setCformRef(generateCFormRef(connectedRequestorName || "Hotel"));
+                        // setCformDialogOpen(true);
+                        return;
+                      }
+                      // Foreign Passport: close share sheet first, then open photo upload dialog
+                      if (shareSelectedDocType === "Foreign Passport") {
+                        setShareSheetOpen(false);
+                        setForeignPassportDialogOpen(true);
+                        return;
+                      }
+                      // Family member share
+                      if (shareSelectedDocType.startsWith("FAMILY:")) {
+                        if (!derivedConnectionId) {
+                          toast.error("No connection found. Scan a QR first.");
                           return;
                         }
-                        setCformDialogOpen(true);
+                        const memberId = shareSelectedDocType.slice(7);
+                        const member = (
+                          familyData?.data?.family_members || []
+                        ).find((m: any) => m.id === memberId);
+                        if (!member) {
+                          toast.error("Family member credential not found.");
+                          return;
+                        }
+                        const credentialId =
+                          member.credential_id ||
+                          member.id ||
+                          member.credentialId;
+                        if (!credentialId) {
+                          toast.error("Invalid credential ID.");
+                          return;
+                        }
+                        if (isCheckInOutInFlight || isCheckInUpdating) return;
+                        setCheckInOutInFlight(true);
+                        try {
+                          await updateCredentials({
+                            credential_request_id: derivedConnectionId,
+                            credentials: [
+                              {
+                                credential_id: credentialId,
+                                document_type: "AADHAAR_CARD",
+                                status: "Active",
+                                expiry_date: format(
+                                  addDays(new Date(), 30),
+                                  "yyyy-MM-dd",
+                                ),
+                              },
+                            ],
+                          }).unwrap();
+                          if (code && isValidQRCode(code)) {
+                            await updateCheckInStatus({
+                              credential_request_id: derivedConnectionId,
+                              credentials: [],
+                              status: "checkin",
+                              credential_id: credentialId,
+                              ...(checkinFlowStartedAt.current != null
+                                ? {
+                                    client_started_at:
+                                      checkinFlowStartedAt.current,
+                                  }
+                                : {}),
+                            }).unwrap();
+                            clearPendingRecipientId();
+                            processedCodeRef.current = null;
+                            navigate(location.pathname, { replace: true });
+                            toast.success(
+                              "Family member Aadhaar shared. Check-in request sent.",
+                            );
+                            await refetchCredentials();
+                            setFeedbackRequestId(derivedConnectionId);
+                            setFeedbackOpen(true);
+                          } else {
+                            toast.success(
+                              "Family member Aadhaar shared successfully.",
+                            );
+                            await refetchRecipient();
+                          }
+                          setShareSheetOpen(false);
+                        } catch (err: any) {
+                          toast.error(
+                            err?.data?.message
+                              ? String(err.data.message)
+                              : "Failed to share. Please try again.",
+                          );
+                        } finally {
+                          setCheckInOutInFlight(false);
+                        }
                         return;
                       }
                       try {
                         if (code && isValidQRCode(code)) {
-                          await handleShareAndRequestCheckIn(shareSelectedDocType as DocumentType | ChildAadhaarType);
+                          await handleShareAndRequestCheckIn(
+                            shareSelectedDocType as DocumentType,
+                          );
                         } else {
-                          await handleShareCredentials(shareSelectedDocType as DocumentType | ChildAadhaarType);
+                          await handleShareCredentials(
+                            shareSelectedDocType as DocumentType,
+                          );
                         }
                         setShareSheetOpen(false);
                       } catch {
@@ -2071,7 +3956,15 @@ const Connections = () => {
                         <Share2 className="h-4 w-4 shrink-0" />
                         {shareSelectedDocType === "C-Form (Foreign Guest)"
                           ? "Submit C-Form & Check In →"
-                          : code && isValidQRCode(code) ? "Share & request check-in →" : "Share now →"}
+                          : shareSelectedDocType === "Foreign Passport"
+                            ? "Upload Photos & Check In →"
+                            : shareSelectedDocType?.startsWith("FAMILY:")
+                              ? code && isValidQRCode(code)
+                                ? "Share & request check-in →"
+                                : "Share now →"
+                              : code && isValidQRCode(code)
+                                ? "Share & request check-in →"
+                                : "Share now →"}
                       </>
                     )}
                   </button>
@@ -2083,7 +3976,7 @@ const Connections = () => {
                       marginTop: 2,
                       padding: "14px",
                       borderRadius: 12,
-                      background: "rgba(255,255,255,0.04)",
+                      background: "var(--iverifi-muted-surface)",
                       border: "1px solid var(--iverifi-border-subtle)",
                       color: "var(--iverifi-label)",
                       fontSize: 14,
@@ -2107,7 +4000,9 @@ const Connections = () => {
           setScannerOpen(false);
           const path = location.pathname || "/";
           const separator = path.includes("?") ? "&" : "?";
-          navigate(`${path}${separator}code=${encodeURIComponent(scannedCode)}`);
+          navigate(
+            `${path}${separator}code=${encodeURIComponent(scannedCode)}`,
+          );
         }}
       />
 
@@ -2118,12 +4013,18 @@ const Connections = () => {
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
             Are you sure you want to delete this verified document
-            {deleteTarget?.document_type ? ` (${deleteTarget.document_type.replace(/_/g, " ")})` : ""}?
-            You can add it again later.
+            {deleteTarget?.document_type
+              ? ` (${deleteTarget.document_type.replace(/_/g, " ")})`
+              : ""}
+            ? You can add it again later.
           </p>
           <div className="space-y-2 pt-2">
             <Label htmlFor="delete-confirm" className="text-sm font-medium">
-              Type <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-xs">DELETE</kbd> to confirm
+              Type{" "}
+              <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-xs">
+                DELETE
+              </kbd>{" "}
+              to confirm
             </Label>
             <Input
               id="delete-confirm"
@@ -2137,40 +4038,336 @@ const Connections = () => {
             />
           </div>
           <div className="flex justify-end gap-2 pt-4">
-            <Button variant="outline" onClick={() => handleDeleteDialogOpenChange(false)} disabled={isDeleting}>
+            <Button
+              variant="outline"
+              onClick={() => handleDeleteDialogOpenChange(false)}
+              disabled={isDeleting}
+            >
               Cancel
             </Button>
             <Button
               variant="destructive"
               onClick={handleDeleteDoc}
-              disabled={isDeleting || deleteConfirmText.trim().toUpperCase() !== "DELETE"}
+              disabled={
+                isDeleting ||
+                deleteConfirmText.trim().toUpperCase() !== "DELETE"
+              }
             >
-              {isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Delete"}
+              {isDeleting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                "Delete"
+              )}
             </Button>
           </div>
         </DialogContent>
       </Dialog>
 
-      {/* C-Form Dialog */}
-      <CFormDialog
+      {/* C-Form Dialog — hidden */}
+      {/* <CFormDialog
         open={cformDialogOpen}
         passportData={passportDataForCform}
         onSave={handleCFormSave}
         onClose={() => setCformDialogOpen(false)}
+        mode={verifiedCredentialsMap["PASSPORT"] ? "kwik" : "manual"}
+        referenceNumber={cformRef}
+      /> */}
+
+      {/* Foreign Passport Dialog */}
+      <ForeignPassportDialog
+        open={foreignPassportDialogOpen}
+        onSave={handleForeignPassportSave}
+        onClose={() => setForeignPassportDialogOpen(false)}
       />
+
+      {/* DL: DigiLocker vs Camera Scan choice modal */}
+      <Dialog open={dlDigilockerModalOpen} onOpenChange={setDlDigilockerModalOpen}>
+        <DialogContent className="max-w-sm rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold">Verify Driving License</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 pt-1">
+            <p className="text-sm" style={{ color: "var(--iverifi-text-muted)" }}>
+              Do you have a DigiLocker account with your Driving License already on it?
+            </p>
+            <Button
+              className="w-full rounded-xl"
+              style={{ background: "var(--iverifi-accent)", color: "var(--iverifi-nav-bg)" }}
+              onClick={() => { setDlDigilockerModalOpen(false); handleVerifyDLWithDigiLocker(); }}
+            >
+              Yes — Use DigiLocker
+            </Button>
+            <Button
+              variant="outline"
+              className="w-full rounded-xl"
+              onClick={() => { setDlDigilockerModalOpen(false); handleVerifyDocumentKwik("DRIVING_LICENSE"); }}
+            >
+              No — Use Camera Scan
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* DL: Selfie capture modal (shown after both DigiLocker and Kwik DL paths) */}
+      <Dialog
+        open={dlSelfieModalOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            stopDLSelfieCamera();
+            setDlSelfieCaptured(null);
+            // If user dismisses via X without submitting, still start polling
+            if (dlSelfieModalOpen) startDLPolling();
+          }
+          setDlSelfieModalOpen(open);
+        }}
+      >
+        <DialogContent className="max-w-sm rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold">Take a Selfie</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 pt-1 text-center">
+            <p className="text-sm" style={{ color: "var(--iverifi-text-muted)" }}>
+              Please take a quick selfie to complete your DL verification.
+            </p>
+            {!dlSelfieCaptured ? (
+              <>
+                <video
+                  ref={dlSelfieVideoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  className="w-full rounded-xl"
+                  style={{ maxHeight: 260, background: "#000" }}
+                />
+                <canvas ref={dlSelfieCanvasRef} className="hidden" />
+                <Button
+                  className="w-full rounded-xl"
+                  style={{ background: "var(--iverifi-accent)", color: "var(--iverifi-nav-bg)" }}
+                  onClick={captureDLSelfie}
+                >
+                  Capture
+                </Button>
+              </>
+            ) : (
+              <>
+                <img src={dlSelfieCaptured} alt="selfie preview" className="w-full rounded-xl" />
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    className="flex-1 rounded-xl"
+                    onClick={() => { setDlSelfieCaptured(null); startDLSelfieCamera(); }}
+                  >
+                    Retake
+                  </Button>
+                  <Button
+                    className="flex-1 rounded-xl"
+                    style={{ background: "var(--iverifi-accent)", color: "var(--iverifi-nav-bg)" }}
+                    disabled={dlSelfieUploading}
+                    onClick={handleDLSelfieSubmit}
+                  >
+                    {dlSelfieUploading ? "Saving..." : "Submit"}
+                  </Button>
+                </div>
+              </>
+            )}
+            <Button
+              variant="ghost"
+              className="w-full text-sm"
+              disabled={dlSelfieUploading}
+              onClick={() => {
+                stopDLSelfieCamera();
+                setDlSelfieModalOpen(false);
+                setDlSelfieCaptured(null);
+                startDLPolling();
+              }}
+            >
+              Skip
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <FeedbackModal
+        open={feedbackOpen}
+        credentialRequestId={feedbackRequestId ?? ""}
+        hotelName={connectedRequestorName ?? "the property"}
+        onClose={() => {
+          setFeedbackOpen(false);
+          setFeedbackRequestId(null);
+        }}
+      />
+
+      {/* Add Family Member dialog */}
+      <Dialog
+        open={familyDialogOpen}
+        onOpenChange={(open) => {
+          setFamilyDialogOpen(open);
+          if (!open) setFamilyNicknameError("");
+        }}
+      >
+        <DialogContent
+          className="rounded-2xl"
+          style={{
+            background: "var(--iverifi-dialog-bg)",
+            borderColor: "var(--iverifi-dialog-border)",
+          }}
+        >
+          <DialogHeader>
+            <DialogTitle className="text-[var(--iverifi-text-primary)]">
+              Add Family Member
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-[var(--iverifi-text-muted)]">
+            Choose the ID type and enter a nickname. The verification will open
+            on this device.
+          </p>
+
+          {/* Doc type picker */}
+          <div className="grid grid-cols-2 gap-2 pt-1">
+            {FAMILY_DOC_OPTIONS.map((opt) => {
+              const isSelected = familyDocType === opt.type;
+              return (
+                <button
+                  key={opt.type}
+                  type="button"
+                  onClick={() => setFamilyDocType(opt.type)}
+                  className={`flex items-center gap-1.5 rounded-xl border px-2 py-2 text-left transition-colors ${
+                    isSelected
+                      ? "border-teal-500 bg-teal-50 dark:border-teal-400 dark:bg-[rgba(0,200,180,0.14)]"
+                      : "border-[color:var(--iverifi-card-border)] bg-[var(--iverifi-card)] hover:border-teal-300"
+                  }`}
+                >
+                  <DocumentTypeIcon
+                    documentType={opt.iconType}
+                    size={12}
+                    className={`shrink-0 ${isSelected ? "text-teal-600 dark:text-teal-400" : "text-[var(--iverifi-text-muted)]"}`}
+                  />
+                  <span className={`text-xs font-semibold leading-tight ${isSelected ? "text-teal-700 dark:text-teal-300" : "text-[var(--iverifi-text-primary)]"}`}>
+                    {opt.label}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="space-y-2 pt-1">
+            <Label
+              htmlFor="family-nickname"
+              className="text-[var(--iverifi-text-primary)]"
+            >
+              Nickname
+            </Label>
+            <Input
+              id="family-nickname"
+              placeholder="e.g. Mom, Dad, Brother"
+              value={familyNickname}
+              onChange={(e) => {
+                setFamilyNickname(e.target.value);
+                setFamilyNicknameError("");
+              }}
+              onKeyDown={(e) =>
+                e.key === "Enter" && handleStartFamilyVerification()
+              }
+              className="rounded-xl"
+              autoComplete="off"
+            />
+            {familyNicknameError && (
+              <p className="text-xs text-red-500">{familyNicknameError}</p>
+            )}
+          </div>
+          <div className="flex justify-end gap-2 pt-1">
+            <Button
+              variant="outline"
+              className="rounded-xl"
+              onClick={() => setFamilyDialogOpen(false)}
+              disabled={isStartingFamilyVerify}
+            >
+              Cancel
+            </Button>
+            <Button
+              className="rounded-xl bg-teal-600 hover:bg-teal-500 text-white"
+              onClick={handleStartFamilyVerification}
+              disabled={isStartingFamilyVerify}
+            >
+              {isStartingFamilyVerify ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : null}
+              {isStartingFamilyVerify ? "Starting…" : "Start Verification"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Remove family member confirmation */}
+      <Dialog
+        open={!!familyDeleteTarget}
+        onOpenChange={(open) => !open && setFamilyDeleteTarget(null)}
+      >
+        <DialogContent
+          className="rounded-2xl"
+          style={{
+            background: "var(--iverifi-dialog-bg)",
+            borderColor: "var(--iverifi-dialog-border)",
+          }}
+        >
+          <DialogTitle className="text-[var(--iverifi-text-primary)]">
+            Remove family member
+          </DialogTitle>
+          <p className="text-sm text-[var(--iverifi-text-muted)]">
+            Remove{" "}
+            <strong className="text-[var(--iverifi-text-primary)]">
+              {familyDeleteTarget?.nickname}
+            </strong>
+            ? Their verified Aadhaar data will be deleted.
+          </p>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button
+              variant="outline"
+              onClick={() => setFamilyDeleteTarget(null)}
+            >
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteFamilyMember}>
+              Remove
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Iframe Overlay */}
       {iframeUrl && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-2">
+        <div
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-2"
+          style={{ zIndex: 2147483647 }}
+        >
           <div className="relative bg-white w-full max-w-3xl h-[88vh] rounded-lg shadow-lg overflow-hidden">
             <button
               aria-label="Close"
               className="absolute top-3 right-3 inline-flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-1.5 text-sm font-medium text-foreground shadow-sm hover:bg-accent hover:border-teal-300/40 hover:text-teal-700 dark:hover:text-teal-300 transition-colors"
               onClick={async () => {
+                // Delete any pre-created ONGOING family credential if the user closed without completing
+                const closedFamilyId = pendingFamilyCredentialId.current;
+                pendingFamilyVerify.current = false;
+                pendingFamilyCredentialId.current = null;
+                if (closedFamilyId) {
+                  try { await deleteCredential({ credential_id: closedFamilyId }).unwrap(); } catch { /* non-fatal */ }
+                }
                 setIframeUrl(null);
-                // setVerifyingDocType(null);
                 await refetchCredentials();
-                if (code) await refetchRecipient();
+                const currentCode = new URLSearchParams(
+                  window.location.search,
+                ).get("code");
+                if (currentCode) {
+                  await refetchRecipient();
+                  autoShareSheetOpenedForCodeRef.current = null;
+                } else {
+                  const savedCode = getRecipientIdFromStorage();
+                  if (savedCode) {
+                    autoShareSheetOpenedForCodeRef.current = null;
+                    processedCodeRef.current = null;
+                    navigate(`/?code=${savedCode}`, { replace: true });
+                  }
+                }
               }}
             >
               <X className="h-4 w-4" />

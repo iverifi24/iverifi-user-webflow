@@ -20,27 +20,15 @@ export function QRCodeHandler({ children }: QRCodeHandlerProps) {
     const code = searchParams.get("code");
     const currentPath = location.pathname;
 
-    // Exclude protected routes and onboarding - let ProtectedRoute handle those
-    const excludedPaths = [
-      "/accept-terms", "/terms", "/privacy", "/complete-profile",
-      "/login", "/signup", "/", "/home", "/connections", "/documents", "/user-data"
-    ];
+    // The guest check-in funnel manages itself — never intercept it
+    if (currentPath.startsWith("/checkin")) return;
 
-    if (excludedPaths.includes(currentPath) || !isValidQRCode(code)) {
-      return;
-    }
+    // Don't intercept pages that have their own logic
+    const excludedPaths = ["/accept-terms", "/terms", "/privacy", "/complete-profile"];
+    if (excludedPaths.includes(currentPath) || !isValidQRCode(code)) return;
 
-    // Only handle QR code routing - no terms checking needed
-    if (!user) {
-      if (currentPath !== "/login" && currentPath !== "/signup") {
-        navigate(`/login?code=${code}`, { replace: true });
-      }
-    } else {
-      // User is authenticated - home is Connections; handle code on /
-      if (currentPath !== "/" && currentPath !== "/home") {
-        navigate(`/?code=${code}`, { replace: true });
-      }
-    }
+    // Any path with a valid ?code= → send everyone to the new check-in funnel
+    navigate(`/checkin?code=${code}`, { replace: true });
   }, [user, loading, searchParams, navigate, location.pathname]);
 
   return <>{children}</>;

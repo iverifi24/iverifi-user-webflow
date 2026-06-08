@@ -41,7 +41,7 @@ export function VerifierBadge({
 
   return (
     <Badge
-      className={`bg-[rgba(0,200,150,0.14)] text-[#00c896] border border-[rgba(0,200,150,0.35)] shadow-none gap-1 px-2 py-0.5 ${className}`}
+      className={`bg-emerald-50 text-emerald-700 border border-emerald-300 dark:bg-[rgba(0,200,150,0.14)] dark:text-[#00c896] dark:border-[rgba(0,200,150,0.35)] shadow-none gap-1 px-2 py-0.5 ${className}`}
     >
       <CheckCircle className="h-3.5 w-3.5 shrink-0" />
       <span className="text-xs font-semibold">Verified</span>

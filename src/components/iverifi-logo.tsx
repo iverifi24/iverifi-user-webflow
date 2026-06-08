@@ -6,8 +6,8 @@ interface IverifiLogoProps {
 }
 
 export function IverifiLogo({ 
-  className = "w-[200%] scale-[1] max-w-none h-auto object-contain transform",
-  containerClassName = "relative flex items-center justify-center w-full h-24 overflow-hidden",
+  className = "w-[120%] max-w-none h-auto object-contain",
+  containerClassName = "relative flex items-center justify-center w-full h-14 overflow-hidden",
 }: IverifiLogoProps) {
   return (
     <div className={containerClassName}>

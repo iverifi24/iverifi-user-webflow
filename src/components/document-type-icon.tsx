@@ -1,3 +1,4 @@
+import React from "react";
 import { FileText, Globe } from "lucide-react";
 import { DigiLockerIcon } from "@/components/digilocker-icon";
 import { ParivahanIcon } from "@/components/parivahan-icon";
@@ -15,6 +16,18 @@ interface DocumentTypeIconProps {
 }
 
 /**
+ * Wraps government brand logos in a white rounded pill so they're legible on any
+ * background (including dark mode). Lucide fallback icons inherit current color.
+ */
+function LogoBadge({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="inline-flex items-center justify-center rounded-lg bg-white px-1.5 py-1 shadow-sm">
+      {children}
+    </span>
+  );
+}
+
+/**
  * Renders the official verifier/source icon for a document type where we have one
  * (DigiLocker, Parivahan, Income Tax), and a neutral icon otherwise (Passport → Globe).
  * Use on document cards to show authenticity at a glance.
@@ -27,16 +40,16 @@ export function DocumentTypeIcon({
   const source = getVerificationSource(documentType);
 
   if (source === "DigiLocker") {
-    return <DigiLockerIcon size={size} className={`object-contain ${className}`} />;
+    return <LogoBadge><DigiLockerIcon size={size} className="object-contain" /></LogoBadge>;
   }
   if (source === "Parivahan") {
-    return <ParivahanIcon size={size} className={`object-contain ${className}`} />;
+    return <LogoBadge><ParivahanIcon size={size} className="object-contain" /></LogoBadge>;
   }
   if (source === "e-Filing") {
-    return <IncomeTaxIcon size={size} className={`object-contain ${className}`} />;
+    return <LogoBadge><IncomeTaxIcon size={size} className="object-contain" /></LogoBadge>;
   }
   if (source === "Passport Seva") {
-    return <PassportSevaIcon size={size} className={`object-contain ${className}`} />;
+    return <LogoBadge><PassportSevaIcon size={size} className="object-contain" /></LogoBadge>;
   }
 
   if (source === "Passport Upload") {

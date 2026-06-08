@@ -373,7 +373,7 @@ const ConnectionDetails = () => {
                             isDeleted
                               ? "font-medium text-amber-300"
                               : isActive
-                                ? "font-medium text-[#5eead4]"
+                                ? "font-medium text-teal-600 dark:text-[#5eead4]"
                                 : "font-medium text-red-400"
                           }
                         >
@@ -429,7 +429,7 @@ const ConnectionDetails = () => {
                       >
                         {checkInTs != null && (
                           <div className="flex items-center gap-2 text-[var(--iverifi-text-muted)]">
-                            <CalendarCheck className="h-4 w-4 shrink-0 text-[#00c896]" />
+                            <CalendarCheck className="h-4 w-4 shrink-0 text-emerald-600 dark:text-[#00c896]" />
                             <span>
                               Check-in: {format(new Date(checkInTs), "MMM d, yyyy · h:mm a")}
                             </span>
@@ -677,7 +677,7 @@ const ConnectionDetails = () => {
                         isDeleted
                           ? "font-medium text-amber-300"
                           : isActive
-                            ? "font-medium text-[#5eead4]"
+                            ? "font-medium text-teal-600 dark:text-[#5eead4]"
                             : "font-medium text-red-400"
                       }
                     >
@@ -750,7 +750,7 @@ const ConnectionDetails = () => {
                     status === "Checked out"
                       ? "text-[var(--iverifi-text-muted)]"
                       : status === "Checked in"
-                        ? "text-[#5eead4]"
+                        ? "text-teal-600 dark:text-[#5eead4]"
                         : "text-[var(--iverifi-label)]";
                   return (
                     <div
@@ -759,7 +759,7 @@ const ConnectionDetails = () => {
                     >
                       <div className="grid gap-2 sm:grid-cols-2">
                         <div className="flex items-center gap-2 text-[var(--iverifi-text-muted)]">
-                          <CalendarCheck className="h-4 w-4 shrink-0 text-[#00c896]" />
+                          <CalendarCheck className="h-4 w-4 shrink-0 text-emerald-600 dark:text-[#00c896]" />
                           <span>
                             Check-in:{" "}
                             {checkInTs ? format(new Date(checkInTs), "MMM d, yyyy · h:mm a") : "—"}

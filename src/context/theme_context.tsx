@@ -18,7 +18,7 @@ function readStoredTheme(): AppTheme {
   } catch {
     /* ignore */
   }
-  return "dark";
+  return "light";
 }
 
 type ThemeContextValue = {
@@ -31,7 +31,7 @@ const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setThemeState] = useState<AppTheme>(() =>
-    typeof document !== "undefined" ? readStoredTheme() : "dark"
+    typeof document !== "undefined" ? readStoredTheme() : "light"
   );
 
   useLayoutEffect(() => {

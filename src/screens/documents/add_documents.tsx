@@ -1,4 +1,3 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LoadingScreen } from "@/components/loading-screen";
 import { Button } from "@/components/ui/button";
 import { useGetCredentialsQuery } from "@/redux/api";
@@ -14,73 +13,72 @@ const formatDocType = (type: string): string => {
 
 const DOC_TYPES = ["AADHAAR_CARD", "PAN_CARD", "DRIVING_LICENSE", "PASSPORT"] as const;
 
+const cardClass =
+  "rounded-2xl border border-[color:var(--iverifi-card-border)] bg-[var(--iverifi-card)]";
+
 const AddDocuments = () => {
   const navigate = useNavigate();
-  const { data: credData, isLoading: isLoadingCreds } =
-    useGetCredentialsQuery();
+  const { data: credData, isLoading: isLoadingCreds } = useGetCredentialsQuery();
 
   const verifiedDocs = credData?.data?.credential || [];
   const verifiedTypes = verifiedDocs.map((doc: any) => doc.document_type);
-  const unverifiedTypes = DOC_TYPES.filter(
-    (type) => !verifiedTypes.includes(type)
-  );
+  const unverifiedTypes = DOC_TYPES.filter((type) => !verifiedTypes.includes(type));
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-teal-50/50 via-white to-slate-50/30 p-4 sm:p-6">
-      <div className="max-w-2xl mx-auto space-y-6">
-        <div>
-          <h2 className="text-lg font-semibold text-slate-800">Upload missing documents</h2>
-          <p className="text-sm text-slate-500 mt-0.5">
-            Verify the documents below to use them when sharing credentials.
-          </p>
+    <div className="min-h-0 flex-1 w-full max-w-2xl mx-auto space-y-6 text-[var(--iverifi-text-primary)]">
+      <div>
+        <div className="text-[11px] font-semibold tracking-widest uppercase text-[var(--iverifi-text-muted)]">
+          Vault
         </div>
-
-        {isLoadingCreds ? (
-          <LoadingScreen variant="cards" cardCount={4} />
-        ) : unverifiedTypes.length === 0 ? (
-          <Card className="rounded-2xl border-2 border-teal-200 bg-teal-50/30 p-6 text-center">
-            <p className="text-slate-700 font-medium">All required documents are verified</p>
-            <p className="text-sm text-slate-500 mt-1">You can use them when sharing credentials with a property.</p>
-            <Button
-              className="mt-4 rounded-xl bg-teal-600 hover:bg-teal-700"
-              onClick={() => navigate("/documents")}
-            >
-              <FileText className="h-4 w-4 mr-2" />
-              View documents
-            </Button>
-          </Card>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {unverifiedTypes.map((docType) => (
-              <Card
-                key={docType}
-                className="rounded-2xl border-2 border-slate-200 bg-white shadow-sm hover:shadow-lg hover:border-teal-200 transition-all cursor-pointer"
-                onClick={() => navigate(`/upload?docType=${docType}`)}
-              >
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-lg font-semibold text-slate-800">
-                    {formatDocType(docType)}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="w-full rounded-xl border-2 border-teal-300 text-teal-700 hover:bg-teal-50 hover:border-teal-400 font-medium justify-start"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      navigate(`/upload?docType=${docType}`);
-                    }}
-                  >
-                    <ExternalLink className="h-4 w-4 mr-2 shrink-0" />
-                    Verify {formatDocType(docType)}
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
+        <h2 className="mt-1 text-lg font-bold text-[var(--iverifi-text-primary)]">Upload missing documents</h2>
+        <p className="text-sm text-[var(--iverifi-text-muted)] mt-0.5">
+          Verify the documents below to use them when sharing credentials.
+        </p>
       </div>
+
+      {isLoadingCreds ? (
+        <LoadingScreen variant="cards" cardCount={4} />
+      ) : unverifiedTypes.length === 0 ? (
+        <div className={`${cardClass} p-6 text-center`}>
+          <p className="text-[var(--iverifi-text-primary)] font-medium">All required documents are verified</p>
+          <p className="text-sm text-[var(--iverifi-text-muted)] mt-1">
+            You can use them when sharing credentials with a property.
+          </p>
+          <Button
+            className="mt-4 rounded-xl bg-teal-600 hover:bg-teal-500 text-white"
+            onClick={() => navigate("/documents")}
+          >
+            <FileText className="h-4 w-4 mr-2" />
+            View documents
+          </Button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {unverifiedTypes.map((docType) => (
+            <div
+              key={docType}
+              className={`${cardClass} p-4 transition-all duration-200 hover:bg-[var(--iverifi-card-hover)] cursor-pointer`}
+              onClick={() => navigate(`/upload?docType=${docType}`)}
+            >
+              <p className="text-base font-semibold text-[var(--iverifi-text-primary)] mb-3">
+                {formatDocType(docType)}
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full rounded-xl border border-[color:var(--iverifi-card-border)] bg-[var(--iverifi-muted-surface)] text-[var(--iverifi-text-primary)] hover:bg-[var(--iverifi-card-hover)] font-medium justify-start"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  navigate(`/upload?docType=${docType}`);
+                }}
+              >
+                <ExternalLink className="h-4 w-4 mr-2 shrink-0" />
+                Verify {formatDocType(docType)}
+              </Button>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 };

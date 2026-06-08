@@ -7,7 +7,7 @@ import { Toaster } from "@/components/ui/sonner";
  */
 export function AuthScreenLayout() {
   return (
-    <div className="flex min-h-[100dvh] flex-col overflow-x-hidden bg-background px-3 py-2 pb-6 text-foreground sm:px-4 sm:py-3 sm:pb-8">
+    <div className="flex min-h-[100dvh] flex-col overflow-x-hidden bg-[var(--iverifi-page)] px-3 py-2 pb-6 text-foreground sm:px-4 sm:py-3 sm:pb-8">
       <div className="mx-auto flex w-full max-w-5xl flex-col items-center gap-2 sm:gap-3">
         <AuthHeroHeader />
 
