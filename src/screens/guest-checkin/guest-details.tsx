@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { IverifiLogo } from "@/components/iverifi-logo";
+import { HotelBadge } from "@/components/hotel-badge";
 import type { FlowCredential } from "./guest-checkin-flow";
 
 function extractNameFromCredential(cred: FlowCredential | null): { firstName: string; lastName: string } {
@@ -170,15 +171,7 @@ export default function GuestDetails({
         <div className="flex justify-center">
           <IverifiLogo />
         </div>
-        {(hotelLogoUrl || hotelName) && (
-          <div className="flex items-center justify-center gap-2 rounded-full border border-[var(--iverifi-card-border)] bg-[var(--iverifi-card)] px-4 py-2">
-            {hotelLogoUrl ? (
-              <img src={hotelLogoUrl} alt="" className="h-7 w-auto max-w-[120px] object-contain" />
-            ) : (
-              <><span>🏨</span><span className="text-sm">{hotelName}</span></>
-            )}
-          </div>
-          )}
+        <HotelBadge name={hotelName} logoUrl={hotelLogoUrl} />
 
         <div className="text-center">
           <h1 className="text-2xl font-bold text-foreground mb-1">Your details</h1>

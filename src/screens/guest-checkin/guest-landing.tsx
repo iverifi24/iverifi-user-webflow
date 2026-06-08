@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useGetHotelPublicInfoQuery } from "@/redux/api";
 import { IverifiLogo } from "@/components/iverifi-logo";
+import { HotelBadge } from "@/components/hotel-badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import type { HotelInfo } from "./guest-checkin-flow";
@@ -25,19 +26,9 @@ export default function GuestLanding({ hotelCode, onHotelInfo, onStart }: Props)
   return (
     <div className="flex min-h-screen flex-col items-center justify-center px-4 py-8">
       <div className="w-full max-w-sm flex flex-col items-center gap-6 text-center">
-        <IverifiLogo />
+        <div className="flex justify-center"><IverifiLogo /></div>
 
-        {/* Hotel badge */}
-        <div className="flex items-center justify-center gap-2 rounded-full border border-[var(--iverifi-card-border)] bg-[var(--iverifi-card)] px-4 py-2">
-          {logoUrl ? (
-            <img src={logoUrl} alt={hotelName} className="h-7 w-auto max-w-[120px] object-contain" />
-          ) : (
-            <>
-              <span>🏨</span>
-              <span>{hotelName}</span>
-            </>
-          )}
-        </div>
+        <HotelBadge name={hotelName} logoUrl={logoUrl} />
 
         {/* Headline */}
         <div>

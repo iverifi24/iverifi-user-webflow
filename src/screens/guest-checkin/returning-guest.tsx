@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { IverifiLogo } from "@/components/iverifi-logo";
+import { HotelBadge } from "@/components/hotel-badge";
 import type { FlowCredential } from "./guest-checkin-flow";
 
 const ICONS: Record<string, string> = {
@@ -50,15 +51,7 @@ export default function ReturningGuest({
         <div className="flex justify-center">
           <IverifiLogo />
         </div>
-        {(hotelLogoUrl || hotelName) && (
-          <div className="flex items-center justify-center gap-2 rounded-full border border-[var(--iverifi-card-border)] bg-[var(--iverifi-card)] px-4 py-2">
-            {hotelLogoUrl ? (
-              <img src={hotelLogoUrl} alt="" className="h-7 w-auto max-w-[120px] object-contain" />
-            ) : (
-              <><span>🏨</span><span className="text-sm">{hotelName}</span></>
-            )}
-          </div>
-          )}
+        <HotelBadge name={hotelName} logoUrl={hotelLogoUrl} />
 
         <div className="text-center">
           <div
