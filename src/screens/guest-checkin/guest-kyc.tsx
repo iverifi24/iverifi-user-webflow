@@ -97,7 +97,7 @@ export default function GuestDocSelect({
 
   const fetchedCreds: FlowCredential[] = (
     (credsData?.data?.credential ?? []) as any[]
-  ).filter((c: any) => c.state === "auto_approved");
+  ).filter((c: any) => (c.verification_status === "auto_approved" || c.state === "auto_approved"));
   const localCreds = fetchedCreds.length > 0 ? fetchedCreds : existingCredentials;
 
   // Ensure credentials are fresh when this screen first mounts
@@ -135,7 +135,7 @@ export default function GuestDocSelect({
   useEffect(() => {
     if (!polling) return;
     const all: any[] = credsData?.data?.credential ?? [];
-    const approved = all.filter((c) => c.state === "auto_approved") as FlowCredential[];
+    const approved = all.filter((c) => (c.verification_status === "auto_approved" || c.state === "auto_approved")) as FlowCredential[];
     const newOne = approved.find((c) => !credIdsBefore.current.has(c.id));
     if (newOne) {
       if (pollStop.current) clearTimeout(pollStop.current);
@@ -199,7 +199,7 @@ export default function GuestDocSelect({
   const afterDLVerification = async () => {
     const result = await refetchCreds();
     const allCreds: any[] = (result as any)?.data?.credential ?? [];
-    const approved = allCreds.filter((c: any) => c.state === "auto_approved");
+    const approved = allCreds.filter((c: any) => (c.verification_status === "auto_approved" || c.state === "auto_approved"));
     const dlCred = approved.find((c: any) => c.document_type === "DRIVING_LICENSE");
     if (dlCred) {
       onSelected(dlCred as FlowCredential);
@@ -218,7 +218,7 @@ export default function GuestDocSelect({
   const startDLPolling = () => {
     const all: any[] = credsData?.data?.credential ?? [];
     credIdsBefore.current = new Set(
-      all.filter((c: any) => c.state === "auto_approved").map((c: any) => c.id)
+      all.filter((c: any) => (c.verification_status === "auto_approved" || c.state === "auto_approved")).map((c: any) => c.id)
     );
     setVerifyingType("DRIVING_LICENSE");
     setPolling(true);
@@ -314,7 +314,7 @@ export default function GuestDocSelect({
 
     const current: any[] = credsData?.data?.credential ?? [];
     credIdsBefore.current = new Set(
-      current.filter((c: any) => c.state === "auto_approved").map((c: any) => c.id)
+      current.filter((c: any) => (c.verification_status === "auto_approved" || c.state === "auto_approved")).map((c: any) => c.id)
     );
 
     const sessionId =
@@ -668,7 +668,7 @@ export default function GuestDocSelect({
         <Button
           disabled={!selectedId}
           onClick={handleContinue}
-          className="w-full h-12 bg-gradient-to-r from-[#00e0ff] to-[#7B5CF5] text-slate-950 font-semibold shadow-[0_0_24px_rgba(0,224,255,0.3)] hover:from-[#40e8ff] hover:to-[#9274ff] disabled:opacity-40"
+          className="w-full h-12 bg-gradient-to-r from-[#00e0ff] to-[#7B5CF5] text-slate-950 font-semibold dark:shadow-[0_0_24px_rgba(0,224,255,0.3)] hover:from-[#40e8ff] hover:to-[#9274ff] disabled:opacity-40"
         >
           Continue →
         </Button>

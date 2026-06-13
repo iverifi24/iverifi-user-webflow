@@ -78,7 +78,7 @@ export default function GuestConfirmation({ hotelName, hotelLogoUrl, credential,
 
         {/* Receipt card */}
         <Card className="w-full border-[color:var(--iverifi-card-border)] bg-[var(--iverifi-card)]">
-          <CardContent className="pt-5 flex flex-col divide-y divide-white/5">
+          <CardContent className="pt-5 flex flex-col divide-y divide-border">
             <ReceiptRow label="Hotel" value={hotelName} />
             <ReceiptRow label="Document" value={docLabel} accent />
             <ReceiptRow
@@ -95,7 +95,7 @@ export default function GuestConfirmation({ hotelName, hotelLogoUrl, credential,
         </p>
 
         <Button
-          className="w-full h-12 bg-gradient-to-r from-[#00e0ff] to-[#7B5CF5] text-slate-950 font-semibold shadow-[0_0_24px_rgba(0,224,255,0.3)] hover:from-[#40e8ff] hover:to-[#9274ff]"
+          className="w-full h-12 bg-gradient-to-r from-[#00e0ff] to-[#7B5CF5] text-slate-950 font-semibold dark:shadow-[0_0_24px_rgba(0,224,255,0.3)] hover:from-[#40e8ff] hover:to-[#9274ff]"
           onClick={handleDone}
         >
           Back to Home

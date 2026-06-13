@@ -13,6 +13,7 @@ import GuestDetails from "./guest-details";
 import ReturningGuest from "./returning-guest";
 import GuestConfirmation from "./guest-confirmation";
 import { SupportWidget } from "@/components/support-widget";
+import { PinLockScreen } from "@/components/pin-lock-screen";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -38,7 +39,8 @@ export interface HotelInfo {
 export interface FlowCredential {
   id: string;
   document_type: string;
-  state: string;
+  verification_status?: string;
+  state?: string;
   face_url?: string;
   /** flat OCR / display fields */
   [key: string]: unknown;
@@ -87,7 +89,7 @@ const PROGRESS: Record<FlowStep, number> = {
 export default function GuestCheckinFlow() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, pinLocked, needsPinSetup, pinHash, setPinLocked, setNeedsPinSetup } = useAuth();
 
   const [state, setState] = useState<GuestFlowState>(() => {
     const urlCode = searchParams.get("code") ?? "";
@@ -141,6 +143,17 @@ export default function GuestCheckinFlow() {
       advance({ step: "landing" });
     }
   }, [authLoading, user, state.step, advance]);
+
+  // Lock when user returns to the tab (same rule as ProtectedLayout)
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (!document.hidden && user && pinHash !== null) {
+        setPinLocked(true);
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
+  }, [user, pinHash, setPinLocked]);
 
   // Persist hotel name so it's available across OTP redirect
   useEffect(() => {
@@ -270,10 +283,10 @@ export default function GuestCheckinFlow() {
 
       case "submitting":
         return (
-          <div className="min-h-screen bg-[#080c10] flex items-center justify-center">
+          <div className="min-h-screen flex items-center justify-center">
             <div className="flex flex-col items-center gap-4">
-              <div className="w-12 h-12 rounded-full border-2 border-[#00E5C3] border-t-transparent animate-spin" />
-              <p className="text-[#6b7e95] text-sm">Submitting check-in…</p>
+              <div className="w-12 h-12 rounded-full border-2 border-[var(--iverifi-accent)] border-t-transparent animate-spin" />
+              <p className="text-muted-foreground text-sm">Submitting check-in…</p>
             </div>
           </div>
         );
@@ -320,22 +333,21 @@ export default function GuestCheckinFlow() {
 
       case "error":
         return (
-          <div className="min-h-screen bg-[#080c10] flex flex-col items-center justify-center gap-6 px-6 text-center">
-            <div className="w-20 h-20 rounded-[24px] bg-[rgba(255,77,109,0.12)] border border-[rgba(255,77,109,0.3)] flex items-center justify-center text-4xl">
+          <div className="min-h-screen flex flex-col items-center justify-center gap-6 px-6 text-center">
+            <div
+              className="w-20 h-20 rounded-[24px] flex items-center justify-center text-4xl"
+              style={{ background: "var(--iverifi-danger-soft)", border: "1px solid rgba(220,38,38,0.3)" }}
+            >
               ⚠️
             </div>
-            <h2
-              className="text-white text-2xl font-extrabold"
-              style={{ fontFamily: "'Syne', sans-serif" }}
-            >
+            <h2 className="text-foreground text-2xl font-extrabold">
               Something went wrong
             </h2>
-            <p className="text-[#6b7e95] text-sm leading-relaxed max-w-xs">
+            <p className="text-muted-foreground text-sm leading-relaxed max-w-xs">
               {state.errorMessage || "An unexpected error occurred. Please try again."}
             </p>
             <button
-              className="w-full max-w-xs py-4 rounded-2xl bg-gradient-to-r from-[#00E5C3] to-[#6C63FF] text-black font-extrabold text-base"
-              style={{ fontFamily: "'Syne', sans-serif" }}
+              className="w-full max-w-xs py-4 rounded-2xl bg-gradient-to-r from-[#00E5C3] to-[#6C63FF] text-slate-950 font-extrabold text-base"
               onClick={() => advance({ step: "landing", errorMessage: "" })}
             >
               Try Again
@@ -349,10 +361,10 @@ export default function GuestCheckinFlow() {
   };
 
   return (
-    <div className="relative min-h-screen bg-[#080c10] overflow-hidden">
-      {/* Noise overlay */}
+    <div className="relative min-h-screen bg-background overflow-hidden">
+      {/* Noise overlay — subtle in light, more visible in dark */}
       <div
-        className="pointer-events-none fixed inset-0 z-[200] opacity-[0.3]"
+        className="pointer-events-none fixed inset-0 z-[200] opacity-[0.015] dark:opacity-[0.3]"
         style={{
           backgroundImage:
             "url(\"data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E\")",
@@ -363,8 +375,8 @@ export default function GuestCheckinFlow() {
       {state.step !== "loading" && user && (
         <button
           onClick={() => navigate("/")}
-          className="fixed top-4 left-4 z-50 flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium text-[#6b7e95] hover:text-white transition-colors"
-          style={{ background: "rgba(255,255,255,0.06)" }}
+          className="fixed top-4 left-4 z-50 flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors border border-border"
+          style={{ background: "var(--iverifi-muted-surface)" }}
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
@@ -378,8 +390,8 @@ export default function GuestCheckinFlow() {
       {state.step !== "loading" && user && (
         <button
           onClick={() => { logoutUser(); guestCheckin.clear(); navigate("/login"); }}
-          className="fixed top-4 right-4 z-50 flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium text-[#6b7e95] hover:text-red-400 transition-colors"
-          style={{ background: "rgba(255,255,255,0.06)" }}
+          className="fixed top-4 right-4 z-50 flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium text-muted-foreground hover:text-red-500 transition-colors border border-border"
+          style={{ background: "var(--iverifi-muted-surface)" }}
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
@@ -392,7 +404,7 @@ export default function GuestCheckinFlow() {
 
       {/* Progress bar */}
       {state.step !== "loading" && state.step !== "landing" && state.step !== "error" && state.step !== "kyc" && state.step !== "checkedin" && (
-        <div className="fixed top-0 left-0 right-0 h-1 bg-white/5 z-50 max-w-[420px] mx-auto">
+        <div className="fixed top-0 left-0 right-0 h-1 bg-black/10 dark:bg-white/5 z-50 max-w-[420px] mx-auto">
           <div
             className="h-full rounded-r-sm"
             style={{
@@ -410,6 +422,18 @@ export default function GuestCheckinFlow() {
       </div>
 
       <SupportWidget />
+
+      {/* PIN lock / setup — same enforcement as the main app */}
+      {user && (pinLocked || needsPinSetup) && (
+        <PinLockScreen
+          uid={user.uid}
+          mode={needsPinSetup ? "setup" : "lock"}
+          onUnlocked={() => {
+            setPinLocked(false);
+            setNeedsPinSetup(false);
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -476,7 +500,7 @@ function GuestChecking({ hotelCode, hotelName, startedAt: _startedAt, onResult, 
         // 3. Check existing verified credentials
         const allCreds: FlowCredential[] =
           (credsData?.data?.credential ?? []).filter(
-            (c: any) => c.state === "auto_approved"
+            (c: any) => c.verification_status === "auto_approved" || c.state === "auto_approved"
           );
 
         const isReturning = allCreds.length > 0;
@@ -495,26 +519,15 @@ function GuestChecking({ hotelCode, hotelName, startedAt: _startedAt, onResult, 
   }, [credsLoading, recipientLoading]);
 
   return (
-    <div className="min-h-screen bg-[#080c10] flex flex-col items-center justify-center gap-5 px-6">
-      {/* Ambient glow */}
-      <div
-        className="pointer-events-none absolute inset-0"
-        style={{
-          background:
-            "radial-gradient(ellipse 70% 40% at 50% 0%, rgba(0,229,195,0.1) 0%, transparent 70%)",
-        }}
-      />
-      <div className="relative w-16 h-16 rounded-full border-2 border-[#00E5C3]/30 flex items-center justify-center">
-        <div className="w-10 h-10 rounded-full border-2 border-[#00E5C3] border-t-transparent animate-spin" />
+    <div className="min-h-screen flex flex-col items-center justify-center gap-5 px-6">
+      <div className="relative w-16 h-16 rounded-full border-2 border-[color:var(--iverifi-accent-border)] flex items-center justify-center">
+        <div className="w-10 h-10 rounded-full border-2 border-[color:var(--iverifi-accent)] border-t-transparent animate-spin" />
       </div>
       <div className="text-center">
-        <p
-          className="text-white font-bold text-lg mb-1"
-          style={{ fontFamily: "'Syne', sans-serif" }}
-        >
+        <p className="text-foreground font-bold text-lg mb-1">
           Connecting to {hotelName}
         </p>
-        <p className="text-[#6b7e95] text-sm">Setting up your check-in…</p>
+        <p className="text-muted-foreground text-sm">Setting up your check-in…</p>
       </div>
     </div>
   );

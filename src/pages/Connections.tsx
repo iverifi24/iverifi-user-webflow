@@ -1898,7 +1898,7 @@ const Connections = () => {
                       member.member_nickname ||
                       member.nickname ||
                       "Family member";
-                    const isPending = member.state !== "auto_approved";
+                    const isPending = member.verification_status !== "auto_approved" && member.state !== "auto_approved";
                     const memberDoc = FAMILY_DOC_OPTIONS.find((o) => o.type === member.document_type) ?? FAMILY_DOC_OPTIONS[0];
                     return (
                       <div
@@ -2135,10 +2135,14 @@ const Connections = () => {
               {[
                 { label: "Name", value: selectedIdentityInfo.name },
                 { label: "Age", value: selectedIdentityInfo.age },
-                ...(selectedDocType === "PAN_CARD"
+                ...(selectedIdentityInfo.last4 && selectedIdentityInfo.last4 !== "****" && selectedDocType !== "AADHAAR_CARD"
                   ? [
                       {
-                        label: "PAN",
+                        label:
+                          selectedDocType === "DRIVING_LICENSE" ? "DL No."
+                          : selectedDocType === "PAN_CARD" ? "PAN"
+                          : selectedDocType === "PASSPORT" ? "Passport"
+                          : "ID",
                         value: `******${selectedIdentityInfo.last4}`,
                       },
                     ]
@@ -3378,7 +3382,7 @@ const Connections = () => {
                 {(() => {
                   const verifiedMembers = (
                     familyData?.data?.family_members || []
-                  ).filter((m: any) => m.state === "auto_approved");
+                  ).filter((m: any) => (m.verification_status === "auto_approved" || m.state === "auto_approved"));
                   if (verifiedMembers.length === 0) return null;
                   return (
                     <div style={{ marginTop: 12 }}>

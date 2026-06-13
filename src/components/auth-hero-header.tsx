@@ -10,7 +10,7 @@ export function AuthHeroHeader({ className }: { className?: string }) {
   return (
     <header
       className={cn(
-        "flex shrink-0 flex-col items-center gap-1.5 text-center sm:gap-2",
+        "flex shrink-0 flex-col items-center gap-1.5 text-center text-foreground sm:gap-2",
         className
       )}
     >
@@ -20,7 +20,7 @@ export function AuthHeroHeader({ className }: { className?: string }) {
         </div>
         <h1 className="text-balance px-1 text-lg font-semibold leading-tight tracking-tight sm:text-2xl md:text-3xl">
           Verify once.{" "}
-          <span className="text-muted-foreground">Trust everywhere.</span>
+          <span className="text-foreground/60">Trust everywhere.</span>
         </h1>
       </div>
       <p className="text-[11px] text-muted-foreground sm:text-sm">
@@ -30,7 +30,7 @@ export function AuthHeroHeader({ className }: { className?: string }) {
         {CHIPS.map((label) => (
           <span
             key={label}
-            className="rounded-full border border-border bg-[var(--iverifi-muted-surface)] px-2 py-0.5 text-[9px] text-muted-foreground sm:text-[0.65rem]"
+            className="rounded-full border border-border bg-accent/50 px-2 py-0.5 text-[9px] text-foreground/70 sm:text-[0.65rem]"
           >
             {label}
           </span>

@@ -98,7 +98,8 @@ const FamilyIds = () => {
     nickname: string;
     member_nickname: string;
     document_type: string;
-    state: string;
+    state?: string;
+    verification_status?: string;
     face_url?: string;
     images?: any[];
     session_data_array?: any;
@@ -259,7 +260,7 @@ const FamilyIds = () => {
                   {familyMembers.map((member) => {
                     const imgUrl = getPreviewImageUrl(member);
                     const displayName = member.member_nickname || member.nickname || "Family member";
-                    const isPending = member.state !== "auto_approved";
+                    const isPending = (member.verification_status !== "auto_approved" && member.state !== "auto_approved");
                     return (
                       <div
                         key={member.id}

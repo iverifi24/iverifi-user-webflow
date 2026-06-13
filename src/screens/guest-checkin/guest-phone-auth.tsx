@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { loginWithGoogle } from "@/firebase_auth_service";
 import { syncApplicantProfileToBackend } from "@/utils/syncApplicantProfile";
+import { recordLoginSession } from "@/utils/pin";
 
 interface Props {
   hotelName: string;
@@ -42,6 +43,7 @@ export default function GuestPhoneAuth({ onAuthSuccess, onBack, hotelName, hotel
         console.warn("Failed to sync Google profile:", syncErr);
       }
 
+      recordLoginSession(user.uid);
       onAuthSuccess(user.phoneNumber ?? "");
     } catch (err: any) {
       if (err?.code !== "auth/popup-closed-by-user") {
