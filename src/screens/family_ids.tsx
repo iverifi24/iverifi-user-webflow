@@ -259,7 +259,7 @@ const FamilyIds = () => {
                   {familyMembers.map((member) => {
                     const imgUrl = getPreviewImageUrl(member);
                     const displayName = member.member_nickname || member.nickname || "Family member";
-                    const isPending = member.state !== "auto_approved";
+                    const isPending = (member.verification_status !== "auto_approved" && member.state !== "auto_approved");
                     return (
                       <div
                         key={member.id}

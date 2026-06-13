@@ -23,7 +23,7 @@ export function AuthTabs({ className }: AuthTabsProps) {
 
   return (
     <div className={cn("flex min-h-0 flex-col gap-2 sm:gap-3", className)}>
-      <Card className="border-border bg-background/80 text-foreground shadow-[0_0_40px_rgba(15,23,42,0.9)] backdrop-blur-md">
+      <Card className="border-border bg-background/80 text-foreground shadow-[0_4px_20px_rgba(15,23,42,0.1)] dark:shadow-[0_0_40px_rgba(15,23,42,0.9)] backdrop-blur-md">
         <CardHeader className="space-y-0.5 px-4 pb-1.5 pt-3 sm:px-6 sm:pb-2 sm:pt-4">
           <CardTitle className="text-sm font-medium text-foreground sm:text-base md:text-lg">
             {activeTab === "login" ? "Sign in to your wallet" : "Create your wallet"}
