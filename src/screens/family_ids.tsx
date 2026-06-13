@@ -98,7 +98,8 @@ const FamilyIds = () => {
     nickname: string;
     member_nickname: string;
     document_type: string;
-    state: string;
+    state?: string;
+    verification_status?: string;
     face_url?: string;
     images?: any[];
     session_data_array?: any;
