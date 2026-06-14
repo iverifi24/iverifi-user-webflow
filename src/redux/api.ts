@@ -92,7 +92,7 @@ export const api = createApi({
       invalidatesTags: ["connections", "activity"],
     }),
     updateCredentialsRequest: builder.mutation({
-      query: ({ credential_request_id, credentials, action, pending_credential_id }) => ({
+      query: ({ credential_request_id, credentials, action, pending_credential_id, family_member_credential_ids }) => ({
         url: "/users/updateCredentialsRequest",
         method: "POST",
         body: {
@@ -100,12 +100,14 @@ export const api = createApi({
           credentials,
           ...(action && { action }),
           ...(pending_credential_id && { pending_credential_id }),
+          // Always send (even empty) so stale family IDs from a previous check-in are cleared
+          ...(Array.isArray(family_member_credential_ids) && { family_member_credential_ids }),
         },
       }),
       invalidatesTags: ["connections", "activity"],
     }),
     updateCheckInStatus: builder.mutation({
-      query: ({ credential_request_id, credentials, status, credential_id, cform_data, client_started_at, document_type }) => ({
+      query: ({ credential_request_id, credentials, status, credential_id, cform_data, client_started_at, document_type, family_member_credential_ids }) => ({
         url: "/users/updateCheckInStatus",
         method: "POST",
         body: {
@@ -116,6 +118,8 @@ export const api = createApi({
           ...(cform_data != null && { cform_data }),
           ...(client_started_at != null && { client_started_at }),
           ...(document_type != null && { document_type }),
+          // Always send (even empty) so stale family IDs from a previous check-in are cleared
+          ...(Array.isArray(family_member_credential_ids) && { family_member_credential_ids }),
         },
       }),
       invalidatesTags: ["connections", "activity"],

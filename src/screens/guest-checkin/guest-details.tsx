@@ -15,6 +15,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { IverifiLogo } from "@/components/iverifi-logo";
 import { HotelBadge } from "@/components/hotel-badge";
 import type { FlowCredential } from "./guest-checkin-flow";
+import type { FamilyCredential } from "./guest-family-select";
 
 function extractNameFromCredential(cred: FlowCredential | null): { firstName: string; lastName: string } {
   if (!cred) return { firstName: "", lastName: "" };
@@ -51,6 +52,7 @@ interface Props {
   phone: string;
   credential: FlowCredential | null;
   credentials: FlowCredential[];
+  familyCredentials: FamilyCredential[];
   connectionId: string;
   startedAt: number;
   onSuccess: (result: "approved" | "pending") => void;
@@ -64,6 +66,7 @@ export default function GuestDetails({
   phone,
   credential,
   credentials,
+  familyCredentials,
   connectionId,
   startedAt,
   onSuccess,
@@ -122,9 +125,9 @@ export default function GuestDetails({
         profile_completion_level: 2,
       });
 
+      const expiryDate = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split("T")[0];
       if (!isManualUpload) {
-        // Share KYC credential
-        const expiryDate = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+        // Share primary + family credentials with hotel
         await updateCredentialsRequest({
           credential_request_id: connectionId,
           credentials: [
@@ -134,8 +137,15 @@ export default function GuestDetails({
               status: "Active",
               expiry_date: expiryDate,
             },
+            ...familyCredentials.map((f) => ({
+              credential_id: f.id,
+              document_type: f.document_type,
+              status: "Active",
+              expiry_date: expiryDate,
+            })),
           ],
-        }).unwrap();
+          family_member_credential_ids: familyCredentials.map((f) => f.id),
+        } as any).unwrap();
       }
 
       // Submit check-in
@@ -145,6 +155,7 @@ export default function GuestDetails({
         credential_id: isManualUpload ? null : selected.id,
         document_type: selected.document_type,
         client_started_at: startedAt,
+        family_member_credential_ids: familyCredentials.map((f) => f.id),
       }).unwrap();
 
       const isAutoApproved =
@@ -163,7 +174,7 @@ export default function GuestDetails({
     } finally {
       setSubmitting(false);
     }
-  }, [firstName, lastName, email, phoneInput, selected, connectionId, startedAt, updateCredentialsRequest, updateCheckInStatus, onSuccess, onError]);
+  }, [firstName, lastName, email, phoneInput, selected, familyCredentials, connectionId, startedAt, updateCredentialsRequest, updateCheckInStatus, onSuccess, onError]);
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center px-4 py-8">

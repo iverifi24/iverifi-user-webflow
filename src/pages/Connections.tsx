@@ -110,6 +110,7 @@ const FAMILY_DOC_OPTIONS = [
   { type: "FAMILY_DL",        label: "Driving License", subtitle: "State RTO Verified",       productCode: "DL",  iconType: "DRIVING_LICENSE"   },
   { type: "FAMILY_PAN",       label: "PAN Card",        subtitle: "Income Tax Department",    productCode: "PC",  iconType: "PAN_CARD"          },
 ] as const;
+const FAMILY_DOC_UNKNOWN = { type: "UNKNOWN", label: "ID Document", subtitle: "Verified", productCode: "KYC", iconType: "AADHAAR_CARD" } as const;
 type FamilyDocType = (typeof FAMILY_DOC_OPTIONS)[number]["type"];
 
 /** Subtitle under document name (e.g. "UIDAI Verified") */
@@ -1899,7 +1900,7 @@ const Connections = () => {
                       member.nickname ||
                       "Family member";
                     const isPending = member.verification_status !== "auto_approved" && member.state !== "auto_approved";
-                    const memberDoc = FAMILY_DOC_OPTIONS.find((o) => o.type === member.document_type) ?? FAMILY_DOC_OPTIONS[0];
+                    const memberDoc = FAMILY_DOC_OPTIONS.find((o) => o.type === member.document_type) ?? FAMILY_DOC_UNKNOWN;
                     return (
                       <div
                         key={member.id}
@@ -2341,17 +2342,32 @@ const Connections = () => {
                     (365.25 * 24 * 60 * 60 * 1000),
                 )
               : null;
-          const isAbove18 = computedAge != null ? computedAge >= 18 : null;
-          const ageLabel =
+          // Backend computes isAbove18 server-side and never sends raw DOB; use it as fallback.
+          const isAbove18 =
             computedAge != null
               ? computedAge >= 18
+              : (flat.isAbove18 ?? member.isAbove18 ?? null);
+          const ageLabel =
+            isAbove18 != null
+              ? isAbove18
                 ? "Above 18 ✓"
                 : "Below 18 ✗"
               : "—";
+          const docType = member.document_type || "FAMILY_AADHAAR";
+          const memberDoc = FAMILY_DOC_OPTIONS.find((o) => o.type === docType) ?? FAMILY_DOC_UNKNOWN;
+          const isAadhaarFamily = docType === "FAMILY_AADHAAR";
           const last4 = String(
-            pickFirst(flat, ["aadhaarLast4", "aadhaar_last4", "last4"]) ??
+            pickFirst(flat, ["id_last4", "aadhaarLast4", "aadhaar_last4", "last4"]) ??
               "****",
           );
+          const idLabel =
+            docType === "FAMILY_DL" ? "DL Number"
+            : docType === "FAMILY_PASSPORT" ? "Passport No."
+            : docType === "FAMILY_PAN" ? "PAN No."
+            : "Aadhaar";
+          const privacyNote = isAadhaarFamily
+            ? "🔒 Full Aadhaar number never stored. DPDP Act 2023."
+            : `🔒 Full ${memberDoc.label} number never stored. DPDP Act 2023.`;
           let photo: string | null = null;
           const rootFace = pickFirst(flat, ["face_url"]);
           if (
@@ -2435,7 +2451,7 @@ const Connections = () => {
                     }}
                   >
                     <DocumentTypeIcon
-                      documentType="AADHAAR_CARD"
+                      documentType={memberDoc.iconType}
                       className="text-[var(--iverifi-text-primary)]"
                     />
                   </div>
@@ -2450,7 +2466,7 @@ const Connections = () => {
                       {nickname}
                     </div>
                     <div style={{ marginTop: 5 }}>
-                      <VerifierBadge documentType="AADHAAR_CARD" />
+                      <VerifierBadge documentType={memberDoc.iconType} />
                     </div>
                   </div>
                 </div>
@@ -2545,7 +2561,7 @@ const Connections = () => {
                   {[
                     { label: "Name", value: name },
                     { label: "Age", value: ageLabel },
-                    { label: "Aadhaar", value: `******${last4}` },
+                    { label: idLabel, value: `*****${last4}` },
                   ].map((field, idx, arr) => (
                     <div
                       key={field.label}
@@ -2591,7 +2607,7 @@ const Connections = () => {
                     lineHeight: 1.6,
                   }}
                 >
-                  🔒 Full Aadhaar number never stored. DPDP Act 2023.
+                  {privacyNote}
                 </div>
                 {/* Actions */}
                 <div

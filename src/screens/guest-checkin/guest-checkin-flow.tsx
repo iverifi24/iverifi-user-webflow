@@ -12,6 +12,8 @@ import GuestKyc from "./guest-kyc";
 import GuestDetails from "./guest-details";
 import ReturningGuest from "./returning-guest";
 import GuestConfirmation from "./guest-confirmation";
+import GuestFamilySelect from "./guest-family-select";
+import type { FamilyCredential } from "./guest-family-select";
 import { SupportWidget } from "@/components/support-widget";
 import { PinLockScreen } from "@/components/pin-lock-screen";
 
@@ -24,6 +26,7 @@ export type FlowStep =
   | "otp"
   | "checking"
   | "kyc"
+  | "family"
   | "details"
   | "returning"
   | "submitting"
@@ -60,6 +63,8 @@ export interface GuestFlowState {
   credentials: FlowCredential[];
   /** true if user already had verified credentials (returning guest) */
   isReturning: boolean;
+  /** Family members selected to share with the hotel */
+  selectedFamilyCredentials: FamilyCredential[];
   /** Final check-in result */
   checkInResult: "approved" | "pending" | null;
   /** Timestamp when user tapped "Start Check-In" */
@@ -76,8 +81,9 @@ const PROGRESS: Record<FlowStep, number> = {
   otp: 36,
   checking: 50,
   kyc: 55,
-  details: 65,
-  returning: 65,
+  family: 62,
+  details: 70,
+  returning: 62,
   submitting: 85,
   confirm: 100,
   checkedin: 0,
@@ -108,6 +114,7 @@ export default function GuestCheckinFlow() {
       selectedCredential: null,
       credentials: [],
       isReturning: false,
+      selectedFamilyCredentials: [],
       checkInResult: null,
       startedAt: guestCheckin.getStartedAt() || Date.now(),
       errorMessage: "",
@@ -132,7 +139,13 @@ export default function GuestCheckinFlow() {
     if (state.step !== "loading") return;
     if (user) {
       const dlVerified = searchParams.get("dl_verified");
-      if (dlVerified === "1" && state.connectionId) {
+      const dlFamilyVerified = searchParams.get("dl_family_verified");
+      if (dlFamilyVerified === "1" && state.connectionId) {
+        // Returning from DigiLocker family DL OAuth — jump to family step.
+        // guest-family-select detects ?dl_family_verified=1 and starts polling.
+        const restoredCred = guestCheckin.getSelectedCredential() as FlowCredential | null;
+        advance({ step: "family", phone: user.phoneNumber ?? "", credentials: [], selectedCredential: restoredCred });
+      } else if (dlVerified === "1" && state.connectionId) {
         // Returning from DigiLocker DL OAuth — skip GuestChecking, go straight to kyc.
         // GuestKyc will detect ?dl_verified=1 and open the selfie modal.
         advance({ step: "kyc", phone: user.phoneNumber ?? "", credentials: [] });
@@ -165,6 +178,13 @@ export default function GuestCheckinFlow() {
   useEffect(() => {
     if (state.connectionId) guestCheckin.setConnectionId(state.connectionId);
   }, [state.connectionId]);
+
+  // Save selected credential before DigiLocker family redirect wipes state
+  useEffect(() => {
+    if (state.step === "family" && state.selectedCredential) {
+      guestCheckin.setSelectedCredential(state.selectedCredential);
+    }
+  }, [state.step, state.selectedCredential]);
 
   const progress = PROGRESS[state.step] ?? 0;
 
@@ -232,7 +252,7 @@ export default function GuestCheckinFlow() {
             connectionId={state.connectionId}
             startedAt={state.startedAt}
             onSelected={(credential) =>
-              advance({ selectedCredential: credential, credentials: state.credentials.find(c => c.id === credential.id) ? state.credentials : [...state.credentials, credential], step: "details" })
+              advance({ selectedCredential: credential, credentials: state.credentials.find(c => c.id === credential.id) ? state.credentials : [...state.credentials, credential], step: "family" })
             }
             onForeignCheckin={(result, docType) => advance({
               step: "confirm",
@@ -242,11 +262,21 @@ export default function GuestCheckinFlow() {
                 : state.selectedCredential,
             })}
             onManualDetails={(docType) => advance({
-              step: "details",
+              step: "family",
               selectedCredential: { id: "manual", document_type: docType, state: "auto_approved" },
             })}
             onError={(msg) => advance({ step: "error", errorMessage: msg })}
             onBack={() => advance({ step: "checking" })}
+          />
+        );
+
+      case "family":
+        return (
+          <GuestFamilySelect
+            hotelName={state.hotelInfo?.name ?? "the hotel"}
+            hotelLogoUrl={state.hotelInfo?.logo_url ?? null}
+            onContinue={(selected) => advance({ selectedFamilyCredentials: selected, step: "details" })}
+            onSkip={() => advance({ selectedFamilyCredentials: [], step: "details" })}
           />
         );
 
@@ -258,6 +288,7 @@ export default function GuestCheckinFlow() {
             phone={state.phone}
             credential={state.selectedCredential}
             credentials={state.credentials}
+            familyCredentials={state.selectedFamilyCredentials}
             connectionId={state.connectionId}
             startedAt={state.startedAt}
             onSuccess={(result) =>
@@ -275,7 +306,7 @@ export default function GuestCheckinFlow() {
             hotelLogoUrl={state.hotelInfo?.logo_url ?? null}
             credentials={state.credentials}
             selectedCredential={state.selectedCredential}
-            onContinue={() => advance({ step: "details" })}
+            onContinue={() => advance({ step: "family" })}
             onCredentialChange={(c) => advance({ selectedCredential: c })}
             onVerifyNew={() => advance({ step: "kyc" })}
           />

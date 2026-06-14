@@ -11,8 +11,13 @@ export const guestCheckin = {
   getCredentialId: () => sessionStorage.getItem('guestCheckin_credentialId') ?? '',
   setStartedAt: (v: number) => sessionStorage.setItem('guestCheckin_startedAt', String(v)),
   getStartedAt: () => Number(sessionStorage.getItem('guestCheckin_startedAt') ?? 0),
+  setSelectedCredential: (v: object) => sessionStorage.setItem('guestCheckin_selectedCredential', JSON.stringify(v)),
+  getSelectedCredential: (): object | null => {
+    try { return JSON.parse(sessionStorage.getItem('guestCheckin_selectedCredential') ?? 'null'); }
+    catch { return null; }
+  },
   clear: () => {
-    ['hotelCode', 'hotelName', 'connectionId', 'credentialId', 'startedAt'].forEach(
+    ['hotelCode', 'hotelName', 'connectionId', 'credentialId', 'startedAt', 'selectedCredential'].forEach(
       (k) => sessionStorage.removeItem(`guestCheckin_${k}`)
     );
   },
