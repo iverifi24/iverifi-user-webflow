@@ -7,7 +7,8 @@ import {
 import { toast } from "sonner";
 import { X } from "lucide-react";
 
-const IVERIFI_ORIGIN = "https://iverifi.test.getkwikid.com";
+const IVERIFI_ORIGIN = import.meta.env.VITE_KWIK_ORIGIN || "https://iverifi.app.getkwikid.com";
+const KWIK_CLIENT_ID = import.meta.env.VITE_KWIK_CLIENT_ID || "iverifi";
 const POLL_INTERVAL_MS = 2000;
 
 const FAMILY_DOC_OPTIONS = [
@@ -133,7 +134,7 @@ export default function GuestFamilySelect({ hotelName, hotelLogoUrl, onContinue,
       const sessionId = res?.data?.document_id;
       if (!sessionId) throw new Error("No session ID returned from server.");
       const url =
-        `${IVERIFI_ORIGIN}/user/home?client_id=iverifi&api_key=iverifi&process=U` +
+        `${IVERIFI_ORIGIN}/user/home?client_id=${KWIK_CLIENT_ID}&api_key=${KWIK_CLIENT_ID}&process=U` +
         `&productCode=${encodeURIComponent(productCode)}` +
         `&user_id=${encodeURIComponent(user.uid)}` +
         `&session_id=${encodeURIComponent(sessionId)}` +

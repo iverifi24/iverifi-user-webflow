@@ -147,7 +147,8 @@ interface RecipientRequest {
   }>;
 }
 
-const IVERIFI_ORIGIN = "https://iverifi.app.getkwikid.com";
+const IVERIFI_ORIGIN = import.meta.env.VITE_KWIK_ORIGIN || "https://iverifi.app.getkwikid.com";
+const KWIK_CLIENT_ID = import.meta.env.VITE_KWIK_CLIENT_ID || "iverifi";
 
 const titleCase = (value: string): string =>
   value
@@ -1393,7 +1394,7 @@ const Connections = () => {
     const effectiveSessionId = sessionId;
 
     const verificationUrl =
-      `${IVERIFI_ORIGIN}/user/home?client_id=iverifi&api_key=iverifi&process=U` +
+      `${IVERIFI_ORIGIN}/user/home?client_id=${KWIK_CLIENT_ID}&api_key=${KWIK_CLIENT_ID}&process=U` +
       `&productCode=${encodeURIComponent(productCode)}` +
       `&user_id=${encodeURIComponent(userId)}` +
       `&session_id=${encodeURIComponent(effectiveSessionId)}` +
@@ -1565,7 +1566,7 @@ const Connections = () => {
       pendingFamilyCredentialId.current = sessionId;
       const origin = window.location.origin;
       setIframeUrl(
-        `${IVERIFI_ORIGIN}/user/home?client_id=iverifi&api_key=iverifi&process=U` +
+        `${IVERIFI_ORIGIN}/user/home?client_id=${KWIK_CLIENT_ID}&api_key=${KWIK_CLIENT_ID}&process=U` +
           `&productCode=${selectedDoc.productCode}&user_id=${encodeURIComponent(currentUser.uid)}` +
           `&session_id=${encodeURIComponent(sessionId)}&redirect_origin=${encodeURIComponent(origin)}`,
       );
