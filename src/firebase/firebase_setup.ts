@@ -4,28 +4,14 @@ import { getAuth, GoogleAuthProvider, setPersistence, browserLocalPersistence } 
 import { getFirestore } from "firebase/firestore";
 import { getMessaging } from "firebase/messaging";
 
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
-
-// Your web app's Firebase configuration
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
-// const firebaseConfig = {
-//   apiKey: "AIzaSyAuu8P-lzzLZoibHOXFwwIZe_fbhve52vY",
-//   authDomain: "iverifi-3a911.firebaseapp.com",
-//   projectId: "iverifi-3a911",
-//   storageBucket: "iverifi-3a911.firebasestorage.app",
-//   messagingSenderId: "866886737160",
-//   appId: "1:866886737160:web:720ea380e448a5ba8de0bd",
-//   measurementId: "G-2Y6X0Q45D5",
-// };
 const firebaseConfig = {
-  apiKey: "AIzaSyCwEuosz3iLj3KMN7KIClAmeKADCTEYPK0",
-  authDomain: "iverifi-fdc87.firebaseapp.com",
-  projectId: "iverifi-fdc87",
-  storageBucket: "iverifi-fdc87.firebasestorage.app",
-  messagingSenderId: "45201970430",
-  appId: "1:45201970430:web:0ced9f55fd18e9e70b01af",
-  measurementId: "G-TEP0H745YS"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
 };
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);

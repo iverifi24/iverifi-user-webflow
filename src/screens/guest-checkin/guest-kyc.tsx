@@ -17,7 +17,8 @@ import type { FlowCredential } from "./guest-checkin-flow";
 import { toast } from "sonner";
 import { useSearchParams, useNavigate, useLocation } from "react-router-dom";
 
-const IVERIFI_ORIGIN = "https://iverifi.app.getkwikid.com";
+const IVERIFI_ORIGIN = import.meta.env.VITE_KWIK_ORIGIN || "https://iverifi.app.getkwikid.com";
+const KWIK_CLIENT_ID = import.meta.env.VITE_KWIK_CLIENT_ID || "iverifi";
 const POLL_INTERVAL_MS = 2000;
 const POLL_TIMEOUT_MS = 20000;
 
@@ -323,7 +324,7 @@ export default function GuestDocSelect({
         : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
     const url =
-      `${IVERIFI_ORIGIN}/user/home?client_id=iverifi&api_key=iverifi&process=U` +
+      `${IVERIFI_ORIGIN}/user/home?client_id=${KWIK_CLIENT_ID}&api_key=${KWIK_CLIENT_ID}&process=U` +
       `&productCode=${encodeURIComponent(productCode)}` +
       `&user_id=${encodeURIComponent(user.uid)}` +
       `&session_id=${encodeURIComponent(sessionId)}` +

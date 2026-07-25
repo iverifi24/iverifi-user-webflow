@@ -22,7 +22,8 @@ import { UserPlus, Trash2, Loader2, Eye, Users, X } from "lucide-react";
 import { toast } from "sonner";
 import { auth } from "@/firebase/firebase_setup";
 
-const IVERIFI_ORIGIN = "https://iverifi.test.getkwikid.com";
+const IVERIFI_ORIGIN = import.meta.env.VITE_KWIK_ORIGIN || "https://iverifi.app.getkwikid.com";
+const KWIK_CLIENT_ID = import.meta.env.VITE_KWIK_CLIENT_ID || "iverifi";
 
 const cardClass =
   "rounded-2xl border border-[color:var(--iverifi-card-border)] bg-[var(--iverifi-card)]";
@@ -142,7 +143,7 @@ const FamilyIds = () => {
 
       const origin = window.location.origin;
       const url =
-        `${IVERIFI_ORIGIN}/user/home?client_id=iverifi&api_key=iverifi&process=U` +
+        `${IVERIFI_ORIGIN}/user/home?client_id=${KWIK_CLIENT_ID}&api_key=${KWIK_CLIENT_ID}&process=U` +
         `&productCode=KYC` +
         `&user_id=${encodeURIComponent(currentUser.uid)}` +
         `&session_id=${encodeURIComponent(sessionId)}` +
