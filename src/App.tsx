@@ -15,6 +15,7 @@ import AgeCheckScreen from "./screens/age_check_screen";
 import TermsAcceptance from "./screens/terms_acceptance";
 import TermsPage from "./screens/terms_page";
 import PrivacyPage from "./screens/privacy_page";
+import AccountDeletionPage from "./screens/account_deletion_page";
 import AadhaarDigiLockerTest from "./screens/documents/aadhaar_digilocker_test";
 import FamilyIds from "./screens/family_ids";
 import GuestCheckinFlow from "./screens/guest-checkin/guest-checkin-flow";
@@ -33,6 +34,7 @@ const App = () => {
           <Route path="/accept-terms" element={<TermsAcceptance />} />
           <Route path="/terms" element={<TermsPage />} />
           <Route path="/privacy" element={<PrivacyPage />} />
+          <Route path="/account-deletion" element={<AccountDeletionPage />} />
 
           <Route
             element={
