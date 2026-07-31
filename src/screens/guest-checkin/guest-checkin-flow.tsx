@@ -238,7 +238,6 @@ export default function GuestCheckinFlow() {
                 step: isReturning ? "returning" : "kyc",
               })
             }
-            onAlreadyCheckedIn={() => advance({ step: "checkedin" })}
             onError={(msg) => advance({ step: "error", errorMessage: msg })}
           />
         );
@@ -487,14 +486,13 @@ interface CheckingProps {
     isReturning: boolean;
     selectedCredential: FlowCredential | null;
   }) => void;
-  onAlreadyCheckedIn: () => void;
   onError: (msg: string) => void;
 }
 
-function GuestChecking({ hotelCode, hotelName, startedAt: _startedAt, onResult, onAlreadyCheckedIn, onError }: CheckingProps) {
+function GuestChecking({ hotelCode, hotelName, startedAt: _startedAt, onResult, onError }: CheckingProps) {
   const [addConnection] = useAddConnectionMutation();
   const { data: credsData, isLoading: credsLoading } = useGetCredentialsQuery();
-  const { data: recipientData, isLoading: recipientLoading } = useGetRecipientCredentialsQuery(hotelCode, { skip: !hotelCode });
+  const { isLoading: recipientLoading } = useGetRecipientCredentialsQuery(hotelCode, { skip: !hotelCode });
   const ranRef = useRef(false);
 
   useEffect(() => {
