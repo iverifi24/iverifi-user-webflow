@@ -1023,14 +1023,6 @@ const Connections = () => {
     return requests[0] || null;
   }, [recipientData, code]);
 
-  // True when user has an approved check-in that hasn't been checked out yet
-  const isCurrentlyCheckedIn = useMemo(() => {
-    if (!currentConnection) return false;
-    const hasCheckIn = !!currentConnection.check_in_time;
-    const hasCheckOut = !!currentConnection.check_out_time;
-    return hasCheckIn && !hasCheckOut;
-  }, [currentConnection]);
-
   // Check credentials availability from API response instead of Firestore
   const hasCredentialsFromAPI = useMemo(() => {
     if (!currentConnection) return null;
@@ -1639,10 +1631,6 @@ const Connections = () => {
               </div>
               <Button
                 type="button"
-                disabled={
-                  currentConnection?.check_in_status === "pending" ||
-                  isCurrentlyCheckedIn
-                }
                 className="h-10 shrink-0 rounded-xl bg-gradient-to-r from-[#00e0ff] to-[#7B5CF5] text-white font-semibold px-4 hover:opacity-95 disabled:opacity-40 disabled:cursor-not-allowed"
                 onClick={() => {
                   void refetchRecipient();
@@ -1652,18 +1640,6 @@ const Connections = () => {
                 Choose document
               </Button>
             </div>
-            {isCurrentlyCheckedIn && (
-              <p className="text-xs text-emerald-200/90 bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-3 py-2">
-                You are currently checked in. Please check out before checking
-                in again.
-              </p>
-            )}
-            {currentConnection?.check_in_status === "pending" &&
-              !currentConnection?.check_in_time && (
-                <p className="text-xs text-amber-200/90 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
-                  Check-in is waiting for the property to approve.
-                </p>
-              )}
             {hasCredentials === false && (
               <p className="text-xs text-amber-200/90 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
                 Verify a document in your vault below first.
@@ -3782,42 +3758,9 @@ const Connections = () => {
                 <div
                   style={{ display: "flex", flexDirection: "column", gap: 10 }}
                 >
-                  {isCurrentlyCheckedIn && (
-                    <p
-                      style={{
-                        fontSize: 12,
-                        color: "var(--iverifi-success)",
-                        background: "var(--iverifi-success-soft)",
-                        border: "1px solid var(--iverifi-success-border)",
-                        borderRadius: 8,
-                        padding: "8px 12px",
-                        marginBottom: 4,
-                      }}
-                    >
-                      You are currently checked in. Please check out before
-                      checking in again.
-                    </p>
-                  )}
-                  {currentConnection?.check_in_status === "pending" && (
-                    <p
-                      style={{
-                        fontSize: 12,
-                        color: "var(--iverifi-warning)",
-                        background: "var(--iverifi-warning-soft)",
-                        border: "1px solid var(--iverifi-warning-border)",
-                        borderRadius: 8,
-                        padding: "8px 12px",
-                        marginBottom: 4,
-                      }}
-                    >
-                      Check-in is waiting for the property to approve.
-                    </p>
-                  )}
                   <button
                     type="button"
                     disabled={
-                      isCurrentlyCheckedIn ||
-                      currentConnection?.check_in_status === "pending" ||
                       !shareSelectedDocType ||
                       !connectedRequestorName ||
                       (!!code &&
@@ -3834,8 +3777,6 @@ const Connections = () => {
                       fontSize: 15,
                       fontWeight: 700,
                       cursor:
-                        isCurrentlyCheckedIn ||
-                        currentConnection?.check_in_status === "pending" ||
                         !shareSelectedDocType ||
                         !connectedRequestorName ||
                         (!!code &&
@@ -3844,8 +3785,6 @@ const Connections = () => {
                           ? "not-allowed"
                           : "pointer",
                       opacity:
-                        isCurrentlyCheckedIn ||
-                        currentConnection?.check_in_status === "pending" ||
                         !shareSelectedDocType ||
                         !connectedRequestorName ||
                         (!!code &&

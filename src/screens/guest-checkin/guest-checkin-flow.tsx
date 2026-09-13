@@ -238,7 +238,6 @@ export default function GuestCheckinFlow() {
                 step: isReturning ? "returning" : "kyc",
               })
             }
-            onAlreadyCheckedIn={() => advance({ step: "checkedin" })}
             onError={(msg) => advance({ step: "error", errorMessage: msg })}
           />
         );
@@ -379,7 +378,13 @@ export default function GuestCheckinFlow() {
             </p>
             <button
               className="w-full max-w-xs py-4 rounded-2xl bg-gradient-to-r from-[#00E5C3] to-[#6C63FF] text-slate-950 font-extrabold text-base"
-              onClick={() => advance({ step: "landing", errorMessage: "" })}
+              onClick={() => {
+                if (state.errorMessage?.includes("24 hours")) {
+                  window.location.reload();
+                } else {
+                  advance({ step: "landing", errorMessage: "" });
+                }
+              }}
             >
               Try Again
             </button>
@@ -481,14 +486,13 @@ interface CheckingProps {
     isReturning: boolean;
     selectedCredential: FlowCredential | null;
   }) => void;
-  onAlreadyCheckedIn: () => void;
   onError: (msg: string) => void;
 }
 
-function GuestChecking({ hotelCode, hotelName, startedAt: _startedAt, onResult, onAlreadyCheckedIn, onError }: CheckingProps) {
+function GuestChecking({ hotelCode, hotelName, startedAt: _startedAt, onResult, onError }: CheckingProps) {
   const [addConnection] = useAddConnectionMutation();
   const { data: credsData, isLoading: credsLoading } = useGetCredentialsQuery();
-  const { data: recipientData, isLoading: recipientLoading } = useGetRecipientCredentialsQuery(hotelCode, { skip: !hotelCode });
+  const { isLoading: recipientLoading } = useGetRecipientCredentialsQuery(hotelCode, { skip: !hotelCode });
   const ranRef = useRef(false);
 
   useEffect(() => {
@@ -514,21 +518,7 @@ function GuestChecking({ hotelCode, hotelName, startedAt: _startedAt, onResult, 
         // Persist terms acceptance now that we have an authenticated user
         setTermsAccepted(true).catch(() => {});
 
-        // 2. Check if already checked in (has check_in_time, no check_out_time) or pending approval
-        const requests: any[] = recipientData?.data?.requests ?? [];
-        const existing = requests.find((r: any) =>
-          connectionId ? r.id === connectionId : true
-        ) ?? requests[0] ?? null;
-
-        const isCheckedIn = !!(existing?.check_in_time && !existing?.check_out_time);
-        const isPendingApproval = !!(existing?.check_in_status === "pending" && !existing?.check_in_time);
-
-        if (isCheckedIn || isPendingApproval) {
-          onAlreadyCheckedIn();
-          return;
-        }
-
-        // 3. Check existing verified credentials
+        // 2. Check existing verified credentials
         const allCreds: FlowCredential[] =
           (credsData?.data?.credential ?? []).filter(
             (c: any) => c.verification_status === "auto_approved" || c.state === "auto_approved"
