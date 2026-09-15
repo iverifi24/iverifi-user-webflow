@@ -38,14 +38,14 @@ export default function HrRequestEntry() {
 
     (async () => {
       try {
-        const res = await addConnection({ document_id: code, type: "Company" }).unwrap();
-        const connectionId =
-          res?.data?.credential_request_id ?? res?.data?.request_id ?? res?.data?.id ?? null;
-        if (!connectionId) {
-          setError("Could not start this request. Please try the link again.");
-          return;
-        }
-        navigate(`/connections/${connectionId}`, { replace: true });
+        await addConnection({ document_id: code, type: "Company" }).unwrap();
+        // /connections/:id expects the recipient_id (this `code`), not the
+        // credential_request_id addConnection returns - confirmed by how
+        // ConnectionRequestsPage links into this same screen
+        // (navigate(`/connections/${req.recipient_id}`)). ConnectionDetails
+        // then resolves the specific request for the logged-in user via
+        // getRecipientCredentials(recipient_id).
+        navigate(`/connections/${code}`, { replace: true });
       } catch (err: any) {
         setError(err?.data?.message || "Could not start this request. Please try again.");
       }
