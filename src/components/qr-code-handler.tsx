@@ -24,7 +24,10 @@ export function QRCodeHandler({ children }: QRCodeHandlerProps) {
     if (currentPath.startsWith("/checkin")) return;
 
     // Don't intercept pages that have their own logic
-    const excludedPaths = ["/accept-terms", "/terms", "/privacy", "/complete-profile"];
+    // "/hr-request" is a separate, non-hotel entry point (see
+    // screens/hr-request/hr_request_entry.tsx) - deliberately excluded here
+    // so it isn't swept into the hotel-specific check-in funnel below.
+    const excludedPaths = ["/accept-terms", "/terms", "/privacy", "/complete-profile", "/hr-request"];
     if (excludedPaths.includes(currentPath) || !isValidQRCode(code)) return;
 
     // Any path with a valid ?code= → send everyone to the new check-in funnel
