@@ -19,6 +19,7 @@ import AccountDeletionPage from "./screens/account_deletion_page";
 import AadhaarDigiLockerTest from "./screens/documents/aadhaar_digilocker_test";
 import FamilyIds from "./screens/family_ids";
 import GuestCheckinFlow from "./screens/guest-checkin/guest-checkin-flow";
+import HrRequestEntry from "./screens/hr-request/hr_request_entry";
 
 const App = () => {
   return (
@@ -52,6 +53,7 @@ const App = () => {
             />
             <Route path="/connections" element={<ConnectionRequestsPage />} />
             <Route path="/connections/:id" element={<ConnectionDetails />} />
+            <Route path="/hr-request" element={<HrRequestEntry />} />
             <Route path="/my-activity" element={<MyActivity />} />
             <Route path="/complete-profile" element={<ProfileCompletion />} />
             <Route path="/family-ids" element={<FamilyIds />} />
