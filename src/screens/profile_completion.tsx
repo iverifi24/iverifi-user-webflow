@@ -13,7 +13,7 @@ import {
 import { db } from "@/firebase/firebase_setup";
 import { doc, setDoc } from "firebase/firestore";
 import { toast } from "sonner";
-import { getRecipientIdFromStorage } from "@/utils/connectionFlow";
+import { getRecipientIdFromStorage, getPostConnectPath } from "@/utils/connectionFlow";
 import { syncApplicantProfileToBackend } from "@/utils/syncApplicantProfile";
 import { useAuth } from "@/context/auth_context";
 import { LoadingScreen } from "@/components/loading-screen";
@@ -99,11 +99,7 @@ export default function ProfileCompletion() {
       toast.success("Profile updated successfully!");
 
       const pendingId = getRecipientIdFromStorage();
-      if (pendingId) {
-        navigate(`/?code=${pendingId}`);
-      } else {
-        navigate("/");
-      }
+      navigate(getPostConnectPath(pendingId));
     } catch (error: unknown) {
       console.error("Error updating profile:", error);
       toast.error("Failed to update profile. Please try again.");

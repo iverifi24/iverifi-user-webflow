@@ -9,6 +9,7 @@ import {
   getRecipientIdFromStorage,
   saveRecipientIdForLater,
   peekRecipientIdFromStorage,
+  getPostConnectPath,
 } from "@/utils/connectionFlow";
 import { saveUserDetailsToFirestore } from "@/utils/userRegistration";
 import { isTermsAccepted } from "@/utils/terms";
@@ -69,13 +70,13 @@ export function SignupForm({
     if (pendingId) {
       try {
         await addConnection({ document_id: pendingId, type: "Company" }).unwrap();
-        nav(`/?code=${pendingId}`, { replace: true });
+        nav(getPostConnectPath(pendingId), { replace: true });
       } catch (err) {
         console.error("Failed to add connection after signup", err);
-        nav("/", { replace: true });
+        nav(getPostConnectPath(null), { replace: true });
       }
     } else {
-      nav("/", { replace: true });
+      nav(getPostConnectPath(null), { replace: true });
     }
   };
 

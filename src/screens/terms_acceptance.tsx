@@ -17,7 +17,7 @@ import { setTermsAccepted } from "@/utils/terms";
 import { useAuth } from "@/context/auth_context";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/firebase/firebase_setup";
-import { saveRecipientIdForLater } from "@/utils/connectionFlow";
+import { saveRecipientIdForLater, getPostConnectPath } from "@/utils/connectionFlow";
 import { AuthHeroHeader } from "@/components/auth-hero-header";
 
 export default function TermsAcceptance() {
@@ -93,7 +93,7 @@ export default function TermsAcceptance() {
           if (code) saveRecipientIdForLater(code);
           return "/complete-profile";
         }
-        return code ? `/?code=${code}` : "/";
+        return getPostConnectPath(code);
       } catch {
         if (code) saveRecipientIdForLater(code);
         return code ? "/complete-profile" : "/";

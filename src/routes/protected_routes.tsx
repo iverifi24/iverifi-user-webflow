@@ -3,6 +3,7 @@ import { isTermsAccepted } from "@/utils/terms";
 import {
   peekRecipientIdFromStorage,
   saveRecipientIdForLater,
+  saveIsHrRequestForLater,
 } from "@/utils/connectionFlow";
 import type { JSX } from "react";
 import { Navigate, useLocation, useSearchParams } from "react-router-dom";
@@ -60,7 +61,14 @@ const ProtectedRoute = ({ children }: { children: JSX.Element }) => {
     const code = searchParams.get("code");
     // Save the hotel code to localStorage so the login/signup flow can restore it
     // even if the URL param gets lost during navigation
-    if (code) saveRecipientIdForLater(code);
+    if (code) {
+      saveRecipientIdForLater(code);
+      // /hr-request is the non-hotel employer-request entry point - stamp
+      // this so the post-login/signup flow (getPostConnectPath) knows to
+      // land the candidate back on /hr-request, not "/" (which
+      // QRCodeHandler would otherwise sweep into /checkin).
+      if (location.pathname === "/hr-request") saveIsHrRequestForLater();
+    }
     const loginUrl = code ? `/login?code=${code}` : "/login";
     return <Navigate to={loginUrl} />;
   }
