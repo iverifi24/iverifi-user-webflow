@@ -70,7 +70,7 @@ export default function HrRequestEntry() {
         // addConnection is idempotent for an existing recipient - safe to
         // call every time this screen is opened, resuming any prior
         // connection rather than creating a duplicate.
-        const res = await addConnection({ document_id: code, type: "Company" }).unwrap();
+        await addConnection({ document_id: code, type: "Company" }).unwrap();
         // getRecipientCredentials (below) is keyed by recipient_id (`code`),
         // not the credential_request_id addConnection returns - confirmed
         // by ConnectionRequestsPage's own linking pattern.
