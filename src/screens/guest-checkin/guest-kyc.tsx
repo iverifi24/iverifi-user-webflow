@@ -72,6 +72,8 @@ export default function GuestDocSelect({
 
   // DL: choice modal + selfie
   const [dlChoiceOpen, setDlChoiceOpen] = useState(false);
+  // Aadhaar: choice modal (Kwik vs Aadhaar App)
+  const [aadhaarChoiceOpen, setAadhaarChoiceOpen] = useState(false);
   const [dlSelfieOpen, setDlSelfieOpen] = useState(false);
   // true when selfie was triggered by DigiLocker return (cred already exists); false for Kwik path
   const dlSelfieIsDigiLockerReturn = useRef(false);
@@ -105,10 +107,15 @@ export default function GuestDocSelect({
   useEffect(() => { refetchCreds(); }, []);
 
   // Detect DigiLocker DL return: /?dl_verified=1 or /checkin?dl_verified=1
+  // Also detect Aadhaar VC return: ?aadhaar_vc_verified=1 or ?aadhaar_vc_error=...
   useEffect(() => {
-    const dlVerified = searchParams.get("dl_verified");
-    const dlError = searchParams.get("dl_error");
-    if (!dlVerified && !dlError) return;
+    const dlVerified    = searchParams.get("dl_verified");
+    const dlError       = searchParams.get("dl_error");
+    const avcVerified   = searchParams.get("aadhaar_vc_verified");
+    const avcError      = searchParams.get("aadhaar_vc_error");
+
+    if (!dlVerified && !dlError && !avcVerified && !avcError) return;
+
     if (dlVerified === "1") {
       dlSelfieIsDigiLockerReturn.current = true;
       setDlSelfieOpen(true);
@@ -117,6 +124,17 @@ export default function GuestDocSelect({
       setVerifyingType("DRIVING_LICENSE");
       setKycFailed(true);
     }
+    if (avcVerified === "1") {
+      afterAadhaarVCVerification();
+    }
+    if (avcError === "no_app") {
+      // Aadhaar App not installed — fall straight into Camera Scan
+      openKwikIframe("AADHAAR_CARD", "KYC");
+    } else if (avcError) {
+      setVerifyingType("AADHAAR_CARD");
+      setKycFailed(true);
+    }
+
     navigate(location.pathname, { replace: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -210,6 +228,24 @@ export default function GuestDocSelect({
     // the incoming DL cred is detected as new. Without this, an existing PAN would be picked up.
     credIdsBefore.current = new Set(approved.map((c: any) => c.id));
     setVerifyingType("DRIVING_LICENSE");
+    setPolling(true);
+    if (pollStop.current) clearTimeout(pollStop.current);
+    pollStop.current = setTimeout(() => { setPolling(false); setTimedOut(true); }, POLL_TIMEOUT_MS);
+  };
+
+  // Called after Aadhaar VC return (credential already exists in Firestore).
+  // Tries to select it directly; falls back to polling only if not yet propagated.
+  const afterAadhaarVCVerification = async () => {
+    const result = await refetchCreds();
+    const allCreds: any[] = (result as any)?.data?.credential ?? [];
+    const approved = allCreds.filter((c: any) => (c.verification_status === "auto_approved" || c.state === "auto_approved"));
+    const aadhaarCred = approved.find((c: any) => c.document_type === "AADHAAR_CARD");
+    if (aadhaarCred) {
+      onSelected(aadhaarCred as FlowCredential);
+      return;
+    }
+    credIdsBefore.current = new Set(approved.map((c: any) => c.id));
+    setVerifyingType("AADHAAR_CARD");
     setPolling(true);
     if (pollStop.current) clearTimeout(pollStop.current);
     pollStop.current = setTimeout(() => { setPolling(false); setTimedOut(true); }, POLL_TIMEOUT_MS);
@@ -346,6 +382,19 @@ export default function GuestDocSelect({
     }
   };
 
+  // ── Aadhaar VC (OVSE) handler ──
+  const handleVerifyAadhaarWithVC = () => {
+    const user = auth.currentUser;
+    if (!user) { onError("Not authenticated. Please restart."); return; }
+    const apiBase = ((import.meta as any).env.VITE_BASE_URL as string || "").replace(/\/$/, "");
+    const returnUrl = `${window.location.origin}/checkin`;
+    window.location.assign(
+      `${apiBase}/webhook/aadhaar-vc-start` +
+      `?applicant_id=${encodeURIComponent(user.uid)}` +
+      `&return_url=${encodeURIComponent(returnUrl)}`,
+    );
+  };
+
   // ── DL verification handlers ──
   const handleVerifyDLKwik = () => openKwikIframe("DRIVING_LICENSE", "DL");
 
@@ -370,10 +419,16 @@ export default function GuestDocSelect({
     setKycFailed(true); // show "Verification unsuccessful" right away, no 20s wait
   };
 
-  // Entry point for the "Verify" button on each doc card (DL opens choice modal; others open iframe).
+  // Entry point for the "Verify" button on each doc card.
+  // DL and Aadhaar open choice modals; others open Kwik iframe directly.
   const handleVerify = (docType: string, productCode: string) => {
     if (docType === "DRIVING_LICENSE") {
       setDlChoiceOpen(true);
+      return;
+    }
+    if (docType === "AADHAAR_CARD") {
+      setVerifyingType("AADHAAR_CARD");
+      setAadhaarChoiceOpen(true);
       return;
     }
     openKwikIframe(docType, productCode);
@@ -690,6 +745,33 @@ export default function GuestDocSelect({
       onSave={handleForeignPassportSave}
       onClose={() => setForeignPassportOpen(false)}
     />
+
+    {/* Aadhaar: Aadhaar App vs Camera Scan choice modal */}
+    <Dialog open={aadhaarChoiceOpen} onOpenChange={(open) => { setAadhaarChoiceOpen(open); if (!open) setVerifyingType(null); }}>
+      <DialogContent className="max-w-sm rounded-2xl">
+        <DialogHeader>
+          <DialogTitle className="text-base font-bold">Verify Aadhaar Card</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3 pt-1">
+          <p className="text-sm text-muted-foreground">
+            Choose how you'd like to verify your Aadhaar.
+          </p>
+          <Button
+            className="w-full rounded-xl bg-gradient-to-r from-[#00e0ff] to-[#7B5CF5] text-slate-950 font-semibold"
+            onClick={() => { setAadhaarChoiceOpen(false); handleVerifyAadhaarWithVC(); }}
+          >
+            🆔 Verify via Aadhaar App
+          </Button>
+          <Button
+            variant="outline"
+            className="w-full rounded-xl"
+            onClick={() => { setAadhaarChoiceOpen(false); setVerifyingType(null); openKwikIframe("AADHAAR_CARD", "KYC"); }}
+          >
+            📷 Camera Scan
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
 
     {/* DL: DigiLocker vs Camera Scan choice modal */}
     <Dialog open={dlChoiceOpen} onOpenChange={setDlChoiceOpen}>

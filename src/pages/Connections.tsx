@@ -466,6 +466,7 @@ const Connections = () => {
 
   // DL choice modal + selfie
   const [dlDigilockerModalOpen, setDlDigilockerModalOpen] = useState(false);
+  const [aadhaarChoiceModalOpen, setAadhaarChoiceModalOpen] = useState(false);
   const [dlSelfieModalOpen, setDlSelfieModalOpen] = useState(false);
   const dlSelfieStreamRef = useRef<MediaStream | null>(null);
   const dlSelfieVideoRef = useRef<HTMLVideoElement | null>(null);
@@ -497,17 +498,43 @@ const Connections = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dlSelfieModalOpen]);
 
-  // Detect DigiLocker DL redirect on mount (?dl_verified=1 or ?dl_error=...)
+  // Detect DigiLocker DL / Aadhaar VC (OVSE) redirects on mount
   useEffect(() => {
     const dlVerified = searchParams.get("dl_verified");
     const dlError = searchParams.get("dl_error");
-    if (!dlVerified && !dlError) return;
+    const avcVerified = searchParams.get("aadhaar_vc_verified");
+    const avcError = searchParams.get("aadhaar_vc_error");
+    if (!dlVerified && !dlError && !avcVerified && !avcError) return;
+
     if (dlVerified === "1") {
       setDlSelfieModalOpen(true); // selfie first; polling starts after selfie submit
     }
     if (dlError) {
       toast.error("DigiLocker verification was cancelled. You can use camera scan instead.");
     }
+    if (avcVerified === "1") {
+      toast.success("Aadhaar verified via Aadhaar App.");
+      // Credential may still be landing via webhook — poll like DigiLocker / guest KYC
+      void (async () => {
+        const currentCreds: any[] = latestCredentialsRef.current?.data?.credential ?? [];
+        credCountBeforeVerifyRef.current = currentCreds.length;
+        credIdsBeforeVerifyRef.current = new Set(currentCreds.map((c: any) => c.id));
+        await refetchCredentials();
+        if (verifyPollStopRef.current) clearTimeout(verifyPollStopRef.current);
+        setVerifyPollingMs(2000);
+        verifyPollStopRef.current = setTimeout(() => {
+          setVerifyPollingMs(0);
+          verifyPollStopRef.current = null;
+        }, 15000);
+      })();
+    }
+    if (avcError === "no_app") {
+      // Aadhaar App not installed — fall back to camera / Kwik scan
+      void handleVerifyDocumentKwik("AADHAAR_CARD");
+    } else if (avcError) {
+      toast.error("Aadhaar App verification failed. You can try camera scan instead.");
+    }
+
     navigate(location.pathname, { replace: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -1414,7 +1441,7 @@ const Connections = () => {
     setIframeUrl(verificationUrl);
   };
 
-  // Slim wrapper: DL → show choice modal; all other doc types → straight to Kwik
+  // Slim wrapper: DL / Aadhaar → choice modal; all other doc types → straight to Kwik
   const handleVerifyDocument = async (
     documentType: DocumentType,
   ) => {
@@ -1422,7 +1449,25 @@ const Connections = () => {
       setDlDigilockerModalOpen(true);
       return;
     }
+    if (documentType === "AADHAAR_CARD") {
+      setAadhaarChoiceModalOpen(true);
+      return;
+    }
     return handleVerifyDocumentKwik(documentType);
+  };
+
+  /** Aadhaar VC (OVSE) — same Pehchaan / Aadhaar App path as guest check-in KYC */
+  const handleVerifyAadhaarWithVC = () => {
+    const currentUser = auth.currentUser;
+    if (!currentUser) return toast.error("User not authenticated");
+    if (code) saveRecipientIdForLater(code);
+    const apiBase = ((import.meta as any).env.VITE_BASE_URL as string || "").replace(/\/$/, "");
+    const returnUrl = `${window.location.origin}${location.pathname || "/"}`;
+    window.location.assign(
+      `${apiBase}/webhook/aadhaar-vc-start` +
+      `?applicant_id=${encodeURIComponent(currentUser.uid)}` +
+      `&return_url=${encodeURIComponent(returnUrl)}`,
+    );
   };
 
   const handleVerifyDLWithDigiLocker = () => {
@@ -4039,6 +4084,39 @@ const Connections = () => {
         onSave={handleForeignPassportSave}
         onClose={() => setForeignPassportDialogOpen(false)}
       />
+
+      {/* Aadhaar: Aadhaar App (OVSE) vs Camera Scan choice modal */}
+      <Dialog open={aadhaarChoiceModalOpen} onOpenChange={setAadhaarChoiceModalOpen}>
+        <DialogContent className="max-w-sm rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold">Verify Aadhaar Card</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 pt-1">
+            <p className="text-sm" style={{ color: "var(--iverifi-text-muted)" }}>
+              Choose how you&apos;d like to verify your Aadhaar.
+            </p>
+            <Button
+              className="w-full rounded-xl bg-gradient-to-r from-[#00e0ff] to-[#7B5CF5] text-slate-950 font-semibold"
+              onClick={() => {
+                setAadhaarChoiceModalOpen(false);
+                handleVerifyAadhaarWithVC();
+              }}
+            >
+              Verify via Aadhaar App
+            </Button>
+            <Button
+              variant="outline"
+              className="w-full rounded-xl"
+              onClick={() => {
+                setAadhaarChoiceModalOpen(false);
+                void handleVerifyDocumentKwik("AADHAAR_CARD");
+              }}
+            >
+              Camera Scan
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* DL: DigiLocker vs Camera Scan choice modal */}
       <Dialog open={dlDigilockerModalOpen} onOpenChange={setDlDigilockerModalOpen}>
