@@ -4,13 +4,12 @@ import { useMemo } from "react";
 import { format } from "date-fns";
 import { LoadingScreen } from "@/components/loading-screen";
 import {
-  Building2,
-  User,
   ChevronRight,
   FileCheck,
   CalendarCheck,
   CalendarX,
 } from "lucide-react";
+import { getBusinessTypeMeta } from "@/utils/businessCategoryUtils";
 
 const cardClass =
   "rounded-2xl border border-[color:var(--iverifi-card-border)] bg-[var(--iverifi-card)]";
@@ -96,6 +95,7 @@ export default function ConnectionRequestsPage() {
                 ? req.check_out_time
                 : new Date(req.check_out_time).getTime()
               : null;
+            const bMeta = getBusinessTypeMeta(req.recipients?.businessType, isCompany);
             return (
               <div
                 key={req.id}
@@ -109,22 +109,20 @@ export default function ConnectionRequestsPage() {
                 onClick={() => navigate(`/connections/${req.recipient_id}`)}
               >
                 <div className="flex flex-row items-center gap-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[color:var(--iverifi-icon-border)] bg-[var(--iverifi-muted-surface)] text-teal-600 dark:text-[#00e0ff]">
-                    {isCompany ? (
-                      <Building2 className="h-5 w-5" />
-                    ) : (
-                      <User className="h-5 w-5" />
-                    )}
+                  <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[color:var(--iverifi-icon-border)] bg-[var(--iverifi-muted-surface)] ${bMeta.iconClassName}`}>
+                    {bMeta.icon}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest">
-                      Recipient
-                    </p>
-                    <p className="font-semibold text-[var(--iverifi-text-primary)] truncate mt-0.5 text-sm">
-                      {recipientName}
-                    </p>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="font-semibold text-[var(--iverifi-text-primary)] truncate text-sm">
+                        {recipientName}
+                      </p>
+                      <span className={`inline-flex items-center text-[10px] font-semibold px-2 py-0.2 rounded-full border ${bMeta.badgeClassName}`}>
+                        {bMeta.shortLabel}
+                      </span>
+                    </div>
                     <p className="text-xs text-[var(--iverifi-text-muted)] mt-0.5">
-                      {isCompany ? "Property" : "Individual"}
+                      {bMeta.categoryLabel}
                     </p>
                   </div>
                   <span

@@ -779,13 +779,13 @@ export default function PrivacyPage() {
               <div className="space-y-2 text-xs sm:text-sm text-teal-800 dark:text-teal-200">
                 <p>
                   <strong>Registered Office:</strong> B-401,BCM City,Navalakha Square, AB Road,
-                  Indire, MP 452001
+                  Indore, MP 452001
+                </p>
+                <p>
+                  <strong>Operational Address:</strong> 37, 8th cross, 4th main, KGE Layout, RMV 2nd stage, Bangalore 560094
                 </p>
                 <p>
                   <strong>CIN:</strong> U62099MP2023PTC066602
-                </p>
-                <p>
-                  <strong>Phone:</strong> +91 7676487732
                 </p>
 
                 <div className="mt-4 pt-4 border-t border-teal-300 dark:border-teal-700">

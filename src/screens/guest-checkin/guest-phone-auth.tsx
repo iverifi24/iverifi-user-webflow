@@ -2,13 +2,6 @@ import { useState } from "react";
 import { IverifiLogo } from "@/components/iverifi-logo";
 import { HotelBadge } from "@/components/hotel-badge";
 import { PhoneLoginForm } from "@/components/phone-login-form";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { loginWithGoogle } from "@/firebase_auth_service";
@@ -60,28 +53,31 @@ export default function GuestPhoneAuth({ onAuthSuccess, onBack, hotelName, hotel
         <div className="flex justify-center"><IverifiLogo /></div>
         <HotelBadge name={hotelName} logoUrl={hotelLogoUrl} />
 
-        <Card className="w-full border-[color:var(--iverifi-card-border)] bg-[var(--iverifi-card)] shadow-lg dark:shadow-[0_18px_45px_rgba(0,0,0,0.85)]">
-          <CardHeader>
-            <CardTitle className="text-lg text-foreground">
-              Your mobile{" "}
-              <span style={{ color: "var(--iverifi-accent)" }}>number</span>
-            </CardTitle>
-            <CardDescription className="text-sm text-muted-foreground">
-              We'll send a 6-digit verification code to confirm your visit to {hotelName}.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-4">
+        <div className="w-full rounded-3xl border border-border/80 bg-card/90 dark:bg-slate-900/90 backdrop-blur-xl p-6 shadow-xl dark:shadow-[0_20px_50px_rgba(0,0,0,0.7)] flex flex-col gap-4">
+          <div>
+            <div className="inline-flex items-center gap-1.5 rounded-full bg-cyan-500/10 border border-cyan-500/20 px-2.5 py-0.5 text-[11px] font-semibold text-[var(--iverifi-accent)] mb-2">
+              Step 1 of 3 • Quick Login
+            </div>
+            <h2 className="text-xl font-bold text-foreground">
+              Enter Mobile <span style={{ color: "var(--iverifi-accent)" }}>Number</span>
+            </h2>
+            <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+              We'll send a 6-digit OTP code to verify your visit to <strong className="text-foreground">{hotelName}</strong>.
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-4">
             <PhoneLoginForm onSuccess={() => onAuthSuccess("")} />
 
             <div className="flex items-center gap-3">
-              <div className="flex-1 h-px bg-border" />
+              <div className="flex-1 h-px bg-border/60" />
               <span className="text-xs text-muted-foreground">or</span>
-              <div className="flex-1 h-px bg-border" />
+              <div className="flex-1 h-px bg-border/60" />
             </div>
 
             <Button
               variant="outline"
-              className="w-full h-10 border-[color:var(--iverifi-card-border)] gap-2"
+              className="w-full h-11 rounded-2xl border-border/70 hover:bg-muted/50 gap-2.5 font-medium text-sm transition-all"
               onClick={handleGoogleLogin}
               disabled={googleLoading}
             >
@@ -93,11 +89,11 @@ export default function GuestPhoneAuth({ onAuthSuccess, onBack, hotelName, hotel
               Continue with Google
             </Button>
 
-            <p className="text-xs text-muted-foreground text-center">
-              Data protected under DPDP Act 2023.
+            <p className="text-[11px] text-muted-foreground text-center">
+              🔒 256-bit Encrypted • Protected under DPDP Act 2023
             </p>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
         <Button
           variant="ghost"

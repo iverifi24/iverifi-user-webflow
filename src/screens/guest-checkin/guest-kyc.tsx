@@ -17,7 +17,7 @@ import type { FlowCredential } from "./guest-checkin-flow";
 import { toast } from "sonner";
 import { useSearchParams, useNavigate, useLocation } from "react-router-dom";
 
-import { Globe2, CreditCard, Car, FileBadge, Plane } from "lucide-react";
+import { Globe2, CreditCard, Car, FileBadge, Plane, ShieldCheck, Sparkles } from "lucide-react";
 
 const IVERIFI_ORIGIN = import.meta.env.VITE_KWIK_ORIGIN || "https://iverifi.app.getkwikid.com";
 const KWIK_CLIENT_ID = import.meta.env.VITE_KWIK_CLIENT_ID || "iverifi";
@@ -25,7 +25,7 @@ const POLL_INTERVAL_MS = 2000;
 const POLL_TIMEOUT_MS = 20000;
 
 const DOC_TYPES = [
-  { type: "AADHAAR_CARD",     label: "Aadhaar Card",    icon: <CreditCard className="w-5 h-5 text-[var(--iverifi-accent)]" />, productCode: "KYC", issuer: "UIDAI / Govt of India" },
+  { type: "AADHAAR_CARD",     label: "Aadhaar Card",    icon: <CreditCard className="w-5 h-5 text-[var(--iverifi-accent)]" />, productCode: "KYC", issuer: "UIDAI / Govt of India", recommended: true },
   { type: "DRIVING_LICENSE",  label: "Driving Licence", icon: <Car className="w-5 h-5 text-[var(--iverifi-accent)]" />, productCode: "DL",  issuer: "Ministry of Road Transport" },
   { type: "PAN_CARD",         label: "PAN Card",        icon: <FileBadge className="w-5 h-5 text-[var(--iverifi-accent)]" />, productCode: "PC",  issuer: "Income Tax Department" },
   { type: "PASSPORT",         label: "Passport",        icon: <Plane className="w-5 h-5 text-[var(--iverifi-accent)]" />, productCode: "PP",  issuer: "Ministry of External Affairs" },
@@ -558,133 +558,146 @@ export default function GuestDocSelect({
   return (
     <>
     <div className="flex min-h-screen flex-col items-center justify-center px-4 py-8">
-      <div className="w-full max-w-sm flex flex-col gap-5">
+      <div className="w-full max-w-sm flex flex-col items-center gap-5">
         <div className="flex justify-center">
           <IverifiLogo />
         </div>
         <HotelBadge name={hotelName} logoUrl={hotelLogoUrl} />
 
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-foreground mb-1">Choose your ID</h1>
-          <p className="text-sm text-muted-foreground">
-            Select a government-issued ID to share with <strong className="text-foreground">{hotelName}</strong>
-          </p>
-        </div>
-
-        <button
-          type="button"
-          onClick={() => setForeignPassportOpen(true)}
-          disabled={foreignSubmitting}
-          className="w-full text-left rounded-xl border border-[var(--iverifi-accent-border)] bg-[var(--iverifi-accent-soft)] p-3.5 flex items-center gap-3.5 transition-all hover:opacity-95 shadow-xs disabled:opacity-50 group"
-        >
-          <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-cyan-500/15 border border-cyan-500/30 text-[var(--iverifi-accent)] shrink-0">
-            <Globe2 className="w-5 h-5" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
-              <p className="text-sm font-semibold text-foreground">Foreign National Registration</p>
-              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-cyan-500/20 text-[var(--iverifi-accent)] border border-cyan-500/30">
-                FRRO / C-Form
-              </span>
+        <div className="w-full rounded-3xl border border-border/80 bg-card/90 dark:bg-slate-900/90 backdrop-blur-xl p-5 sm:p-6 shadow-xl dark:shadow-[0_20px_50px_rgba(0,0,0,0.7)] flex flex-col gap-4">
+          <div>
+            <div className="inline-flex items-center gap-1.5 rounded-full bg-cyan-500/10 border border-cyan-500/20 px-2.5 py-0.5 text-[11px] font-semibold text-[var(--iverifi-accent)] mb-2">
+              Step 2 of 3 • Select Identity Document
             </div>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Visiting from abroad? Verify with your foreign passport &amp; visa
+            <h1 className="text-xl font-bold text-foreground">Choose Your ID</h1>
+            <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+              Select an official document to share with <strong className="text-foreground">{hotelName}</strong>.
             </p>
           </div>
-          <span className="text-xs font-semibold shrink-0 text-[var(--iverifi-accent)] group-hover:translate-x-0.5 transition-transform">
-            Verify →
-          </span>
-        </button>
 
-        <div className="flex flex-col gap-3">
-          {DOC_TYPES.map(({ type, label, icon, productCode, issuer }) => {
-            const verified = verifiedMap[type];
-            const isSelected = selectedId === verified?.id;
-            const isVerifying = verifyingType === type;
+          {/* Foreign National banner */}
+          <button
+            type="button"
+            onClick={() => setForeignPassportOpen(true)}
+            disabled={foreignSubmitting}
+            className="w-full text-left rounded-2xl border border-[var(--iverifi-accent-border)] bg-[var(--iverifi-accent-soft)]/50 hover:bg-[var(--iverifi-accent-soft)] p-3 flex items-center gap-3 transition-all shadow-xs disabled:opacity-50 group cursor-pointer"
+          >
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-cyan-500/15 border border-cyan-500/30 text-[var(--iverifi-accent)] shrink-0">
+              <Globe2 className="w-4 h-4" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-1.5">
+                <p className="text-xs font-bold text-foreground">Foreign National Registration</p>
+                <span className="text-[9px] font-semibold px-1.5 py-0.2 rounded bg-cyan-500/20 text-[var(--iverifi-accent)] border border-cyan-500/30">
+                  FRRO
+                </span>
+              </div>
+              <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
+                Visiting from abroad? Passport &amp; visa
+              </p>
+            </div>
+            <span className="text-xs font-semibold shrink-0 text-[var(--iverifi-accent)] group-hover:translate-x-0.5 transition-transform">
+              →
+            </span>
+          </button>
 
-            return (
-              <div
-                key={type}
-                className={`rounded-xl border transition-all ${verified ? "cursor-pointer" : ""}`}
-                style={{
-                  borderColor: isSelected
-                    ? "var(--iverifi-accent)"
-                    : "var(--iverifi-card-border)",
-                  background: isSelected
-                    ? "var(--iverifi-accent-soft)"
-                    : "var(--iverifi-card)",
-                }}
-                onClick={verified ? () => setSelectedId(verified.id) : undefined}
-              >
-                <div className="flex items-center gap-4 p-4">
-                  <div
-                    className="w-11 h-11 rounded-lg flex items-center justify-center text-2xl flex-shrink-0 border"
-                    style={{
-                      background: "var(--iverifi-muted-surface)",
-                      borderColor: "var(--iverifi-card-border)",
-                    }}
-                  >
-                    {icon}
-                  </div>
+          {/* Document list */}
+          <div className="flex flex-col gap-2.5">
+            {DOC_TYPES.map(({ type, label, icon, productCode, issuer, recommended }) => {
+              const verified = verifiedMap[type];
+              const isSelected = selectedId === verified?.id;
+              const isVerifying = verifyingType === type;
 
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-foreground text-sm">{label}</p>
-                    <p className="text-xs text-muted-foreground">{issuer}</p>
-                    {verified && (
-                      <span
-                        className="inline-flex items-center gap-1 mt-1 text-xs font-semibold rounded-full px-2 py-0.5"
-                        style={{
-                          background: "var(--iverifi-accent-soft)",
-                          color: "var(--iverifi-accent)",
-                        }}
-                      >
-                        ✓ Verified
-                      </span>
-                    )}
-                  </div>
+              return (
+                <div
+                  key={type}
+                  className={`rounded-2xl border transition-all ${
+                    verified ? "cursor-pointer" : ""
+                  } ${
+                    isSelected
+                      ? "border-[var(--iverifi-accent)] bg-[var(--iverifi-accent-soft)]/60 shadow-sm"
+                      : recommended && !verified
+                      ? "border-emerald-500/40 bg-muted/30 hover:border-emerald-500/60"
+                      : "border-border/70 bg-muted/20 hover:border-border"
+                  }`}
+                  onClick={verified ? () => setSelectedId(verified.id) : undefined}
+                >
+                  <div className="flex items-center gap-3 p-3">
+                    <div
+                      className="w-10 h-10 rounded-xl flex items-center justify-center text-xl shrink-0 border border-border/60 bg-muted/60"
+                    >
+                      {icon}
+                    </div>
 
-                  <div className="flex-shrink-0">
-                    {verified ? (
-                      <div
-                        className="w-5 h-5 rounded-full border-2 flex items-center justify-center"
-                        style={{ borderColor: isSelected ? "var(--iverifi-accent)" : "#6b7280" }}
-                      >
-                        {isSelected && (
-                          <div
-                            className="w-2.5 h-2.5 rounded-full"
-                            style={{ background: "var(--iverifi-accent)" }}
-                          />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <p className="font-semibold text-foreground text-xs sm:text-sm">{label}</p>
+                        {recommended && !verified && (
+                          <span className="inline-flex items-center gap-0.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25">
+                            <Sparkles className="w-2.5 h-2.5" /> Fastest
+                          </span>
+                        )}
+                        {verified && (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+                            ✓ Verified
+                          </span>
                         )}
                       </div>
-                    ) : (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        disabled={isVerifying || !!verifyingType}
-                        onClick={(e) => { e.stopPropagation(); handleVerify(type, productCode); }}
-                        className="h-8 text-xs border-[var(--iverifi-card-border)] text-[var(--iverifi-accent)] hover:bg-[var(--iverifi-accent-soft)]"
-                      >
-                        {isVerifying ? (
-                          <span className="w-3 h-3 border border-current border-t-transparent rounded-full animate-spin inline-block" />
-                        ) : (
-                          "Verify"
-                        )}
-                      </Button>
-                    )}
+                      <p className="text-[11px] text-muted-foreground truncate">{issuer}</p>
+                    </div>
+
+                    <div className="shrink-0">
+                      {verified ? (
+                        <div
+                          className="w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors"
+                          style={{ borderColor: isSelected ? "var(--iverifi-accent)" : "#94a3b8" }}
+                        >
+                          {isSelected && (
+                            <div
+                              className="w-2.5 h-2.5 rounded-full"
+                              style={{ background: "var(--iverifi-accent)" }}
+                            />
+                          )}
+                        </div>
+                      ) : (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={isVerifying || !!verifyingType}
+                          onClick={(e) => { e.stopPropagation(); handleVerify(type, productCode); }}
+                          className={`h-8 px-3 text-xs rounded-xl font-medium border-border/80 transition-all ${
+                            recommended
+                              ? "bg-gradient-to-r from-[#00e0ff]/10 to-[#7B5CF5]/10 border-cyan-500/40 text-[var(--iverifi-accent)] hover:from-[#00e0ff]/20 hover:to-[#7B5CF5]/20 font-bold"
+                              : "text-[var(--iverifi-accent)] hover:bg-[var(--iverifi-accent-soft)]"
+                          }`}
+                        >
+                          {isVerifying ? (
+                            <span className="w-3 h-3 border border-current border-t-transparent rounded-full animate-spin inline-block" />
+                          ) : (
+                            "Verify"
+                          )}
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
 
-        <Button
-          disabled={!selectedId}
-          onClick={handleContinue}
-          className="w-full h-12 bg-gradient-to-r from-[#00e0ff] to-[#7B5CF5] text-slate-950 font-semibold dark:shadow-[0_0_24px_rgba(0,224,255,0.3)] hover:from-[#40e8ff] hover:to-[#9274ff] disabled:opacity-40"
-        >
-          Continue →
-        </Button>
+          <div className="flex items-center justify-center gap-1.5 text-[11px] text-muted-foreground pt-1">
+            <ShieldCheck className="w-3.5 h-3.5 text-[var(--iverifi-accent)] shrink-0" />
+            <span>DPDP Act 2023 Compliant • Encrypted data transfer</span>
+          </div>
+
+          <Button
+            disabled={!selectedId}
+            onClick={handleContinue}
+            className="w-full h-12 rounded-2xl bg-gradient-to-r from-[#00e0ff] to-[#7B5CF5] text-slate-950 font-bold dark:shadow-[0_0_24px_rgba(0,224,255,0.3)] hover:from-[#40e8ff] hover:to-[#9274ff] disabled:opacity-40 transition-all cursor-pointer"
+          >
+            Continue →
+          </Button>
+        </div>
 
         <Button
           variant="ghost"

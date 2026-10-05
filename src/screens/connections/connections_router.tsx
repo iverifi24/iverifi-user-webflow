@@ -6,6 +6,7 @@ import { format } from "date-fns";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useEffect } from "react";
 import { determineConnectionType, isValidQRCode } from "@/utils/qr-code-utils";
+import { getBusinessTypeMeta } from "@/utils/businessCategoryUtils";
 import AddConnectionModal from "./add_connection";
 
 // const formatDocType = (type: string): string => {
@@ -97,6 +98,8 @@ const ConnectionsRouter = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
           {connections.map((conn: any, idx: number) => {
             const sharedDate = formatSharedDate(conn.created_at_timestamp);
+            const isCompany = conn.type === "Company";
+            const bMeta = getBusinessTypeMeta(conn.recipients?.businessType, isCompany, "h-4 w-4");
 
             return (
               <Card
@@ -109,13 +112,23 @@ const ConnectionsRouter = () => {
                 }}
               >
                 <CardHeader>
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Recipient</p>
-                  <CardTitle className="text-lg mt-0.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-1.5">
+                      <span className={bMeta.iconClassName}>{bMeta.icon}</span>
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                        {bMeta.shortLabel}
+                      </p>
+                    </div>
+                    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${bMeta.badgeClassName}`}>
+                      {bMeta.categoryLabel}
+                    </span>
+                  </div>
+                  <CardTitle className="text-base font-bold mt-1 truncate">
                     {conn.recipients?.name ||
                       conn.recipients?.firstName ||
                       conn.recipients?.hotel_name ||
                       conn.recipients?.businessName ||
-                      "Your Stay"}
+                      "Recipient"}
                   </CardTitle>
                 </CardHeader>
 

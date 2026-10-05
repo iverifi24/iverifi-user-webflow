@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { useState } from "react";
 import { toast } from "sonner";
+import { getBusinessTypeMeta } from "@/utils/businessCategoryUtils";
 import {
   useGetRecipientCredentialsQuery,
   useUpdateCredentialsRequestMutation,
@@ -77,6 +78,8 @@ const ConnectionDetails = () => {
 
   const connection = connectionData?.data?.requests?.[0];
   const externalIntegration = connection?.recipients?.externalIntegration === true;
+  const isCompany = connection?.type === "Company";
+  const bMeta = getBusinessTypeMeta(connection?.recipients?.businessType, isCompany);
   const verifiedDocs = credsData?.data?.credential || [];
 
   // IDs of credentials already shared with this connection and still active (not expired)
@@ -203,17 +206,27 @@ const ConnectionDetails = () => {
       <div className={shell}>
         {/* Header + Share Documents */}
         <div className="flex justify-between items-center gap-3">
-          <div className="min-w-0">
-            <p className="text-[11px] font-semibold uppercase tracking-widest text-[var(--iverifi-text-muted)]">
-              Recipient
-            </p>
-            <h2 className="text-xl font-bold text-[var(--iverifi-text-primary)] truncate">
-              {connection?.recipients?.name ||
-                connection?.recipients?.firstName ||
-                connection?.recipients?.hotel_name ||
-                connection?.recipients?.businessName ||
-                "Connection Details"}
-            </h2>
+          <div className="flex items-center gap-3 min-w-0">
+            <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[color:var(--iverifi-icon-border)] bg-[var(--iverifi-muted-surface)] ${bMeta.iconClassName}`}>
+              {bMeta.icon}
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className={`inline-flex items-center text-[10px] font-semibold px-2 py-0.5 rounded-full border ${bMeta.badgeClassName}`}>
+                  {bMeta.categoryLabel}
+                </span>
+                <span className="text-[11px] text-[var(--iverifi-text-muted)] font-medium">
+                  {bMeta.shortLabel}
+                </span>
+              </div>
+              <h2 className="text-xl font-bold text-[var(--iverifi-text-primary)] truncate mt-0.5">
+                {connection?.recipients?.name ||
+                  connection?.recipients?.firstName ||
+                  connection?.recipients?.hotel_name ||
+                  connection?.recipients?.businessName ||
+                  "Connection Details"}
+              </h2>
+            </div>
           </div>
           {connection?.id && (
             <Dialog open={addDocsDialogOpen} onOpenChange={setAddDocsDialogOpen}>
