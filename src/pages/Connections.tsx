@@ -1650,68 +1650,83 @@ const Connections = () => {
         )}
 
         <div className="space-y-6 pt-2">
-          {/* Top stats (iVerifi app style) */}
+          {/* Top interactive stats */}
           <div className="grid grid-cols-3 gap-3">
-            <div className="rounded-2xl border border-[color:var(--iverifi-stat-border)] bg-[var(--iverifi-stat-bg)] p-4">
-              <div className="text-center">
-                <div className="text-xl font-semibold text-teal-600 dark:text-[#00e0ff]">
-                  {
-                    HOME_DOCUMENT_TYPES.filter(
-                      (t) => !!verifiedCredentialsMap[t],
-                    ).length
-                  }
-                </div>
-                <div className="mt-1 text-center text-[11px] font-semibold tracking-widest uppercase text-[var(--iverifi-text-muted)]">
-                  Verified
-                </div>
+            <button
+              type="button"
+              onClick={() => {
+                const el = document.getElementById("wallet-documents-section");
+                el?.scrollIntoView({ behavior: "smooth" });
+              }}
+              className="group flex flex-col items-center justify-center rounded-2xl border border-border/70 bg-card/70 p-3.5 sm:p-4 text-center shadow-xs transition-all duration-200 hover:border-teal-500/40 hover:bg-card hover:shadow-md active:scale-95 cursor-pointer backdrop-blur-xs"
+            >
+              <div className="text-xl sm:text-2xl font-black text-teal-600 dark:text-cyan-400 transition-transform group-hover:scale-105">
+                {
+                  HOME_DOCUMENT_TYPES.filter(
+                    (t) => !!verifiedCredentialsMap[t],
+                  ).length
+                }
+                <span className="text-xs font-normal text-muted-foreground ml-0.5">/{HOME_DOCUMENT_TYPES.length}</span>
               </div>
-            </div>
-            <div className="rounded-2xl border border-[color:var(--iverifi-stat-border)] bg-[var(--iverifi-stat-bg)] p-4">
-              <div className="text-center">
-                <div className="text-xl font-semibold text-teal-600 dark:text-[#00e0ff]">
-                  {connectionsData?.data?.requests?.length ?? 0}
-                </div>
-                <div className="mt-1 text-center text-[11px] font-semibold tracking-widest uppercase text-[var(--iverifi-text-muted)]">
-                  Stays
-                </div>
+              <div className="mt-1 text-[10px] sm:text-[11px] font-bold tracking-wider uppercase text-muted-foreground group-hover:text-foreground">
+                Verified IDs
               </div>
-            </div>
-            <div className="rounded-2xl border border-[color:var(--iverifi-stat-border)] bg-[var(--iverifi-stat-bg)] p-4">
-              <div className="text-center">
-                <div className="text-xl font-semibold text-teal-600 dark:text-[#00e0ff]">
-                  {
-                    (connectionsData?.data?.requests ?? []).filter(
-                      (r: any) => r?.check_in_status === "pending",
-                    ).length
-                  }
-                </div>
-                <div className="mt-1 text-center text-[11px] font-semibold tracking-widest uppercase text-[var(--iverifi-text-muted)]">
-                  Pending
-                </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => navigate("/connections")}
+              className="group flex flex-col items-center justify-center rounded-2xl border border-border/70 bg-card/70 p-3.5 sm:p-4 text-center shadow-xs transition-all duration-200 hover:border-teal-500/40 hover:bg-card hover:shadow-md active:scale-95 cursor-pointer backdrop-blur-xs"
+            >
+              <div className="text-xl sm:text-2xl font-black text-teal-600 dark:text-cyan-400 transition-transform group-hover:scale-105">
+                {connectionsData?.data?.requests?.length ?? 0}
               </div>
-            </div>
+              <div className="mt-1 text-[10px] sm:text-[11px] font-bold tracking-wider uppercase text-muted-foreground group-hover:text-foreground">
+                Connections
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => navigate("/connections")}
+              className="group flex flex-col items-center justify-center rounded-2xl border border-border/70 bg-card/70 p-3.5 sm:p-4 text-center shadow-xs transition-all duration-200 hover:border-amber-500/40 hover:bg-card hover:shadow-md active:scale-95 cursor-pointer backdrop-blur-xs"
+            >
+              <div className="text-xl sm:text-2xl font-black text-amber-500 dark:text-amber-400 transition-transform group-hover:scale-105">
+                {
+                  (connectionsData?.data?.requests ?? []).filter(
+                    (r: any) => r?.check_in_status === "pending",
+                  ).length
+                }
+              </div>
+              <div className="mt-1 text-[10px] sm:text-[11px] font-bold tracking-wider uppercase text-muted-foreground group-hover:text-foreground">
+                Pending
+              </div>
+            </button>
           </div>
 
           {/* Documents */}
-          <div className="space-y-3">
+          <div id="wallet-documents-section" className="space-y-3 scroll-mt-20">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <div className="text-[11px] font-semibold tracking-widest uppercase text-[var(--iverifi-text-muted)]">
-                  DOCUMENTS
+                <div className="text-[11px] font-bold tracking-widest uppercase text-muted-foreground">
+                  DIGITAL CREDENTIALS
                 </div>
+                <p className="text-xs text-muted-foreground/80 mt-0.5">
+                  Govt-verified digital identities secured under DPDP Act 2023
+                </p>
               </div>
               <Button
                 type="button"
                 variant="outline"
-                className="h-9 rounded-xl border border-[color:var(--iverifi-border-subtle)] bg-[var(--iverifi-muted-surface)] px-3 text-[var(--iverifi-text-secondary)] hover:bg-[var(--iverifi-card-hover)]"
+                className="h-8.5 rounded-xl border border-border bg-card/80 px-3 text-xs font-semibold text-foreground hover:bg-accent hover:border-teal-500/40 transition-all shadow-2xs"
                 onClick={() => navigate("/add-documents")}
               >
-                <Plus className="h-4 w-4 mr-1" />
-                Add
+                <Plus className="h-3.5 w-3.5 mr-1 text-teal-600 dark:text-cyan-400" />
+                Add Document
               </Button>
             </div>
 
-            <div className="space-y-2">
+            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
               {HOME_DOCUMENT_TYPES.map((docType) => {
                 const isVerified = !!verifiedCredentialsMap[docType];
                 const subtitle = getDocSubtitle(docType);
@@ -1719,10 +1734,15 @@ const Connections = () => {
                   .replace(/_/g, " ")
                   .toLowerCase()
                   .replace(/\b\w/g, (c) => c.toUpperCase());
+                
                 return (
                   <div
                     key={docType}
-                    className="flex cursor-pointer items-center justify-between gap-3 rounded-2xl border border-[color:var(--iverifi-card-border)] bg-[var(--iverifi-card)] px-4 py-3"
+                    className={`group relative flex flex-col justify-between rounded-2xl border p-4 transition-all duration-200 cursor-pointer shadow-xs ${
+                      isVerified
+                        ? "border-border/80 bg-gradient-to-br from-card to-card/60 hover:border-teal-500/40 hover:shadow-md"
+                        : "border-border/60 bg-muted/20 hover:border-border hover:bg-muted/40"
+                    }`}
                     role="button"
                     onClick={() =>
                       isVerified
@@ -1730,43 +1750,62 @@ const Connections = () => {
                         : handleVerifyDocument(docType)
                     }
                   >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[color:var(--iverifi-icon-border)] bg-[var(--iverifi-muted-surface)]">
-                        <DocumentTypeIcon
-                          documentType={docType}
-                          className="text-[var(--iverifi-text-secondary)]"
-                        />
-                      </div>
-                      <div className="min-w-0">
-                        <div className="truncate text-sm font-semibold text-[var(--iverifi-text-primary)]">
-                          {title}
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-border/80 bg-card shadow-2xs group-hover:scale-105 transition-transform">
+                          <DocumentTypeIcon
+                            documentType={docType}
+                            className="text-foreground"
+                          />
                         </div>
-                        <div className="truncate text-xs text-[var(--iverifi-text-muted)]">
-                          {subtitle}
+                        <div className="min-w-0">
+                          <div className="truncate text-sm font-bold text-foreground">
+                            {title}
+                          </div>
+                          <div className="truncate text-[11px] text-muted-foreground font-medium">
+                            {subtitle}
+                          </div>
                         </div>
                       </div>
+
+                      {isVerified ? (
+                        <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-400">
+                          <CheckCircle className="h-3 w-3" />
+                          Verified
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 rounded-full border border-border bg-background px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                          Not Added
+                        </span>
+                      )}
                     </div>
 
-                    <div className="flex items-center gap-2 shrink-0">
+                    <div className="mt-3 flex items-center justify-between pt-2 border-t border-border/40 text-xs">
                       {isVerified ? (
                         <>
-                          <CheckCircle className="h-4 w-4 text-emerald-600 dark:text-[#00c896]" />
-                          <ChevronRight className="h-4 w-4 text-[var(--iverifi-text-muted)]" />
+                          <span className="text-[11px] text-muted-foreground font-mono">
+                            •••• Ready to share
+                          </span>
+                          <span className="inline-flex items-center text-[11px] font-semibold text-teal-600 dark:text-cyan-400 group-hover:translate-x-0.5 transition-transform">
+                            View Card <ChevronRight className="h-3.5 w-3.5 ml-0.5" />
+                          </span>
                         </>
                       ) : (
                         <>
+                          <span className="text-[11px] text-muted-foreground">
+                            Requires 1-time KYC
+                          </span>
                           <Button
                             type="button"
-                            variant="outline"
-                            className="h-9 rounded-xl border border-amber-400 bg-transparent text-amber-600 hover:bg-amber-50 dark:border-[#f5a623] dark:text-[#f5a623] dark:hover:bg-[rgba(245,166,35,0.12)]"
+                            size="sm"
+                            className="h-7 rounded-lg bg-teal-600 hover:bg-teal-700 dark:bg-teal-500 dark:hover:bg-teal-600 text-white text-[11px] font-semibold px-2.5 shadow-2xs"
                             onClick={(e) => {
                               e.stopPropagation();
                               handleVerifyDocument(docType);
                             }}
                           >
-                            Verify
+                            Verify Now
                           </Button>
-                          <ChevronRight className="h-4 w-4 text-[var(--iverifi-text-muted)]" />
                         </>
                       )}
                     </div>

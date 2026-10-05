@@ -47,14 +47,14 @@ export default function ConnectionRequestsPage() {
   return (
     <div className="min-h-0 flex-1 w-full max-w-2xl mx-auto space-y-6 text-[var(--iverifi-text-primary)]">
       <div>
-        <div className="text-[11px] font-semibold tracking-widest uppercase text-[var(--iverifi-text-muted)]">
-          Connections
+        <div className="inline-flex items-center gap-1.5 rounded-full border border-teal-500/20 bg-teal-500/10 px-2.5 py-0.5 text-[10px] font-bold text-teal-700 dark:text-cyan-300 uppercase tracking-wider">
+          Verified Organizations & Businesses
         </div>
-        <h2 className="mt-1 text-lg font-bold text-[var(--iverifi-text-primary)]">
-          Your connection requests
-        </h2>
-        <p className="text-sm text-[var(--iverifi-text-muted)] mt-1 leading-relaxed">
-          Properties you have connected with. Tap a row to view details.
+        <h1 className="mt-1.5 text-xl font-black text-foreground">
+          Connections
+        </h1>
+        <p className="text-xs text-muted-foreground mt-0.5">
+          Organizations, hotels, hospitals, and offices you have connected with. Tap any connection to review shared credentials or access permissions.
         </p>
       </div>
 
