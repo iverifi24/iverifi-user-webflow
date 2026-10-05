@@ -76,7 +76,7 @@ export default function TermsAcceptance() {
   const connectionName =
     recipientData?.data?.requests?.[0]?.recipients?.name ||
     recipientData?.data?.requests?.[0]?.recipients?.firstName ||
-    "Hotel";
+    "Organization";
 
   const handleAccept = async () => {
     if (!acceptedTerms) return;

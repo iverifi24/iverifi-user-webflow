@@ -67,7 +67,7 @@ export default function GuestPhoneAuth({ onAuthSuccess, onBack, hotelName, hotel
               <span style={{ color: "var(--iverifi-accent)" }}>number</span>
             </CardTitle>
             <CardDescription className="text-sm text-muted-foreground">
-              We'll send a one-time code to confirm it's you.
+              We'll send a 6-digit verification code to confirm your visit to {hotelName}.
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">

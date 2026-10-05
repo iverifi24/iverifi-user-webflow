@@ -546,9 +546,9 @@ function GuestChecking({ hotelCode, hotelName, startedAt: _startedAt, onResult, 
       </div>
       <div className="text-center">
         <p className="text-foreground font-bold text-lg mb-1">
-          Connecting to {hotelName}
+          Connecting to {hotelName || "Organization"}
         </p>
-        <p className="text-muted-foreground text-sm">Setting up your check-in…</p>
+        <p className="text-muted-foreground text-sm">Setting up your verification & check-in…</p>
       </div>
     </div>
   );

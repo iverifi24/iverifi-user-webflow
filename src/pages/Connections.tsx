@@ -25,6 +25,7 @@ import { addDays, format } from "date-fns";
 import {
   CheckCircle,
   ChevronRight,
+  Globe2,
   Loader2,
   Lock,
   Plus,
@@ -1814,7 +1815,7 @@ const Connections = () => {
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[color:var(--iverifi-icon-border)] bg-[var(--iverifi-muted-surface)]">
-                        <span className="text-lg">🛂</span>
+                        <Globe2 className="h-5 w-5 text-[var(--iverifi-accent)]" />
                       </div>
                       <div className="min-w-0">
                         <div className="truncate text-sm font-semibold text-[var(--iverifi-text-primary)]">
@@ -1823,7 +1824,7 @@ const Connections = () => {
                         <div className="truncate text-xs text-[var(--iverifi-text-muted)]">
                           {qrActive
                             ? "Upload passport, visa & selfie"
-                            : "Scan hotel QR to upload & submit"}
+                            : "Scan business QR to upload & submit"}
                         </div>
                       </div>
                     </div>
@@ -2969,8 +2970,8 @@ const Connections = () => {
                     // { label: "C-Form (Foreign Guest)", subtitle: "Scan hotel QR to fill & submit C-Form", icon: <DocumentTypeIcon documentType="C-Form (Foreign Guest)" className="text-[var(--iverifi-text-primary)] h-5 w-5" /> },
                     {
                       label: "Foreign Passport",
-                      subtitle: "Scan hotel QR to upload & submit",
-                      icon: <span style={{ fontSize: 18 }}>🛂</span>,
+                      subtitle: "Scan business QR to upload & submit",
+                      icon: <Globe2 className="h-4 w-4 text-[var(--iverifi-accent)]" />,
                     },
                   ].map((opt) => (
                     <div
@@ -3523,8 +3524,8 @@ const Connections = () => {
                       label: "Foreign Passport",
                       subtitle: qrActive
                         ? "Upload passport, visa & selfie on check-in"
-                        : "Scan a hotel QR to use this option",
-                      icon: <span style={{ fontSize: 18 }}>🛂</span>,
+                        : "Scan a business QR to use this option",
+                      icon: <Globe2 className="h-4 w-4 text-[var(--iverifi-accent)]" />,
                     },
                   ];
                   return foreignOptions.map((opt, idx) => {

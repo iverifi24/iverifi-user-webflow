@@ -17,16 +17,18 @@ import type { FlowCredential } from "./guest-checkin-flow";
 import { toast } from "sonner";
 import { useSearchParams, useNavigate, useLocation } from "react-router-dom";
 
+import { Globe2, CreditCard, Car, FileBadge, Plane } from "lucide-react";
+
 const IVERIFI_ORIGIN = import.meta.env.VITE_KWIK_ORIGIN || "https://iverifi.app.getkwikid.com";
 const KWIK_CLIENT_ID = import.meta.env.VITE_KWIK_CLIENT_ID || "iverifi";
 const POLL_INTERVAL_MS = 2000;
 const POLL_TIMEOUT_MS = 20000;
 
 const DOC_TYPES = [
-  { type: "AADHAAR_CARD",     label: "Aadhaar Card",    icon: "🪪", productCode: "KYC", issuer: "UIDAI / Govt of India" },
-  { type: "DRIVING_LICENSE",  label: "Driving Licence", icon: "🚗", productCode: "DL",  issuer: "Ministry of Road Transport" },
-  { type: "PAN_CARD",         label: "PAN Card",        icon: "💳", productCode: "PC",  issuer: "Income Tax Department" },
-  { type: "PASSPORT",         label: "Passport",        icon: "✈️", productCode: "PP",  issuer: "Ministry of External Affairs" },
+  { type: "AADHAAR_CARD",     label: "Aadhaar Card",    icon: <CreditCard className="w-5 h-5 text-[var(--iverifi-accent)]" />, productCode: "KYC", issuer: "UIDAI / Govt of India" },
+  { type: "DRIVING_LICENSE",  label: "Driving Licence", icon: <Car className="w-5 h-5 text-[var(--iverifi-accent)]" />, productCode: "DL",  issuer: "Ministry of Road Transport" },
+  { type: "PAN_CARD",         label: "PAN Card",        icon: <FileBadge className="w-5 h-5 text-[var(--iverifi-accent)]" />, productCode: "PC",  issuer: "Income Tax Department" },
+  { type: "PASSPORT",         label: "Passport",        icon: <Plane className="w-5 h-5 text-[var(--iverifi-accent)]" />, productCode: "PP",  issuer: "Ministry of External Affairs" },
 ];
 
 interface Props {
@@ -565,7 +567,7 @@ export default function GuestDocSelect({
         <div className="text-center">
           <h1 className="text-2xl font-bold text-foreground mb-1">Choose your ID</h1>
           <p className="text-sm text-muted-foreground">
-            Share one with <strong className="text-foreground">{hotelName}</strong>
+            Select a government-issued ID to share with <strong className="text-foreground">{hotelName}</strong>
           </p>
         </div>
 
@@ -573,15 +575,25 @@ export default function GuestDocSelect({
           type="button"
           onClick={() => setForeignPassportOpen(true)}
           disabled={foreignSubmitting}
-          className="w-full text-left rounded-xl border px-4 py-3 flex items-center gap-3 transition-colors hover:bg-[var(--iverifi-accent-soft)] disabled:opacity-50"
-          style={{ borderColor: "var(--iverifi-accent-border)", background: "var(--iverifi-accent-soft)" }}
+          className="w-full text-left rounded-xl border border-[var(--iverifi-accent-border)] bg-[var(--iverifi-accent-soft)] p-3.5 flex items-center gap-3.5 transition-all hover:opacity-95 shadow-xs disabled:opacity-50 group"
         >
-          <span className="text-2xl flex-shrink-0">🌍</span>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-foreground">I'm a foreign national</p>
-            <p className="text-xs text-muted-foreground mt-0.5">Check in with your foreign passport instead</p>
+          <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-cyan-500/15 border border-cyan-500/30 text-[var(--iverifi-accent)] shrink-0">
+            <Globe2 className="w-5 h-5" />
           </div>
-          <span className="text-xs font-semibold flex-shrink-0" style={{ color: "var(--iverifi-accent)" }}>Tap →</span>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <p className="text-sm font-semibold text-foreground">Foreign National Registration</p>
+              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-cyan-500/20 text-[var(--iverifi-accent)] border border-cyan-500/30">
+                FRRO / C-Form
+              </span>
+            </div>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Visiting from abroad? Verify with your foreign passport &amp; visa
+            </p>
+          </div>
+          <span className="text-xs font-semibold shrink-0 text-[var(--iverifi-accent)] group-hover:translate-x-0.5 transition-transform">
+            Verify →
+          </span>
         </button>
 
         <div className="flex flex-col gap-3">

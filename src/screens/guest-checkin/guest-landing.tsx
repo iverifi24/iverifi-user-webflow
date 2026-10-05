@@ -4,6 +4,7 @@ import { IverifiLogo } from "@/components/iverifi-logo";
 import { HotelBadge } from "@/components/hotel-badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { ShieldCheck, Landmark, CheckCircle2 } from "lucide-react";
 import type { HotelInfo } from "./guest-checkin-flow";
 
 interface Props {
@@ -20,7 +21,7 @@ export default function GuestLanding({ hotelCode, onHotelInfo, onStart }: Props)
     if (data?.data && !data.hasError) onHotelInfo(data.data);
   }, [data]);
 
-  const hotelName = data?.data?.name ?? (isLoading ? "Loading…" : "Hotel Check-In");
+  const hotelName = data?.data?.name ?? (isLoading ? "Loading…" : "Verification Portal");
   const logoUrl = data?.data?.logo_url ?? null;
 
   return (
@@ -36,21 +37,21 @@ export default function GuestLanding({ hotelCode, onHotelInfo, onStart }: Props)
             Verify your identity
           </h1>
           <p className="text-muted-foreground text-sm leading-relaxed">
-            Check in to <strong className="text-foreground">{hotelName}</strong> in under 30 seconds.
-            No photocopies, no forms.
+            Complete instant verification for <strong className="text-foreground">{hotelName}</strong> in under 30 seconds.
+            Fast, secure, and paperless.
           </p>
         </div>
 
         {/* Trust pills */}
         <div className="flex flex-wrap justify-center gap-2">
           {[
-            { icon: "🔒", label: "DPDP Compliant" },
-            { icon: "🏛️", label: "Govt Verified" },
-            { icon: "✅", label: "No Data Stored" },
+            { icon: <ShieldCheck className="h-3.5 w-3.5 text-[var(--iverifi-accent)] shrink-0" />, label: "DPDP Compliant" },
+            { icon: <Landmark className="h-3.5 w-3.5 text-[var(--iverifi-accent)] shrink-0" />, label: "Govt Verified" },
+            { icon: <CheckCircle2 className="h-3.5 w-3.5 text-[var(--iverifi-accent)] shrink-0" />, label: "No Data Stored" },
           ].map(({ icon, label }) => (
             <span
               key={label}
-              className="inline-flex items-center gap-1.5 rounded-full border border-[var(--iverifi-accent-border)] bg-[var(--iverifi-accent-soft)] px-3 py-1 text-xs font-medium text-[var(--iverifi-accent)]"
+              className="inline-flex items-center gap-1.5 rounded-full border border-[var(--iverifi-accent-border)] bg-[var(--iverifi-accent-soft)] px-3 py-1 text-xs font-medium text-[var(--iverifi-accent)] shadow-xs"
             >
               {icon} {label}
             </span>
@@ -104,9 +105,9 @@ export default function GuestLanding({ hotelCode, onHotelInfo, onStart }: Props)
         <Button
           onClick={onStart}
           disabled={isLoading || !agreed}
-          className="w-full bg-gradient-to-r from-[#00e0ff] to-[#7B5CF5] text-slate-950 font-semibold dark:shadow-[0_0_24px_rgba(0,224,255,0.3)] hover:from-[#40e8ff] hover:to-[#9274ff] h-12 text-base disabled:opacity-40"
+          className="w-full bg-gradient-to-r from-[#00e0ff] to-[#7B5CF5] text-slate-950 font-semibold dark:shadow-[0_0_24px_rgba(0,224,255,0.3)] hover:from-[#40e8ff] hover:to-[#9274ff] h-12 text-base disabled:opacity-40 transition-all"
         >
-          Start Check-In →
+          Start Verification →
         </Button>
 
         <p className="text-xs text-muted-foreground">Takes about 30 seconds</p>

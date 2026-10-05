@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { IverifiLogo } from "@/components/iverifi-logo";
 import { HotelBadge } from "@/components/hotel-badge";
 import { FeedbackModal } from "@/components/feedback-modal";
+import { CheckCircle2, ShieldCheck, Check, Clock } from "lucide-react";
 import type { FlowCredential } from "./guest-checkin-flow";
 
 const DOC_LABELS: Record<string, string> = {
@@ -55,43 +56,41 @@ export default function GuestConfirmation({ hotelName, hotelLogoUrl, credential,
         <HotelBadge name={hotelName} logoUrl={hotelLogoUrl} />
 
         {/* Success icon */}
-        <div
-          className="w-20 h-20 rounded-full flex items-center justify-center text-4xl"
-          style={{
-            background: "var(--iverifi-accent-soft)",
-            border: "2px solid var(--iverifi-accent-border)",
-          }}
-        >
-          ✅
+        <div className="w-20 h-20 rounded-full flex items-center justify-center bg-[var(--iverifi-accent-soft)] border-2 border-[var(--iverifi-accent-border)] shadow-md">
+          <CheckCircle2 className="w-10 h-10 text-[var(--iverifi-accent)]" />
         </div>
 
         <div>
           <h1 className="text-2xl font-bold text-foreground mb-1">
-            {isApproved ? "You're verified!" : "Request sent!"}
+            {isApproved ? "You're verified!" : "Verification requested!"}
           </h1>
           <p className="text-sm text-muted-foreground leading-relaxed max-w-xs">
             {isApproved
-              ? "Your check-in is confirmed. Proceed to the front desk."
-              : "Your check-in request has been sent. Please wait at the front desk for confirmation."}
+              ? "Your verification is confirmed. You are all set to proceed."
+              : "Your verification request has been submitted and is awaiting confirmation."}
           </p>
         </div>
 
         {/* Receipt card */}
-        <Card className="w-full border-[color:var(--iverifi-card-border)] bg-[var(--iverifi-card)]">
+        <Card className="w-full border-[color:var(--iverifi-card-border)] bg-[var(--iverifi-card)] shadow-xs">
           <CardContent className="pt-5 flex flex-col divide-y divide-border">
-            <ReceiptRow label="Hotel" value={hotelName} />
+            <ReceiptRow label="Organization / Location" value={hotelName} />
             <ReceiptRow label="Document" value={docLabel} accent />
             <ReceiptRow
               label="Status"
-              value={isApproved ? "✓ Approved" : "⏳ Pending approval"}
+              value={isApproved ? "Approved" : "Pending review"}
               color={isApproved ? "green" : "yellow"}
+              icon={isApproved ? <Check className="w-3.5 h-3.5 mr-1" /> : <Clock className="w-3.5 h-3.5 mr-1" />}
             />
             <ReceiptRow label="Shared at" value={now} />
           </CardContent>
         </Card>
 
-        <p className="text-xs text-muted-foreground max-w-xs">
-          🔒 Hotel received only <strong className="text-foreground">verification status</strong>, not your document copy.
+        <p className="text-xs text-muted-foreground max-w-xs flex items-center justify-center gap-1.5 leading-relaxed">
+          <ShieldCheck className="w-3.5 h-3.5 text-[var(--iverifi-accent)] shrink-0" />
+          <span>
+            Organization received only <strong className="text-foreground">verification status</strong>, not your document copy.
+          </span>
         </p>
 
         <Button
@@ -102,7 +101,7 @@ export default function GuestConfirmation({ hotelName, hotelLogoUrl, credential,
         </Button>
         <button
           type="button"
-          className="text-sm text-muted-foreground underline-offset-2 hover:underline"
+          className="text-sm text-muted-foreground underline-offset-2 hover:underline transition-colors"
           onClick={() => setFeedbackOpen(true)}
         >
           Rate your experience
@@ -124,11 +123,13 @@ function ReceiptRow({
   value,
   accent,
   color,
+  icon,
 }: {
   label: string;
   value: string;
   accent?: boolean;
   color?: "green" | "yellow";
+  icon?: React.ReactNode;
 }) {
   const colorStyle = accent
     ? { color: "var(--iverifi-accent)" }
@@ -141,7 +142,10 @@ function ReceiptRow({
   return (
     <div className="flex justify-between items-center py-2.5 first:pt-0 last:pb-0">
       <span className="text-xs text-muted-foreground">{label}</span>
-      <span className="text-sm font-medium text-foreground" style={colorStyle}>{value}</span>
+      <span className="text-sm font-medium text-foreground flex items-center" style={colorStyle}>
+        {icon}
+        {value}
+      </span>
     </div>
   );
 }
