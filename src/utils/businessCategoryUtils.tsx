@@ -177,3 +177,149 @@ export function getBusinessTypeMeta(
       "border-cyan-500/30 bg-cyan-500/10 text-cyan-700 dark:text-cyan-300",
   };
 }
+
+export interface BusinessPurposeMeta {
+  purposeTitle: string;
+  purposeDescription: string;
+  complianceTag: string;
+  retentionNote: string;
+  actionLabel: string;
+}
+
+export function getBusinessPurposeMeta(
+  type?: string | null,
+  isCompany: boolean = true
+): BusinessPurposeMeta {
+  const norm = (type || "").toLowerCase().trim();
+
+  if (
+    norm.includes("hotel") ||
+    norm.includes("hospitality") ||
+    norm.includes("resort") ||
+    norm.includes("inn")
+  ) {
+    return {
+      purposeTitle: "Guest Check-in & Police Compliance",
+      purposeDescription:
+        "Required for hotel registration, key issuance, and regulatory compliance (Form-F / C-Form).",
+      complianceTag: "Tourism & Hotel Regulatory Compliance",
+      retentionNote: "Access automatically expires in 24 hours or upon check-out.",
+      actionLabel: "Express Check-In",
+    };
+  }
+
+  if (
+    norm.includes("health") ||
+    norm.includes("hospital") ||
+    norm.includes("clinic") ||
+    norm.includes("medical")
+  ) {
+    return {
+      purposeTitle: "Patient & Visitor Admission",
+      purposeDescription:
+        "Required for patient registration, hospital ward access, and visitor verification.",
+      complianceTag: "Healthcare & Patient Data Protection",
+      retentionNote: "Restricted medical access. Auto-revokes in 24 hours.",
+      actionLabel: "Verify & Check In",
+    };
+  }
+
+  if (
+    norm.includes("university") ||
+    norm.includes("college") ||
+    norm.includes("school") ||
+    norm.includes("academy") ||
+    norm.includes("education")
+  ) {
+    return {
+      purposeTitle: "Campus Visitor & Guardian Verification",
+      purposeDescription:
+        "Required for campus security, visitor gatepass issuance, and student safety protocols.",
+      complianceTag: "Campus Safety & Visitor Protocol",
+      retentionNote: "Access valid for single-day visit. Auto-revokes in 24 hours.",
+      actionLabel: "Verify & Enter",
+    };
+  }
+
+  if (
+    norm.includes("coliving") ||
+    norm.includes("pg") ||
+    norm.includes("hostel") ||
+    norm.includes("residential")
+  ) {
+    return {
+      purposeTitle: "Resident Check-in & Tenant Verification",
+      purposeDescription:
+        "Required for co-living move-in, facility access, and local tenant verification.",
+      complianceTag: "Tenancy & Residential Safety Compliance",
+      retentionNote: "Protected tenant record. Access managed under DPDP Act 2023.",
+      actionLabel: "Express Check-In",
+    };
+  }
+
+  if (
+    norm.includes("cowork") ||
+    norm.includes("workspace") ||
+    norm.includes("flex")
+  ) {
+    return {
+      purposeTitle: "Facility Access & Day-Pass Clearance",
+      purposeDescription:
+        "Required for workspace entry, visitor badge generation, and facility safety.",
+      complianceTag: "Commercial Facility Clearance",
+      retentionNote: "Access valid for working hours. Auto-revokes in 24 hours.",
+      actionLabel: "Verify & Enter",
+    };
+  }
+
+  if (
+    norm.includes("gov") ||
+    norm.includes("public") ||
+    norm.includes("ministry")
+  ) {
+    return {
+      purposeTitle: "Official Entry & Identity Verification",
+      purposeDescription:
+        "Required for entry clearance, official visitor registry, and public safety.",
+      complianceTag: "Official Government Premises Protocol",
+      retentionNote: "Single-entry visitor clearance. Automatically expires in 24 hours.",
+      actionLabel: "Verify & Clear Entry",
+    };
+  }
+
+  if (
+    norm.includes("retail") ||
+    norm.includes("store") ||
+    norm.includes("shop")
+  ) {
+    return {
+      purposeTitle: "Store & Event Access Verification",
+      purposeDescription:
+        "Required for entry verification, exclusive access, or authorized pickup.",
+      complianceTag: "Commerce & Venue Protocol",
+      retentionNote: "Single session verification under DPDP Act 2023.",
+      actionLabel: "Verify & Enter",
+    };
+  }
+
+  if (!isCompany) {
+    return {
+      purposeTitle: "Direct Identity Verification",
+      purposeDescription:
+        "Direct identity confirmation requested for personal trust and secure transaction.",
+      complianceTag: "Peer-to-Peer Consent Protocol",
+      retentionNote: "One-time verification. Revocable anytime from Activity log.",
+      actionLabel: "Share & Connect",
+    };
+  }
+
+  // Default corporate
+  return {
+    purposeTitle: "Corporate Visitor Registration & Building Access",
+    purposeDescription:
+      "Required for corporate visitor pass, security lobby check-in, and safety auditing.",
+    complianceTag: "Corporate Security & Visitor Management Protocol",
+    retentionNote: "Auto-expires at close of business / 24 hours. Cannot be re-shared.",
+    actionLabel: "Verify & Check In",
+  };
+}

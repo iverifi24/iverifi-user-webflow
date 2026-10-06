@@ -92,6 +92,11 @@ export function QRScannerModal({
               toast.error("Invalid QR code. Please scan a valid venue code.");
               return;
             }
+            try {
+              if (typeof navigator !== "undefined" && navigator.vibrate) {
+                navigator.vibrate([40, 60, 40]);
+              }
+            } catch {}
             scannerRef.current?.stop();
             scannerRef.current?.destroy();
             scannerRef.current = null;

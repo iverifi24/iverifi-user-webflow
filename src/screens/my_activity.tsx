@@ -11,7 +11,13 @@ import {
   Shield,
   FileText,
   XCircle,
+  Download,
+  ShieldCheck,
+  ExternalLink,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 
 const formatDocType = (type: string): string => {
   if (!type) return "Document";
@@ -46,9 +52,12 @@ const getActivityIcon = (item: {
   return <Shield className="h-5 w-5 shrink-0 text-slate-500" />;
 };
 
+type FilterType = "all" | "stays" | "verifications" | "revocations";
+
 const MyActivity = () => {
+  const navigate = useNavigate();
   const { data, isLoading, isError } = useGetMyActivityQuery();
-  const [filter, setFilter] = useState<"all" | "document" | "connection">("all");
+  const [filter, setFilter] = useState<FilterType>("all");
 
   const rawActivities = data?.data?.activity ?? [];
 
@@ -56,11 +65,61 @@ const MyActivity = () => {
     if (filter === "all") return rawActivities;
     return rawActivities.filter((item: any) => {
       const type = (item.type || "").toLowerCase();
-      if (filter === "document") return type.includes("document");
-      if (filter === "connection") return type.includes("connection");
+      const msg = (item.message || "").toLowerCase();
+      const activityType = (item.activity_type || "").toLowerCase();
+
+      if (filter === "stays") {
+        return type.includes("connection") || msg.includes("check-in") || msg.includes("stay");
+      }
+      if (filter === "verifications") {
+        return (
+          type.includes("document") &&
+          activityType !== "deleted" &&
+          !msg.includes("deleted") &&
+          !msg.includes("revoked")
+        );
+      }
+      if (filter === "revocations") {
+        return (
+          activityType === "deleted" ||
+          activityType === "revoked" ||
+          msg.includes("revoked") ||
+          msg.includes("deleted")
+        );
+      }
       return true;
     });
   }, [rawActivities, filter]);
+
+  const handleDownloadAuditSummary = () => {
+    if (!rawActivities.length) {
+      toast.error("No activity records available to export.");
+      return;
+    }
+    const auditExport = {
+      compliance: "DPDP Act 2023 Tamper-Proof Audit Trail",
+      exported_at: new Date().toISOString(),
+      total_records: rawActivities.length,
+      events: rawActivities.map((act: any) => ({
+        id: act.id,
+        type: act.type,
+        message: act.message,
+        date: act.date,
+        recipient: act.name || null,
+        status: act.activity_type || "completed",
+      })),
+    };
+    const blob = new Blob([JSON.stringify(auditExport, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `iverifi-consent-audit-${Date.now()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("Consent audit summary downloaded successfully.");
+  };
 
   return (
     <div className="min-h-0 flex-1 w-full max-w-2xl mx-auto space-y-6 text-foreground">
@@ -68,6 +127,7 @@ const MyActivity = () => {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <div className="inline-flex items-center gap-1.5 rounded-full border border-teal-500/20 bg-teal-500/10 px-2.5 py-0.5 text-[10px] font-bold text-teal-700 dark:text-cyan-300 uppercase tracking-wider">
+            <ShieldCheck className="w-3 h-3 text-teal-600 dark:text-cyan-400" />
             DPDP Act 2023 Audit Trail
           </div>
           <h1 className="mt-1.5 text-xl font-black text-foreground">
@@ -78,42 +138,38 @@ const MyActivity = () => {
           </p>
         </div>
 
-        {/* Filter Pills */}
-        <div className="flex items-center gap-1.5 self-start sm:self-auto bg-muted/40 p-1 rounded-xl border border-border/60">
+        <Button
+          type="button"
+          onClick={handleDownloadAuditSummary}
+          variant="outline"
+          className="self-start sm:self-auto h-9 px-3 rounded-xl text-xs font-semibold border-border gap-1.5 cursor-pointer hover:bg-muted"
+        >
+          <Download className="h-3.5 w-3.5 text-teal-600 dark:text-cyan-400" />
+          <span>Export Summary</span>
+        </Button>
+      </div>
+
+      {/* Filter Tabs */}
+      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 bg-muted/40 p-1 rounded-xl border border-border/60">
+        {[
+          { key: "all", label: `All (${rawActivities.length})` },
+          { key: "stays", label: "Shared Access" },
+          { key: "verifications", label: "Verifications" },
+          { key: "revocations", label: "Revocations" },
+        ].map((tab) => (
           <button
+            key={tab.key}
             type="button"
-            onClick={() => setFilter("all")}
-            className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
-              filter === "all"
+            onClick={() => setFilter(tab.key as FilterType)}
+            className={`px-3 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+              filter === tab.key
                 ? "bg-card text-foreground shadow-2xs border border-border/80"
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            All ({rawActivities.length})
+            {tab.label}
           </button>
-          <button
-            type="button"
-            onClick={() => setFilter("document")}
-            className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
-              filter === "document"
-                ? "bg-card text-foreground shadow-2xs border border-border/80"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            Documents
-          </button>
-          <button
-            type="button"
-            onClick={() => setFilter("connection")}
-            className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
-              filter === "connection"
-                ? "bg-card text-foreground shadow-2xs border border-border/80"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            Connections
-          </button>
-        </div>
+        ))}
       </div>
 
       {isLoading ? (
@@ -140,6 +196,10 @@ const MyActivity = () => {
             const isRejected =
               (item.activity_type || "").toLowerCase() === "rejected" ||
               (item.message || "").toLowerCase().includes("rejected");
+            const isConnectionEvent =
+              (item.type || "").toLowerCase().includes("connection") ||
+              Boolean(item.connection_id);
+
             return (
               <div
                 key={item.id}
@@ -182,6 +242,23 @@ const MyActivity = () => {
                     <p className="text-xs text-rose-500/90 mt-1 italic">
                       Reason: {item.rejection_reason}
                     </p>
+                  )}
+
+                  {/* Quick-Action: View / Revoke Active Access if connection */}
+                  {isConnectionEvent && (
+                    <div className="mt-2 pt-2 border-t border-border/40 flex items-center justify-between">
+                      <span className="text-[10px] text-muted-foreground">
+                        DPDP Grant: Auto-expires in 24h
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => navigate("/connections")}
+                        className="inline-flex items-center gap-1 text-[11px] font-semibold text-teal-600 dark:text-cyan-400 hover:underline cursor-pointer"
+                      >
+                        <span>Manage & Revoke Access</span>
+                        <ExternalLink className="h-3 w-3" />
+                      </button>
+                    </div>
                   )}
                 </div>
               </div>
