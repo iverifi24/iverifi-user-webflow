@@ -29,15 +29,32 @@ interface Props {
 
 // ─── PIN Dot Row ──────────────────────────────────────────────────────────────
 
-function PinDots({ length, filled }: { length: number; filled: number }) {
+function PinDots({
+  length,
+  filled,
+  shake,
+  isError,
+}: {
+  length: number;
+  filled: number;
+  shake?: boolean;
+  isError?: boolean;
+}) {
   return (
-    <div className="flex items-center justify-center gap-3 my-1">
+    <div
+      className={cn(
+        "flex items-center justify-center gap-3 my-1 transition-transform",
+        shake && "animate-shake"
+      )}
+    >
       {Array.from({ length }).map((_, i) => (
         <div
           key={i}
           className={cn(
             "h-3 w-3 rounded-full transition-all duration-200",
-            i < filled
+            isError
+              ? "bg-rose-500 scale-125 border border-rose-600 shadow-md shadow-rose-500/40 ring-2 ring-rose-500/30"
+              : i < filled
               ? "bg-teal-600 dark:bg-teal-400 scale-125 shadow-md shadow-teal-600/30 dark:shadow-teal-400/50 ring-2 ring-teal-600/20 dark:ring-teal-400/30"
               : "bg-slate-200 dark:bg-slate-700/80 border border-slate-300/70 dark:border-slate-600/50 scale-100"
           )}
@@ -97,6 +114,8 @@ export function PinLockScreen({ uid, mode, onUnlocked }: Props) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [attempts, setAttempts] = useState(0);
+  const [shake, setShake] = useState(false);
+  const [isError, setIsError] = useState(false);
 
   // Forgot PIN – phone OTP state
   const [forgotPhone, setForgotPhone] = useState("");
@@ -127,6 +146,11 @@ export function PinLockScreen({ uid, mode, onUnlocked }: Props) {
 
   const addDigit = (d: string) => {
     if (pin.length >= PIN_LENGTH || isLoading) return;
+    try {
+      if (typeof navigator !== "undefined" && navigator.vibrate) {
+        navigator.vibrate(10);
+      }
+    } catch {}
     const next = pin + d;
     setPin(next);
     setError("");
@@ -136,6 +160,11 @@ export function PinLockScreen({ uid, mode, onUnlocked }: Props) {
   };
 
   const removeDigit = () => {
+    try {
+      if (typeof navigator !== "undefined" && navigator.vibrate) {
+        navigator.vibrate(10);
+      }
+    } catch {}
     setPin((p) => p.slice(0, -1));
     setError("");
   };
@@ -160,6 +189,11 @@ export function PinLockScreen({ uid, mode, onUnlocked }: Props) {
     try {
       const ok = await verifyPin(pinHash, value);
       if (ok) {
+        try {
+          if (typeof navigator !== "undefined" && navigator.vibrate) {
+            navigator.vibrate([20, 30, 20]);
+          }
+        } catch {}
         onUnlocked();
       } else {
         const next = attempts + 1;
@@ -169,7 +203,18 @@ export function PinLockScreen({ uid, mode, onUnlocked }: Props) {
             ? "Too many attempts. Please use Forgot PIN."
             : `Incorrect PIN (${5 - next} left)`
         );
-        setPin("");
+        try {
+          if (typeof navigator !== "undefined" && navigator.vibrate) {
+            navigator.vibrate([60, 40, 60]);
+          }
+        } catch {}
+        setIsError(true);
+        setShake(true);
+        setTimeout(() => {
+          setShake(false);
+          setIsError(false);
+          setPin("");
+        }, 500);
       }
     } finally {
       setIsLoading(false);
@@ -179,8 +224,19 @@ export function PinLockScreen({ uid, mode, onUnlocked }: Props) {
   const handleConfirm = async (value: string) => {
     if (value !== firstPin) {
       setError("PINs don't match. Try again.");
-      setScreen(screen === "confirm" ? "setup" : "forgot-reset");
-      setPin("");
+      try {
+        if (typeof navigator !== "undefined" && navigator.vibrate) {
+          navigator.vibrate([60, 40, 60]);
+        }
+      } catch {}
+      setIsError(true);
+      setShake(true);
+      setTimeout(() => {
+        setShake(false);
+        setIsError(false);
+        setScreen(screen === "confirm" ? "setup" : "forgot-reset");
+        setPin("");
+      }, 500);
       return;
     }
     setIsLoading(true);
@@ -262,22 +318,42 @@ export function PinLockScreen({ uid, mode, onUnlocked }: Props) {
     }
   };
 
-  // ── Keyboard support ──────────────────────────────────────────────────────
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key >= "0" && e.key <= "9") {
-      addDigit(e.key);
-    } else if (e.key === "Backspace") {
-      removeDigit();
-    }
-  };
-
   const isPinScreen =
     screen === "lock" ||
     screen === "setup" ||
     screen === "confirm" ||
     screen === "forgot-reset" ||
     screen === "forgot-confirm";
+
+  // Single global keyboard listener for desktop / laptop users
+  useEffect(() => {
+    if (!isPinScreen) return;
+    const onGlobalKeyDown = (e: KeyboardEvent) => {
+      // Ignore if user is typing in a text field (e.g., OTP or phone number form)
+      const target = e.target as HTMLElement;
+      if (
+        target &&
+        (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable) &&
+        target !== inputRef.current
+      ) {
+        return;
+      }
+
+      if (isLoading) return;
+      if (e.key >= "0" && e.key <= "9") {
+        e.preventDefault();
+        e.stopPropagation();
+        addDigit(e.key);
+      } else if (e.key === "Backspace" || e.key === "Delete") {
+        e.preventDefault();
+        e.stopPropagation();
+        removeDigit();
+      }
+    };
+
+    window.addEventListener("keydown", onGlobalKeyDown);
+    return () => window.removeEventListener("keydown", onGlobalKeyDown);
+  }, [isPinScreen, isLoading, pin]);
 
   const pinScreenTitle: Record<string, string> = {
     lock: "Enter your PIN",
@@ -328,19 +404,19 @@ export function PinLockScreen({ uid, mode, onUnlocked }: Props) {
               </p>
             </div>
 
-            {/* Hidden input for physical keyboard entry */}
+            {/* Hidden input for focus */}
             <input
               ref={inputRef}
               type="tel"
               inputMode="numeric"
-              className="absolute opacity-0 w-0 h-0"
-              onKeyDown={handleKeyDown}
+              className="absolute opacity-0 w-0 h-0 pointer-events-none"
+              tabIndex={-1}
               readOnly
               value=""
-              onChange={() => {}}
+              aria-hidden="true"
             />
 
-            <PinDots length={PIN_LENGTH} filled={pin.length} />
+            <PinDots length={PIN_LENGTH} filled={pin.length} shake={shake} isError={isError} />
 
             {error && (
               <p className="text-[11px] text-rose-500 dark:text-rose-400 font-semibold text-center animate-in fade-in duration-200">

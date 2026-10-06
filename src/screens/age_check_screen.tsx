@@ -12,6 +12,7 @@ import {
   Sparkles,
   Lock,
   ChevronRight,
+  CheckCircle2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -74,7 +75,6 @@ export default function AgeCheckScreen() {
   return (
     <div className="min-h-0 flex-1 flex flex-col items-center justify-center p-4">
       <div className="w-full max-w-sm flex flex-col items-center text-center gap-5">
-        
         {/* Top Header */}
         <div>
           <div className="inline-flex items-center gap-1.5 rounded-full border border-teal-500/20 bg-teal-500/10 px-3 py-1 text-xs font-semibold text-teal-700 dark:text-cyan-300 mb-2">
@@ -91,12 +91,11 @@ export default function AgeCheckScreen() {
 
         {/* The Digital Token Card */}
         <div className="relative w-full rounded-3xl border border-border/80 bg-card/90 p-6 shadow-xl backdrop-blur-xl dark:border-border/40 dark:bg-slate-900/90 dark:shadow-[0_15px_40px_rgba(0,0,0,0.6)] flex flex-col items-center gap-5">
-          
           {/* Status Badge Ring */}
           <div className="relative flex items-center justify-center">
             {ok ? (
               <div className="relative flex h-32 w-32 items-center justify-center rounded-full bg-gradient-to-tr from-emerald-500/20 via-teal-500/10 to-cyan-500/20 border-4 border-emerald-500/40 shadow-inner">
-                <span className="absolute -inset-2 rounded-full border border-emerald-500/20 animate-ping opacity-30" />
+                <span className="absolute -inset-2 rounded-full border border-emerald-500/30 animate-ping opacity-30" />
                 <div className="flex flex-col items-center justify-center">
                   <ShieldCheck className="h-10 w-10 text-emerald-600 dark:text-emerald-400" />
                   <span className="text-3xl font-black tracking-tight text-emerald-700 dark:text-emerald-300">
@@ -136,7 +135,8 @@ export default function AgeCheckScreen() {
           {ok ? (
             <div className="w-full space-y-3">
               <div className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3.5 py-1 text-xs font-bold text-emerald-700 dark:text-emerald-400">
-                <span>Legal Age Confirmed (18+)</span>
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                <span>Legal Majority Confirmed (18+)</span>
               </div>
               <p className="text-xs text-muted-foreground leading-relaxed">
                 Cryptographically derived from verified{" "}
@@ -162,17 +162,23 @@ export default function AgeCheckScreen() {
               <Button
                 type="button"
                 className="w-full bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-semibold h-9 shadow-xs"
-                onClick={() => navigate("/add-documents")}
+                onClick={() => navigate("/")}
               >
                 Add Document <ChevronRight className="w-3.5 h-3.5 ml-1" />
               </Button>
             </div>
           )}
 
-          {/* Live Anti-Fraud Timestamp */}
-          <div className="flex items-center justify-center gap-1.5 text-[11px] font-mono text-muted-foreground pt-1 border-t border-border/50 w-full">
-            <Clock className="w-3.5 h-3.5 text-teal-600 dark:text-cyan-400" />
-            <span>Live Token: {liveTime}</span>
+          {/* Live Anti-Fraud Running Watermark (Seconds Only) */}
+          <div className="flex items-center justify-between text-[11px] font-mono text-muted-foreground pt-2 border-t border-border/50 w-full">
+            <div className="flex items-center gap-1.5">
+              <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span>Tamper-Proof Live Session</span>
+            </div>
+            <div className="flex items-center gap-1 text-slate-700 dark:text-slate-300 font-bold">
+              <Clock className="w-3.5 h-3.5 text-teal-600 dark:text-cyan-400" />
+              <span>{liveTime}</span>
+            </div>
           </div>
         </div>
 
@@ -180,10 +186,9 @@ export default function AgeCheckScreen() {
         <div className="w-full rounded-2xl border border-border/60 bg-muted/20 p-3.5 text-left flex items-start gap-2.5">
           <Lock className="w-4 h-4 text-teal-600 dark:text-cyan-400 shrink-0 mt-0.5" />
           <p className="text-[11px] text-muted-foreground leading-relaxed">
-            <strong className="text-foreground">DPDP Act 2023 Compliant:</strong> Your exact Date of Birth is never disclosed. Only boolean age eligibility is shared with third parties.
+            <strong className="text-foreground">DPDP Act 2023 Compliant:</strong> Your exact Date of Birth and residential address are never disclosed. Only cryptographic boolean age eligibility is shared with third parties.
           </p>
         </div>
-
       </div>
     </div>
   );

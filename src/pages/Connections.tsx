@@ -115,18 +115,44 @@ const FAMILY_DOC_OPTIONS = [
 const FAMILY_DOC_UNKNOWN = { type: "UNKNOWN", label: "ID Document", subtitle: "Verified", productCode: "KYC", iconType: "AADHAAR_CARD" } as const;
 type FamilyDocType = (typeof FAMILY_DOC_OPTIONS)[number]["type"];
 
-/** Subtitle under document name (e.g. "UIDAI Verified") */
-const DOC_TYPE_SUBTITLE: Record<string, string> = {
-  DRIVING_LICENSE: "State RTO Verified",
-  AADHAAR_CARD: "UIDAI Verified",
-  PAN_CARD: "Income Tax Department",
-  PASSPORT: "Passport Seva",
-  "C-Form (Foreign Guest)":
-    "Auto-filled from passport · FRRO compliance for hotels",
-};
 
-const getDocSubtitle = (docType: string): string =>
-  DOC_TYPE_SUBTITLE[docType] ?? "Verified";
+
+
+
+const SMART_CARD_META: Record<
+  string,
+  {
+    issuer: string;
+    unverifiedTime: string;
+    unverifiedProvider: string;
+    gradient: string;
+  }
+> = {
+  AADHAAR_CARD: {
+    issuer: "UIDAI · Govt of India",
+    unverifiedTime: "30s",
+    unverifiedProvider: "DigiLocker",
+    gradient: "from-slate-900/90 via-slate-800 to-indigo-950/70",
+  },
+  DRIVING_LICENSE: {
+    issuer: "MoRTH · State Transport",
+    unverifiedTime: "45s",
+    unverifiedProvider: "Parivahan",
+    gradient: "from-slate-900/90 via-slate-800 to-teal-950/70",
+  },
+  PAN_CARD: {
+    issuer: "Income Tax Dept · Govt of India",
+    unverifiedTime: "30s",
+    unverifiedProvider: "NSDL / DigiLocker",
+    gradient: "from-slate-900/90 via-slate-800 to-sky-950/70",
+  },
+  PASSPORT: {
+    issuer: "Ministry of External Affairs",
+    unverifiedTime: "60s",
+    unverifiedProvider: "Passport Seva",
+    gradient: "from-slate-900/90 via-slate-800 to-amber-950/60",
+  },
+};
 
 interface Credential {
   id?: string;
@@ -1736,7 +1762,7 @@ const Connections = () => {
                 {connectionsData?.data?.requests?.length ?? 0}
               </div>
               <div className="mt-1 text-[10px] sm:text-[11px] font-bold tracking-wider uppercase text-muted-foreground group-hover:text-foreground">
-                Connections
+                Shared With
               </div>
             </button>
 
@@ -1780,88 +1806,118 @@ const Connections = () => {
               </Button>
             </div>
 
-            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               {HOME_DOCUMENT_TYPES.map((docType) => {
                 const isVerified = !!verifiedCredentialsMap[docType];
-                const subtitle = getDocSubtitle(docType);
+                const meta = SMART_CARD_META[docType] || {
+                  issuer: "Govt of India",
+                  unverifiedTime: "30s",
+                  unverifiedProvider: "DigiLocker",
+                  gradient: "from-slate-900/90 via-slate-800 to-slate-900/80",
+                };
                 const title = docType
                   .replace(/_/g, " ")
                   .toLowerCase()
                   .replace(/\b\w/g, (c) => c.toUpperCase());
                 
-                return (
+                return isVerified ? (
+                  /* ── Verified Physical Smart-Card (Apple Wallet Aesthetic) ── */
                   <div
                     key={docType}
-                    className={`group relative flex flex-col justify-between rounded-2xl border p-4 transition-all duration-200 cursor-pointer shadow-xs ${
-                      isVerified
-                        ? "border-border/80 bg-gradient-to-br from-card to-card/60 hover:border-teal-500/40 hover:shadow-md"
-                        : "border-border/60 bg-muted/20 hover:border-border hover:bg-muted/40"
-                    }`}
+                    className={`group relative flex flex-col justify-between rounded-2xl border border-border/80 bg-gradient-to-br ${meta.gradient} p-4 sm:p-5 text-white shadow-md hover:shadow-xl hover:border-teal-400/50 transition-all duration-200 cursor-pointer overflow-hidden backdrop-blur-md`}
                     role="button"
-                    onClick={() =>
-                      isVerified
-                        ? setSelectedDocType(docType)
-                        : handleVerifyDocument(docType)
-                    }
+                    onClick={() => setSelectedDocType(docType)}
                   >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-border/80 bg-card shadow-2xs group-hover:scale-105 transition-transform">
-                          <DocumentTypeIcon
-                            documentType={docType}
-                            className="text-foreground"
-                          />
-                        </div>
-                        <div className="min-w-0">
-                          <div className="truncate text-sm font-bold text-foreground">
-                            {title}
-                          </div>
-                          <div className="truncate text-[11px] text-muted-foreground font-medium">
-                            {subtitle}
-                          </div>
-                        </div>
+                    {/* Top Smart-Card Header */}
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[10px] font-mono uppercase tracking-widest text-slate-300 font-semibold truncate">
+                        {meta.issuer}
+                      </span>
+                      {/* Micro-Holographic Gold Chip */}
+                      <div className="flex h-5 w-7 shrink-0 items-center justify-center rounded-sm border border-amber-300/40 bg-gradient-to-tr from-amber-400/30 via-amber-200/50 to-amber-500/20 shadow-xs">
+                        <div className="h-2 w-3 rounded-2xs border border-amber-300/60 bg-amber-300/20" />
                       </div>
-
-                      {isVerified ? (
-                        <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-400">
-                          <CheckCircle className="h-3 w-3" />
-                          Verified
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 rounded-full border border-border bg-background px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-                          Not Added
-                        </span>
-                      )}
                     </div>
 
-                    <div className="mt-3 flex items-center justify-between pt-2 border-t border-border/40 text-xs">
-                      {isVerified ? (
-                        <>
-                          <span className="text-[11px] text-muted-foreground font-mono">
-                            •••• Ready to share
-                          </span>
-                          <span className="inline-flex items-center text-[11px] font-semibold text-teal-600 dark:text-cyan-400 group-hover:translate-x-0.5 transition-transform">
-                            View Card <ChevronRight className="h-3.5 w-3.5 ml-0.5" />
-                          </span>
-                        </>
-                      ) : (
-                        <>
-                          <span className="text-[11px] text-muted-foreground">
-                            Requires 1-time KYC
-                          </span>
-                          <Button
-                            type="button"
-                            size="sm"
-                            className="h-7 rounded-lg bg-teal-600 hover:bg-teal-700 dark:bg-teal-500 dark:hover:bg-teal-600 text-white text-[11px] font-semibold px-2.5 shadow-2xs"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleVerifyDocument(docType);
-                            }}
-                          >
-                            Verify Now
-                          </Button>
-                        </>
-                      )}
+                    {/* Card Center: Document Title & Icon */}
+                    <div className="my-3 flex items-center gap-3">
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/10 border border-white/15 backdrop-blur-md text-white shadow-inner group-hover:scale-105 transition-transform">
+                        <DocumentTypeIcon
+                          documentType={docType}
+                          className="text-white"
+                        />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="truncate text-base font-black tracking-tight text-white">
+                          {title}
+                        </div>
+                        <div className="text-[10px] text-teal-300 font-medium flex items-center gap-1 mt-0.5">
+                          <Lock className="h-3 w-3" />
+                          <span>Zero-Knowledge Protected</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Card Footer: Status & Action */}
+                    <div className="flex items-center justify-between pt-2.5 border-t border-white/15 text-xs">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/20 border border-emerald-400/30 px-2 py-0.5 text-[10px] font-bold text-emerald-300">
+                        <CheckCircle className="h-3 w-3" />
+                        DigiLocker Verified
+                      </span>
+                      <span className="inline-flex items-center text-[11px] font-semibold text-teal-300 group-hover:translate-x-1 transition-transform">
+                        Inspect Card <ChevronRight className="h-3.5 w-3.5 ml-0.5" />
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  /* ── Unverified "Add to Vault" Slot ── */
+                  <div
+                    key={docType}
+                    className="group relative flex flex-col justify-between rounded-2xl border-2 border-dashed border-border/80 bg-card/40 p-4 sm:p-5 hover:border-teal-500/50 hover:bg-muted/30 transition-all duration-200 cursor-pointer shadow-xs"
+                    role="button"
+                    onClick={() => handleVerifyDocument(docType)}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground truncate">
+                        {meta.issuer}
+                      </span>
+                      <span className="inline-flex items-center gap-1 rounded-full bg-teal-500/10 border border-teal-500/20 px-2 py-0.5 text-[9px] font-bold text-teal-700 dark:text-cyan-400">
+                        ⚡ {meta.unverifiedProvider} (~{meta.unverifiedTime})
+                      </span>
+                    </div>
+
+                    <div className="my-3 flex items-center gap-3">
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-dashed border-border/80 bg-muted/40 text-muted-foreground group-hover:border-teal-500/40 group-hover:text-teal-600 transition-colors">
+                        <DocumentTypeIcon
+                          documentType={docType}
+                          className="opacity-70"
+                        />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-bold text-foreground">
+                          {title}
+                        </div>
+                        <div className="text-[11px] text-muted-foreground">
+                          Not added to vault
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-2.5 border-t border-border/50 text-xs">
+                      <span className="text-[10px] text-muted-foreground">
+                        Requires 1-time verification
+                      </span>
+                      <Button
+                        type="button"
+                        size="sm"
+                        className="h-7 rounded-lg bg-teal-600 hover:bg-teal-700 text-white text-[11px] font-bold px-3 shadow-xs cursor-pointer"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleVerifyDocument(docType);
+                        }}
+                      >
+                        + Add to Vault
+                      </Button>
                     </div>
                   </div>
                 );

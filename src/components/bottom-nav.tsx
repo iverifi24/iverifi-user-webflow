@@ -45,7 +45,7 @@ export function BottomNav() {
       {
         type: "navigate",
         path: "/",
-        label: "Wallet",
+        label: "ID Vault",
         Icon: ({ active }) => (
           <Wallet
             className={`h-5 w-5 transition-transform duration-200 ${
@@ -57,7 +57,7 @@ export function BottomNav() {
       {
         type: "navigate",
         path: "/connections",
-        label: "Connections",
+        label: "Shared With",
         badge: pendingCount > 0 ? pendingCount : undefined,
         Icon: ({ active }) => (
           <Building2
