@@ -1,17 +1,16 @@
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { AuthHeroHeader } from "@/components/auth-hero-header";
+import { IverifiLogo } from "@/components/iverifi-logo";
 import { savePinToFirestore, verifyPin } from "@/utils/pin";
 import { useAuth } from "@/context/auth_context";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { Lock, Delete, ShieldCheck, ArrowLeft, Loader2 } from "lucide-react";
 
 const BASE_URL =
   typeof import.meta !== "undefined" && import.meta.env?.VITE_BASE_URL
     ? String(import.meta.env.VITE_BASE_URL).replace(/\/$/, "")
     : "";
-
-// ─── Types ───────────────────────────────────────────────────────────────────
 
 type Screen =
   | "lock"
@@ -32,15 +31,15 @@ interface Props {
 
 function PinDots({ length, filled }: { length: number; filled: number }) {
   return (
-    <div className="flex items-center justify-center gap-4">
+    <div className="flex items-center justify-center gap-3 my-1">
       {Array.from({ length }).map((_, i) => (
         <div
           key={i}
           className={cn(
-            "h-4 w-4 rounded-full border-2 transition-all duration-150",
+            "h-3 w-3 rounded-full transition-all duration-200",
             i < filled
-              ? "border-sky-400 bg-sky-400 shadow-[0_0_10px_rgba(56,189,248,0.6)]"
-              : "border-border bg-transparent"
+              ? "bg-teal-400 scale-125 shadow-md shadow-teal-400/50 ring-2 ring-teal-400/30"
+              : "bg-slate-700/80 border border-slate-600/50 scale-100"
           )}
         />
       ))}
@@ -49,6 +48,8 @@ function PinDots({ length, filled }: { length: number; filled: number }) {
 }
 
 // ─── Numeric Keypad ───────────────────────────────────────────────────────────
+
+const KEYPAD_KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "", "0", "delete"];
 
 function Keypad({
   onDigit,
@@ -59,12 +60,11 @@ function Keypad({
   onDelete: () => void;
   disabled?: boolean;
 }) {
-  const keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "", "0", "⌫"];
   return (
-    <div className="grid grid-cols-3 gap-3">
-      {keys.map((k, i) => {
-        if (k === "") return <div key={i} />;
-        const isDelete = k === "⌫";
+    <div className="grid grid-cols-3 gap-y-3 gap-x-4 w-full max-w-[240px] mx-auto">
+      {KEYPAD_KEYS.map((k, i) => {
+        if (k === "") return <div key={i} className="h-13 w-13" />;
+        const isDelete = k === "delete";
         return (
           <button
             key={i}
@@ -72,13 +72,13 @@ function Keypad({
             disabled={disabled}
             onClick={() => (isDelete ? onDelete() : onDigit(k))}
             className={cn(
-              "flex h-16 items-center justify-center rounded-2xl text-xl font-semibold transition-all duration-150 active:scale-95 disabled:opacity-40",
+              "flex h-13 w-13 sm:h-14 sm:w-14 mx-auto items-center justify-center rounded-full transition-all duration-150 select-none cursor-pointer active:scale-90 disabled:opacity-40 text-xl font-bold",
               isDelete
-                ? "bg-muted/70 text-muted-foreground hover:bg-muted"
-                : "bg-muted text-foreground hover:bg-accent shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
+                ? "bg-transparent text-slate-400 hover:text-white hover:bg-slate-800/60"
+                : "border border-slate-700/70 bg-slate-800/80 text-white hover:bg-slate-700/90 hover:border-teal-400/60 hover:text-teal-300 shadow-sm active:scale-95"
             )}
           >
-            {k}
+            {isDelete ? <Delete className="h-5 w-5" /> : k}
           </button>
         );
       })}
@@ -107,6 +107,15 @@ export function PinLockScreen({ uid, mode, onUnlocked }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
 
   const PIN_LENGTH = 6;
+
+  // Lock body scroll completely when the PIN screen is open to eliminate dual scrollbars
+  useEffect(() => {
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prevOverflow;
+    };
+  }, []);
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -157,8 +166,8 @@ export function PinLockScreen({ uid, mode, onUnlocked }: Props) {
         setAttempts(next);
         setError(
           next >= 5
-            ? "Too many wrong attempts. Please use Forgot PIN."
-            : `Incorrect PIN. ${5 - next} attempt${5 - next === 1 ? "" : "s"} left.`
+            ? "Too many attempts. Please use Forgot PIN."
+            : `Incorrect PIN (${5 - next} left)`
         );
         setPin("");
       }
@@ -176,9 +185,7 @@ export function PinLockScreen({ uid, mode, onUnlocked }: Props) {
     }
     setIsLoading(true);
     try {
-      // Save to Firestore — source of truth
       const newHash = await savePinToFirestore(uid, value);
-      // Update in-memory context so visibilitychange lock works immediately
       setPinHash(newHash);
       setPinLocked(false);
       setNeedsPinSetup(false);
@@ -186,7 +193,7 @@ export function PinLockScreen({ uid, mode, onUnlocked }: Props) {
       onUnlocked();
     } catch (err) {
       console.error("Failed to save PIN:", err);
-      setError("Failed to save PIN. Please check your connection and try again.");
+      setError("Failed to save PIN. Please try again.");
       setPin("");
     } finally {
       setIsLoading(false);
@@ -246,12 +253,10 @@ export function PinLockScreen({ uid, mode, onUnlocked }: Props) {
       if (!res.ok || !json?.data?.token) {
         throw new Error(json?.message || "Invalid or expired code. Request a new one.");
       }
-      // Phone verified — allow PIN reset
       setScreen("forgot-reset");
       setPin("");
-      setFirstPin("");
     } catch (err: any) {
-      setError(err?.message || "Verification failed. Try again.");
+      setError(err?.message || "Invalid code. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -259,55 +264,68 @@ export function PinLockScreen({ uid, mode, onUnlocked }: Props) {
 
   // ── Keyboard support ──────────────────────────────────────────────────────
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key >= "0" && e.key <= "9") addDigit(e.key);
-    else if (e.key === "Backspace") removeDigit();
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key >= "0" && e.key <= "9") {
+      addDigit(e.key);
+    } else if (e.key === "Backspace") {
+      removeDigit();
+    }
   };
 
-  // ── Render helpers ────────────────────────────────────────────────────────
-
-  const isPinScreen = ["lock", "setup", "confirm", "forgot-reset", "forgot-confirm"].includes(screen);
+  const isPinScreen =
+    screen === "lock" ||
+    screen === "setup" ||
+    screen === "confirm" ||
+    screen === "forgot-reset" ||
+    screen === "forgot-confirm";
 
   const pinScreenTitle: Record<string, string> = {
     lock: "Enter your PIN",
-    setup: "Set up a PIN",
+    setup: "Set a Security PIN",
     confirm: "Confirm your PIN",
     "forgot-reset": "Enter new PIN",
     "forgot-confirm": "Confirm new PIN",
   };
 
   const pinScreenSubtitle: Record<string, string> = {
-    lock: "Enter your 6-digit PIN to unlock",
-    setup: "Choose a 6-digit PIN to secure your wallet",
-    confirm: "Re-enter the PIN to confirm",
+    lock: "Enter your 6-digit PIN to unlock your vault",
+    setup: "Choose a 6-digit PIN to protect your digital identity",
+    confirm: "Re-enter the 6-digit PIN to confirm",
     "forgot-reset": "Choose a new 6-digit PIN",
-    "forgot-confirm": "Re-enter the new PIN",
+    "forgot-confirm": "Re-enter your new PIN",
   };
 
   const COUNTRY_CODES = [
-    { code: "+91", label: "India (+91)" },
-    { code: "+1", label: "US / Canada (+1)" },
-    { code: "+44", label: "UK (+44)" },
-    { code: "+61", label: "Australia (+61)" },
-    { code: "+971", label: "UAE (+971)" },
+    { code: "+91", label: "+91 (IN)" },
+    { code: "+1", label: "+1 (US)" },
+    { code: "+44", label: "+44 (UK)" },
+    { code: "+61", label: "+61 (AU)" },
+    { code: "+971", label: "+971 (AE)" },
   ];
 
   return (
-    <div className="fixed inset-0 z-[99999] flex flex-col items-center justify-between bg-background px-6 py-8 overflow-y-auto">
-      {/* Header */}
-      <AuthHeroHeader />
-
-      {/* Content */}
-      <div className="flex w-full max-w-sm flex-col items-center gap-5">
+    <div className="dark fixed inset-0 z-[99999] flex items-center justify-center bg-slate-950/85 backdrop-blur-xl p-4">
+      {/* Centered Glass Security Vault Card */}
+      <div className="relative w-full max-w-[340px] rounded-3xl border border-slate-800/90 bg-slate-900/95 p-6 shadow-2xl shadow-black/80 backdrop-blur-2xl flex flex-col items-center gap-4 text-center my-auto animate-in fade-in zoom-in-95 duration-200">
+        
+        {/* Brand Header */}
+        <div className="flex flex-col items-center gap-1.5">
+          <IverifiLogo className="h-7 w-auto object-contain" />
+          <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-teal-500/15 border border-teal-500/30 text-teal-400 shadow-sm mt-0.5">
+            <Lock className="h-4 w-4" />
+          </div>
+        </div>
 
         {/* ── PIN screens ── */}
         {isPinScreen && (
-          <>
-            <div className="flex flex-col items-center gap-1 text-center">
-              <h1 className="text-xl font-semibold text-foreground">
+          <div className="flex flex-col items-center w-full gap-3">
+            <div>
+              <h1 className="text-lg font-bold text-white tracking-tight">
                 {pinScreenTitle[screen]}
               </h1>
-              <p className="text-sm text-muted-foreground">{pinScreenSubtitle[screen]}</p>
+              <p className="text-[11px] text-slate-400 mt-0.5">
+                {pinScreenSubtitle[screen]}
+              </p>
             </div>
 
             {/* Hidden input for physical keyboard entry */}
@@ -325,46 +343,54 @@ export function PinLockScreen({ uid, mode, onUnlocked }: Props) {
             <PinDots length={PIN_LENGTH} filled={pin.length} />
 
             {error && (
-              <p className="text-sm text-red-400 text-center">{error}</p>
+              <p className="text-[11px] text-rose-400 font-semibold text-center animate-in fade-in duration-200">
+                {error}
+              </p>
             )}
 
-            <div className="w-full">
-              <Keypad onDigit={addDigit} onDelete={removeDigit} disabled={isLoading || (screen === "lock" && attempts >= 5)} />
+            <div className="w-full mt-1">
+              <Keypad
+                onDigit={addDigit}
+                onDelete={removeDigit}
+                disabled={isLoading || (screen === "lock" && attempts >= 5)}
+              />
             </div>
 
             {screen === "lock" && (
               <button
                 type="button"
                 onClick={() => { setScreen("forgot-phone"); setError(""); }}
-                className="text-sm text-sky-400 underline underline-offset-4 hover:text-sky-300"
+                className="text-[11px] font-semibold text-teal-400 hover:text-teal-300 hover:underline pt-0.5 transition-colors cursor-pointer"
               >
                 Forgot PIN?
               </button>
             )}
-          </>
+          </div>
         )}
 
         {/* ── Forgot PIN: enter phone ── */}
         {screen === "forgot-phone" && (
-          <form onSubmit={handleForgotSendOtp} className="flex w-full flex-col gap-5">
-            <div className="flex flex-col items-center gap-2 text-center">
-              <h1 className="text-xl font-semibold text-foreground">Reset your PIN</h1>
-              <p className="text-sm text-muted-foreground">
-                Enter your registered phone number to receive a verification code.
+          <form onSubmit={handleForgotSendOtp} className="flex w-full flex-col gap-3.5 text-left">
+            <div className="text-center">
+              <h1 className="text-lg font-bold text-white tracking-tight">
+                Reset your PIN
+              </h1>
+              <p className="text-[11px] text-slate-400 mt-0.5">
+                Enter your registered mobile number for an OTP.
               </p>
             </div>
 
-            <div className="flex flex-col gap-2">
-              <label className="text-xs text-foreground/90">Mobile number</label>
-              <div className="flex gap-2">
+            <div className="space-y-1">
+              <label className="text-[11px] font-semibold text-slate-200">Mobile number</label>
+              <div className="flex gap-1.5">
                 <select
                   value={forgotCountryCode}
                   onChange={(e) => setForgotCountryCode(e.target.value)}
                   disabled={isLoading}
-                  className="h-11 w-28 shrink-0 rounded-xl border border-border bg-card px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-sky-500/70"
+                  className="h-9 w-24 shrink-0 rounded-xl border border-slate-700 bg-slate-800 px-2 text-xs text-white focus:outline-hidden focus:border-teal-500"
                 >
                   {COUNTRY_CODES.map(({ code, label }) => (
-                    <option key={code} value={code}>{label}</option>
+                    <option key={code} value={code} className="bg-slate-900 text-white">{label}</option>
                   ))}
                 </select>
                 <input
@@ -374,43 +400,46 @@ export function PinLockScreen({ uid, mode, onUnlocked }: Props) {
                   value={forgotPhone}
                   onChange={(e) => setForgotPhone(e.target.value.replace(/\D/g, "").slice(0, 15))}
                   disabled={isLoading}
-                  className="h-11 flex-1 rounded-xl border border-border bg-card px-4 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-sky-500/70"
+                  className="h-9 flex-1 rounded-xl border border-slate-700 bg-slate-800 px-3 text-xs text-white placeholder:text-slate-500 focus:outline-hidden focus:border-teal-500"
                 />
               </div>
             </div>
 
-            {error && <p className="text-sm text-red-400">{error}</p>}
+            {error && <p className="text-[11px] text-rose-400 font-semibold">{error}</p>}
 
             <Button
               type="submit"
               disabled={isLoading || forgotPhone.length < 6}
-              className="h-11 w-full bg-gradient-to-r from-[#00e0ff] to-[#7B5CF5] text-slate-950 font-semibold shadow-[0_0_18px_rgba(0,224,255,0.35)] hover:from-[#40e8ff] hover:to-[#9274ff]"
+              className="h-9 w-full bg-teal-500 hover:bg-teal-600 text-white font-semibold rounded-xl text-xs shadow-md shadow-teal-500/20 cursor-pointer"
             >
-              {isLoading ? "Sending…" : "Send OTP →"}
+              {isLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : null}
+              {isLoading ? "Sending OTP…" : "Send Verification OTP →"}
             </Button>
 
             <button
               type="button"
               onClick={() => { setScreen("lock"); setError(""); }}
-              className="text-sm text-muted-foreground hover:text-foreground/70 underline underline-offset-4"
+              className="text-[11px] text-center text-slate-400 hover:text-slate-200 font-medium hover:underline flex items-center justify-center gap-1 cursor-pointer"
             >
-              Back to PIN entry
+              <ArrowLeft className="w-3 h-3" /> Back to PIN entry
             </button>
           </form>
         )}
 
         {/* ── Forgot PIN: enter OTP ── */}
         {screen === "forgot-otp" && (
-          <form onSubmit={handleForgotVerifyOtp} className="flex w-full flex-col gap-5">
-            <div className="flex flex-col items-center gap-2 text-center">
-              <h1 className="text-xl font-semibold text-foreground">Enter verification code</h1>
-              <p className="text-sm text-muted-foreground">
-                A 6-digit code was sent to {forgotCountryCode} {forgotPhone}
+          <form onSubmit={handleForgotVerifyOtp} className="flex w-full flex-col gap-3.5 text-left">
+            <div className="text-center">
+              <h1 className="text-lg font-bold text-white tracking-tight">
+                Enter Verification OTP
+              </h1>
+              <p className="text-[11px] text-slate-400 mt-0.5">
+                Sent to {forgotCountryCode} {forgotPhone}
               </p>
             </div>
 
-            <div className="flex flex-col gap-2">
-              <label className="text-xs text-foreground/90">Verification code</label>
+            <div className="space-y-1">
+              <label className="text-[11px] font-semibold text-slate-200">6-Digit Code</label>
               <input
                 type="text"
                 inputMode="numeric"
@@ -422,35 +451,37 @@ export function PinLockScreen({ uid, mode, onUnlocked }: Props) {
                   setError("");
                 }}
                 disabled={isLoading}
-                className="h-11 w-full rounded-xl border border-border bg-card px-4 text-center text-lg tracking-[0.4em] text-foreground placeholder:text-muted-foreground placeholder:tracking-normal focus:outline-none focus:ring-2 focus:ring-sky-500/70"
+                className="h-10 w-full rounded-xl border border-slate-700 bg-slate-800 px-3 text-center text-base font-bold tracking-[0.3em] text-white placeholder:text-slate-500 placeholder:tracking-normal focus:outline-hidden focus:border-teal-500"
               />
             </div>
 
-            {error && <p className="text-sm text-red-400">{error}</p>}
+            {error && <p className="text-[11px] text-rose-400 font-semibold">{error}</p>}
 
             <Button
               type="submit"
               disabled={isLoading || forgotOtp.length !== 6}
-              className="h-11 w-full bg-gradient-to-r from-[#00e0ff] to-[#7B5CF5] text-slate-950 font-semibold shadow-[0_0_18px_rgba(0,224,255,0.35)] hover:from-[#40e8ff] hover:to-[#9274ff]"
+              className="h-9 w-full bg-teal-500 hover:bg-teal-600 text-white font-semibold rounded-xl text-xs shadow-md shadow-teal-500/20 cursor-pointer"
             >
-              {isLoading ? "Verifying…" : "Verify"}
+              {isLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : null}
+              {isLoading ? "Verifying…" : "Verify & Reset PIN"}
             </Button>
 
             <button
               type="button"
               onClick={() => { setScreen("forgot-phone"); setError(""); setForgotOtp(""); }}
-              className="text-sm text-muted-foreground hover:text-foreground/70 underline underline-offset-4"
+              className="text-[11px] text-center text-slate-400 hover:text-slate-200 font-medium hover:underline flex items-center justify-center gap-1 cursor-pointer"
             >
-              Resend / change number
+              <ArrowLeft className="w-3 h-3" /> Change mobile number
             </button>
           </form>
         )}
-      </div>
 
-      {/* Footer */}
-      <p className="text-center text-[11px] text-muted-foreground/60 pb-2">
-        iVerifi · Data protected under DPDP Act 2023
-      </p>
+        {/* Security Footer */}
+        <div className="flex items-center justify-center gap-1.5 text-[10px] text-slate-400 font-medium pt-1 border-t border-slate-800/80 w-full">
+          <ShieldCheck className="w-3.5 h-3.5 text-teal-400" />
+          <span>Protected under DPDP Act 2023</span>
+        </div>
+      </div>
     </div>
   );
 }

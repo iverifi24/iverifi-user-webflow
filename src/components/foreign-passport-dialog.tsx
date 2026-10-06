@@ -1,7 +1,20 @@
 import { useState, useRef } from "react";
 import { auth } from "@/firebase/firebase_setup";
 import { getIdToken } from "firebase/auth";
-import { Loader2 } from "lucide-react";
+import {
+  Loader2,
+  Camera,
+  FileText,
+  UserCheck,
+  Aperture,
+  Lock,
+  ArrowLeft,
+  RotateCcw,
+  CheckCircle2,
+  X,
+  Upload,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export interface ForeignPassportPhotos {
   passportPhotoUrl: string;
@@ -16,30 +29,6 @@ interface Props {
 }
 
 type Step = "passport" | "visa" | "selfie" | "preview";
-
-const BTN_PRIMARY: React.CSSProperties = {
-  width: "100%",
-  padding: "15px",
-  borderRadius: 14,
-  background: "linear-gradient(135deg,#00e0ff,#7B5CF5)",
-  border: "none",
-  color: "#fff",
-  fontSize: 15,
-  fontWeight: 700,
-  cursor: "pointer",
-};
-
-const BTN_SECONDARY: React.CSSProperties = {
-  width: "100%",
-  marginTop: 2,
-  padding: "14px",
-  borderRadius: 12,
-  background: "var(--iverifi-muted-surface)",
-  border: "1px solid var(--iverifi-border-subtle)",
-  color: "var(--iverifi-label)",
-  fontSize: 14,
-  cursor: "pointer",
-};
 
 async function uploadImageFile(file: File): Promise<string> {
   const currentUser = auth.currentUser;
@@ -65,7 +54,9 @@ export function ForeignPassportDialog({ open, onSave, onClose }: Props) {
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState("");
   const [photos, setPhotos] = useState<{ passport: string; visa: string; selfie: string }>({
-    passport: "", visa: "", selfie: "",
+    passport: "",
+    visa: "",
+    selfie: "",
   });
 
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -83,7 +74,10 @@ export function ForeignPassportDialog({ open, onSave, onClose }: Props) {
   const startCamera = async () => {
     setUploadError("");
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: false });
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "user" },
+        audio: false,
+      });
       streamRef.current = stream;
       setCameraActive(true);
       setTimeout(() => {
@@ -100,7 +94,7 @@ export function ForeignPassportDialog({ open, onSave, onClose }: Props) {
     canvas.width = videoRef.current.videoWidth || 480;
     canvas.height = videoRef.current.videoHeight || 480;
     canvas.getContext("2d")?.drawImage(videoRef.current, 0, 0);
-    const dataUrl = canvas.toDataURL("image/jpeg", 0.8);
+    const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
     stopCamera();
     setPhotos((p) => ({ ...p, selfie: dataUrl }));
   };
@@ -122,7 +116,6 @@ export function ForeignPassportDialog({ open, onSave, onClose }: Props) {
   const handleSave = async () => {
     setSaving(true);
     try {
-      // selfie may be a data URL (base64) from camera — upload it
       let selfieUrl = photos.selfie;
       if (selfieUrl.startsWith("data:")) {
         const resp = await fetch(selfieUrl);
@@ -135,7 +128,6 @@ export function ForeignPassportDialog({ open, onSave, onClose }: Props) {
         visaPhotoUrl: photos.visa,
         selfiePhotoUrl: selfieUrl,
       });
-      // reset
       setStep("passport");
       setPhotos({ passport: "", visa: "", selfie: "" });
       setUploadError("");
@@ -154,207 +146,295 @@ export function ForeignPassportDialog({ open, onSave, onClose }: Props) {
     onClose();
   };
 
-  const stepBadge = (n: number, label: string) => (
-    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
-      <span style={{
-        padding: "4px 12px", borderRadius: 999, fontSize: 12, fontWeight: 700,
-        background: "var(--iverifi-accent-soft)", color: "var(--iverifi-accent)",
-        border: "1px solid var(--iverifi-accent-border)",
-      }}>Step {n} of 3</span>
-      <span style={{ fontSize: 13, color: "var(--iverifi-hint-text)" }}>{label}</span>
+  const renderStepBadge = (n: number, label: string) => (
+    <div className="flex items-center gap-2 mb-4">
+      <span className="inline-flex items-center rounded-full border border-[var(--iverifi-accent-border)] bg-[var(--iverifi-accent-soft)] px-3 py-1 text-xs font-semibold text-[var(--iverifi-accent)]">
+        Step {n} of 3
+      </span>
+      <span className="text-xs text-muted-foreground font-medium">{label}</span>
     </div>
-  );
-
-  const uploadCard = (icon: string, title: string, subtitle: string, inputId: string, onFile: (f: File) => void, backLabel?: string, onBack?: () => void) => (
-    <>
-      <label
-        htmlFor={inputId}
-        style={{
-          width: "100%", padding: "16px 20px", borderRadius: 14, boxSizing: "border-box",
-          background: "linear-gradient(135deg,#00e0ff,#7B5CF5)",
-          border: "none", cursor: uploading ? "not-allowed" : "pointer",
-          display: "flex", alignItems: "center", gap: 14, marginBottom: 10,
-          opacity: uploading ? 0.6 : 1,
-        }}
-      >
-        <div style={{
-          width: 40, height: 40, borderRadius: 11, background: "rgba(255,255,255,0.15)",
-          display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 18,
-        }}>{icon}</div>
-        <div>
-          <div style={{ fontSize: 15, fontWeight: 700, color: "#fff" }}>{title}</div>
-          <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", marginTop: 2 }}>{subtitle}</div>
-        </div>
-        {uploading && <Loader2 className="h-4 w-4 animate-spin text-white ml-auto" />}
-        <input
-          id={inputId} type="file" accept="image/*" capture="environment"
-          style={{ display: "none" }} disabled={uploading}
-          onChange={(e) => { const f = e.target.files?.[0]; if (f) onFile(f); e.target.value = ""; }}
-        />
-      </label>
-      {onBack && (
-        <button type="button" onClick={onBack} style={{ ...BTN_SECONDARY, marginTop: 0 }}>
-          {backLabel || "← Back"}
-        </button>
-      )}
-    </>
   );
 
   return (
     <div
-      style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.65)", backdropFilter: "blur(4px)", zIndex: 200, display: "flex", alignItems: "flex-end" }}
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-0 sm:p-4 animate-in fade-in duration-200"
       onClick={handleClose}
     >
       <div
-        style={{
-          width: "100%", maxHeight: "92dvh", background: "var(--iverifi-surface-0)",
-          borderRadius: "24px 24px 0 0", border: "1px solid var(--iverifi-card-border)",
-          borderBottom: "none", overflowY: "auto",
-          padding: "8px 20px calc(40px + env(safe-area-inset-bottom,0px))",
-          animation: "slide-up .3s cubic-bezier(.34,1.56,.64,1)",
-        }}
+        className="w-full max-w-md max-h-[92vh] sm:max-h-[85vh] rounded-t-3xl sm:rounded-2xl border border-border bg-card shadow-2xl overflow-y-auto p-6 sm:p-7 flex flex-col gap-4 text-foreground"
         onClick={(e) => e.stopPropagation()}
       >
-        <div style={{ width: 36, height: 4, borderRadius: 2, background: "var(--iverifi-border-subtle)", margin: "0 auto 20px" }} />
+        {/* Top Handle / Close */}
+        <div className="flex items-center justify-between pb-1 border-b border-border/40">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-[var(--iverifi-accent-soft)] border border-[var(--iverifi-accent-border)] flex items-center justify-center text-[var(--iverifi-accent)]">
+              <Camera className="w-4 h-4" />
+            </div>
+            <div>
+              <h2 className="text-base font-bold text-foreground">Foreign National Registration</h2>
+              <p className="text-xs text-muted-foreground">FRRO / C-Form Compliance</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={handleClose}
+            className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
 
         {uploadError && (
-          <div style={{ padding: "10px 14px", borderRadius: 10, background: "var(--iverifi-error-soft)", border: "1px solid var(--iverifi-error-border)", color: "var(--iverifi-error)", fontSize: 13, marginBottom: 14 }}>
+          <div className="p-3 rounded-xl border border-red-500/30 bg-red-500/10 text-red-500 text-xs font-medium leading-relaxed">
             {uploadError}
           </div>
         )}
 
-        {/* ── STEP 1: Passport ── */}
+        {/* STEP 1: Passport */}
         {step === "passport" && (
-          <>
-            {stepBadge(1, "Passport Photo")}
-            <div style={{ fontSize: 18, fontWeight: 800, color: "var(--iverifi-text-primary)", marginBottom: 6 }}>
-              Passport photo page
+          <div className="space-y-4">
+            {renderStepBadge(1, "Passport Bio-Data Page")}
+            <div>
+              <h3 className="text-lg font-bold text-foreground">Passport Photo Page</h3>
+              <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                Take a clear, glare-free photo of your passport's bio-data page showing your full name, photo, and passport number.
+              </p>
             </div>
-            <div style={{ fontSize: 13, color: "var(--iverifi-hint-text)", marginBottom: 16, lineHeight: 1.5 }}>
-              Take a clear photo of the page showing your photo and personal details.
-            </div>
-            {uploadCard(
-              "📷", "Upload passport photo", "Camera or gallery",
-              "fp-passport-upload",
-              (f) => handleFileSelect("passport", f),
-            )}
-          </>
+
+            <label
+              htmlFor="fp-passport-upload"
+              className={`w-full p-4 rounded-xl border border-[var(--iverifi-accent-border)] bg-[var(--iverifi-accent-soft)] hover:opacity-90 flex items-center gap-3.5 cursor-pointer transition-all shadow-xs ${
+                uploading ? "opacity-60 cursor-not-allowed" : ""
+              }`}
+            >
+              <div className="w-10 h-10 rounded-xl bg-[var(--iverifi-accent)]/20 border border-[var(--iverifi-accent-border)] flex items-center justify-center text-[var(--iverifi-accent)] shrink-0">
+                <Upload className="w-5 h-5" />
+              </div>
+              <div className="flex-1 min-w-0 text-left">
+                <p className="text-sm font-semibold text-foreground">Upload Passport Photo</p>
+                <p className="text-xs text-muted-foreground">Camera or file browser</p>
+              </div>
+              {uploading && <Loader2 className="w-4 h-4 animate-spin text-[var(--iverifi-accent)] ml-auto" />}
+              <input
+                id="fp-passport-upload"
+                type="file"
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+                disabled={uploading}
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) handleFileSelect("passport", f);
+                  e.target.value = "";
+                }}
+              />
+            </label>
+          </div>
         )}
 
-        {/* ── STEP 2: Visa / immigration stamp ── */}
+        {/* STEP 2: Visa / Stamp */}
         {step === "visa" && (
-          <>
-            {stepBadge(2, "Visa / Immigration Stamp")}
-            <div style={{ fontSize: 18, fontWeight: 800, color: "var(--iverifi-text-primary)", marginBottom: 6 }}>
-              Visa or immigration stamp
+          <div className="space-y-4">
+            {renderStepBadge(2, "Visa or Entry Stamp")}
+            <div>
+              <h3 className="text-lg font-bold text-foreground">Visa or Immigration Stamp</h3>
+              <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                Photo of your Indian visa sticker or the entry stamp endorsed in your passport upon arrival.
+              </p>
             </div>
-            <div style={{ fontSize: 13, color: "var(--iverifi-hint-text)", marginBottom: 14, lineHeight: 1.5 }}>
-              Photo of your visa sticker or the entry stamp in your passport.
-            </div>
-            {/* Passport thumbnail */}
+
             {photos.passport && (
-              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14, padding: 10, background: "var(--iverifi-success-soft)", borderRadius: 12, border: "1px solid var(--iverifi-success-border)" }}>
-                <div style={{ width: 40, height: 40, borderRadius: 10, overflow: "hidden", flexShrink: 0, background: "var(--iverifi-muted-surface)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  {photos.passport
-                    ? <img src={photos.passport} alt="passport" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                    : <span style={{ fontSize: 18 }}>📷</span>}
+              <div className="flex items-center gap-3 p-2.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10">
+                <div className="w-10 h-10 rounded-lg overflow-hidden shrink-0 border border-emerald-500/30 bg-muted">
+                  <img src={photos.passport} alt="Passport thumbnail" className="w-full h-full object-cover" />
                 </div>
-                <div style={{ fontSize: 12, color: "var(--iverifi-success)", fontWeight: 600 }}>✓ Passport photo saved</div>
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-500">
+                  <CheckCircle2 className="w-4 h-4" /> Passport photo captured
+                </div>
               </div>
             )}
-            {uploadCard(
-              "📄", "Upload visa / stamp photo", "Camera or gallery",
-              "fp-visa-upload",
-              (f) => handleFileSelect("visa", f),
-              "← Back",
-              () => setStep("passport"),
-            )}
-          </>
+
+            <label
+              htmlFor="fp-visa-upload"
+              className={`w-full p-4 rounded-xl border border-[var(--iverifi-accent-border)] bg-[var(--iverifi-accent-soft)] hover:opacity-90 flex items-center gap-3.5 cursor-pointer transition-all shadow-xs ${
+                uploading ? "opacity-60 cursor-not-allowed" : ""
+              }`}
+            >
+              <div className="w-10 h-10 rounded-xl bg-[var(--iverifi-accent)]/20 border border-[var(--iverifi-accent-border)] flex items-center justify-center text-[var(--iverifi-accent)] shrink-0">
+                <FileText className="w-5 h-5" />
+              </div>
+              <div className="flex-1 min-w-0 text-left">
+                <p className="text-sm font-semibold text-foreground">Upload Visa or Entry Stamp</p>
+                <p className="text-xs text-muted-foreground">Camera or file browser</p>
+              </div>
+              {uploading && <Loader2 className="w-4 h-4 animate-spin text-[var(--iverifi-accent)] ml-auto" />}
+              <input
+                id="fp-visa-upload"
+                type="file"
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+                disabled={uploading}
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) handleFileSelect("visa", f);
+                  e.target.value = "";
+                }}
+              />
+            </label>
+
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setStep("passport")}
+              className="w-full gap-1.5 border-border"
+            >
+              <ArrowLeft className="w-4 h-4" /> Back to Passport
+            </Button>
+          </div>
         )}
 
-        {/* ── STEP 3: Selfie ── */}
+        {/* STEP 3: Selfie */}
         {step === "selfie" && (
-          <>
-            {stepBadge(3, "Selfie")}
-            <div style={{ fontSize: 18, fontWeight: 800, color: "var(--iverifi-text-primary)", marginBottom: 6 }}>
-              Take a selfie
+          <div className="space-y-4">
+            {renderStepBadge(3, "Live Selfie Verification")}
+            <div>
+              <h3 className="text-lg font-bold text-foreground">Take a Quick Selfie</h3>
+              <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                Ensure your face is clearly visible without glasses or hats for liveness verification.
+              </p>
             </div>
-            <div style={{ fontSize: 13, color: "var(--iverifi-hint-text)", marginBottom: 14, lineHeight: 1.5 }}>
-              Your face must be clearly visible.
-            </div>
+
             {!cameraActive && !photos.selfie && (
-              <button type="button" onClick={startCamera} style={{ ...BTN_PRIMARY, marginBottom: 10 }}>
-                🤳 Open camera
-              </button>
+              <Button
+                type="button"
+                onClick={startCamera}
+                className="w-full h-12 bg-gradient-to-r from-[#00e0ff] to-[#7B5CF5] text-slate-950 font-semibold gap-2"
+              >
+                <Camera className="w-4 h-4" /> Open Camera
+              </Button>
             )}
+
             {cameraActive && (
-              <>
-                <div style={{ width: 200, height: 200, margin: "0 auto 12px", background: "#000", borderRadius: 16, overflow: "hidden", position: "relative" }}>
-                  <video ref={videoRef} autoPlay playsInline muted style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                  <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
-                    <div style={{ width: "70%", height: "70%", borderRadius: "50%", border: "2px dashed rgba(0,224,255,0.5)" }} />
+              <div className="flex flex-col items-center gap-3">
+                <div className="relative w-52 h-52 rounded-2xl overflow-hidden bg-black border border-border shadow-inner">
+                  <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <div className="w-40 h-40 rounded-full border-2 border-dashed border-cyan-400/70" />
                   </div>
                 </div>
-                <button type="button" onClick={captureSelfie} style={{ ...BTN_PRIMARY, marginBottom: 10 }}>📸 Capture</button>
-              </>
+                <Button
+                  type="button"
+                  onClick={captureSelfie}
+                  className="w-full h-11 bg-gradient-to-r from-[#00e0ff] to-[#7B5CF5] text-slate-950 font-semibold gap-2"
+                >
+                  <Aperture className="w-4 h-4" /> Capture Photo
+                </Button>
+              </div>
             )}
+
             {photos.selfie && !cameraActive && (
-              <>
-                <div style={{ width: 200, height: 200, margin: "0 auto 12px", borderRadius: 16, overflow: "hidden", background: "var(--iverifi-muted-surface)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <img src={photos.selfie} alt="selfie" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              <div className="flex flex-col items-center gap-3">
+                <div className="w-44 h-44 rounded-2xl overflow-hidden border border-border bg-muted">
+                  <img src={photos.selfie} alt="Selfie preview" className="w-full h-full object-cover" />
                 </div>
-                <button type="button" onClick={() => setStep("preview")} style={{ ...BTN_PRIMARY, marginBottom: 10 }}>
-                  Looks good →
-                </button>
-                <button type="button" onClick={() => { setPhotos((p) => ({ ...p, selfie: "" })); startCamera(); }} style={{ ...BTN_SECONDARY, marginTop: 0, marginBottom: 10 }}>
-                  Retake
-                </button>
-              </>
+                <Button
+                  type="button"
+                  onClick={() => setStep("preview")}
+                  className="w-full h-11 bg-gradient-to-r from-[#00e0ff] to-[#7B5CF5] text-slate-950 font-semibold"
+                >
+                  Looks Good →
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setPhotos((p) => ({ ...p, selfie: "" }));
+                    startCamera();
+                  }}
+                  className="w-full gap-1.5"
+                >
+                  <RotateCcw className="w-4 h-4" /> Retake Selfie
+                </Button>
+              </div>
             )}
-            <button type="button" onClick={() => { stopCamera(); setStep("visa"); }} style={{ ...BTN_SECONDARY, marginTop: 0 }}>
-              ← Back
-            </button>
-          </>
+
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => {
+                stopCamera();
+                setStep("visa");
+              }}
+              className="w-full gap-1.5 text-muted-foreground"
+            >
+              <ArrowLeft className="w-4 h-4" /> Back to Visa
+            </Button>
+          </div>
         )}
 
-        {/* ── PREVIEW / CONFIRM ── */}
+        {/* STEP 4: Review & Confirm */}
         {step === "preview" && (
-          <>
-            <div style={{ fontSize: 18, fontWeight: 800, color: "var(--iverifi-text-primary)", marginBottom: 6 }}>
-              Review photos
+          <div className="space-y-4">
+            <div>
+              <h3 className="text-lg font-bold text-foreground">Review Documents</h3>
+              <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                These documents will be shared with the establishment for your regulatory verification and visit record.
+              </p>
             </div>
-            <div style={{ fontSize: 13, color: "var(--iverifi-hint-text)", marginBottom: 16, lineHeight: 1.5 }}>
-              These will be shared with the hotel for your check-in.
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 16 }}>
+
+            <div className="grid grid-cols-3 gap-2.5">
               {[
-                { key: "passport", label: "Passport", icon: "📷" },
-                { key: "visa", label: "Visa / Stamp", icon: "📄" },
-                { key: "selfie", label: "Selfie", icon: "🤳" },
+                { key: "passport", label: "Passport", icon: <FileText className="w-5 h-5 text-muted-foreground" /> },
+                { key: "visa", label: "Visa / Stamp", icon: <FileText className="w-5 h-5 text-muted-foreground" /> },
+                { key: "selfie", label: "Selfie", icon: <UserCheck className="w-5 h-5 text-muted-foreground" /> },
               ].map(({ key, label, icon }) => {
                 const src = photos[key as keyof typeof photos];
                 return (
-                  <div key={key} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
-                    <div style={{ width: "100%", aspectRatio: "1", borderRadius: 12, overflow: "hidden", background: "var(--iverifi-muted-surface)", border: "1px solid var(--iverifi-card-border)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                      {src
-                        ? <img src={src} alt={label} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                        : <span style={{ fontSize: 28 }}>{icon}</span>}
+                  <div key={key} className="flex flex-col items-center gap-1.5">
+                    <div className="w-full aspect-square rounded-xl overflow-hidden bg-muted border border-border flex items-center justify-center">
+                      {src ? (
+                        <img src={src} alt={label} className="w-full h-full object-cover" />
+                      ) : (
+                        icon
+                      )}
                     </div>
-                    <div style={{ fontSize: 11, color: "var(--iverifi-label)", fontWeight: 600 }}>{label}</div>
+                    <span className="text-[11px] font-semibold text-muted-foreground">{label}</span>
                   </div>
                 );
               })}
             </div>
-            <div style={{ padding: 12, background: "var(--iverifi-accent-soft)", border: "1px solid var(--iverifi-accent-border)", borderRadius: 12, marginBottom: 16, fontSize: 12, color: "var(--iverifi-hint-text)", lineHeight: 1.6 }}>
-              🔐 Photos stored securely. Only this hotel can view them.
+
+            <div className="p-3 rounded-xl border border-[var(--iverifi-accent-border)] bg-[var(--iverifi-accent-soft)] flex items-start gap-2.5 text-xs text-muted-foreground leading-relaxed">
+              <Lock className="w-4 h-4 text-[var(--iverifi-accent)] shrink-0 mt-0.5" />
+              <span>Documents transmitted securely under DPDP Act 2023. Accessible only to the authorized establishment.</span>
             </div>
-            <button type="button" onClick={handleSave} disabled={saving} style={{ ...BTN_PRIMARY, marginBottom: 10, opacity: saving ? 0.6 : 1, cursor: saving ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-              {saving ? <><Loader2 className="h-4 w-4 animate-spin" /> Submitting…</> : "Submit & Check In →"}
-            </button>
-            <button type="button" onClick={() => setStep("selfie")} disabled={saving} style={BTN_SECONDARY}>
-              ← Back
-            </button>
-          </>
+
+            <Button
+              type="button"
+              onClick={handleSave}
+              disabled={saving}
+              className="w-full h-12 bg-gradient-to-r from-[#00e0ff] to-[#7B5CF5] text-slate-950 font-semibold gap-2 disabled:opacity-50"
+            >
+              {saving ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" /> Submitting Documents…
+                </>
+              ) : (
+                "Submit & Verify →"
+              )}
+            </Button>
+
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setStep("selfie")}
+              disabled={saving}
+              className="w-full gap-1.5 border-border"
+            >
+              <ArrowLeft className="w-4 h-4" /> Back to Selfie
+            </Button>
+          </div>
         )}
       </div>
     </div>

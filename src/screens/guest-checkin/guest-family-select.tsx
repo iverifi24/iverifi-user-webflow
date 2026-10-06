@@ -220,17 +220,17 @@ export default function GuestFamilySelect({ hotelName, hotelLogoUrl, onContinue,
         {hotelLogoUrl && (
           <img src={hotelLogoUrl} alt={hotelName} className="w-16 h-16 rounded-2xl object-cover" />
         )}
-        <h1 className="text-2xl font-extrabold text-foreground text-center">Travelling with family?</h1>
+        <h1 className="text-2xl font-extrabold text-foreground text-center">Visiting with family or companions?</h1>
         <p className="text-sm text-muted-foreground text-center leading-relaxed">
-          Add family members' IDs so{" "}
-          <span className="font-semibold text-foreground">{hotelName}</span> can check everyone in together.
+          Add accompanying members or companions so{" "}
+          <span className="font-semibold text-foreground">{hotelName}</span> can verify everyone smoothly.
         </p>
       </div>
 
       {/* Family member list */}
       <div className="w-full max-w-sm flex flex-col gap-3 mb-4">
         {familyMembers.length === 0 && (
-          <p className="text-sm text-muted-foreground text-center py-4">No verified family members yet.</p>
+          <p className="text-sm text-muted-foreground text-center py-4">No verified accompanying members yet.</p>
         )}
         {familyMembers.map((member) => {
           const docLabel = FAMILY_DOC_OPTIONS.find((o) => o.type === member.document_type)?.label ?? "Document";
@@ -273,7 +273,7 @@ export default function GuestFamilySelect({ hotelName, hotelLogoUrl, onContinue,
         className="w-full max-w-sm rounded-2xl border border-dashed py-3 text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors mb-8"
         style={{ borderColor: "rgba(255,255,255,0.2)" }}
       >
-        + Add family member
+        + Add member / companion
       </button>
 
       {/* Footer buttons */}
@@ -288,13 +288,13 @@ export default function GuestFamilySelect({ hotelName, hotelLogoUrl, onContinue,
             opacity: selectedIds.size === 0 ? 0.5 : 1,
           }}
         >
-          Continue with {selectedIds.size > 0 ? `${selectedIds.size} family member${selectedIds.size > 1 ? "s" : ""}` : "family"}
+          Continue with {selectedIds.size > 0 ? `${selectedIds.size} member${selectedIds.size > 1 ? "s" : ""}` : "selected"}
         </button>
         <button
           onClick={onSkip}
           className="w-full py-3 rounded-2xl text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors"
         >
-          Skip — check in alone
+          Skip — continue alone
         </button>
       </div>
 
@@ -303,7 +303,7 @@ export default function GuestFamilySelect({ hotelName, hotelLogoUrl, onContinue,
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm">
           <div className="w-full max-w-sm rounded-t-3xl bg-[var(--iverifi-bg,#0d0d0d)] p-6 flex flex-col gap-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-extrabold text-foreground">Add family member</h2>
+              <h2 className="text-lg font-extrabold text-foreground">Add accompanying member</h2>
               <button onClick={() => setAddDialogOpen(false)}>
                 <X className="w-5 h-5 text-muted-foreground" />
               </button>

@@ -8,6 +8,7 @@ import {
   getRecipientIdFromStorage,
   saveRecipientIdForLater,
   peekRecipientIdFromStorage,
+  getPostConnectPath,
 } from "@/utils/connectionFlow";
 import { useAddConnectionMutation } from "@/redux/api";
 import { isTermsAccepted } from "@/utils/terms";
@@ -63,13 +64,13 @@ export function LoginForm({
     if (pendingId) {
       try {
         await addConnection({ document_id: pendingId, type: "Company" }).unwrap();
-        nav(`/?code=${pendingId}`);
+        nav(getPostConnectPath(pendingId));
       } catch (err) {
         console.error("Failed to add connection after login", err);
-        nav("/");
+        nav(getPostConnectPath(null));
       }
     } else {
-      nav("/");
+      nav(getPostConnectPath(null));
     }
   };
 

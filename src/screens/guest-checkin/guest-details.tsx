@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { IverifiLogo } from "@/components/iverifi-logo";
 import { HotelBadge } from "@/components/hotel-badge";
+import { Lock } from "lucide-react";
 import type { FlowCredential } from "./guest-checkin-flow";
 import type { FamilyCredential } from "./guest-family-select";
 
@@ -167,9 +168,9 @@ export default function GuestDetails({
     } catch (err: any) {
       const status = err?.status ?? err?.originalStatus;
       if (status === 403) {
-        onError("This property has reached its check-in limit. Please speak to the front desk.");
+        onError("This establishment has reached its verification quota. Please contact the desk or support.");
       } else {
-        onError(err?.data?.message || err?.message || "Failed to submit check-in. Please try again.");
+        onError(err?.data?.message || err?.message || "Failed to submit verification. Please try again.");
       }
     } finally {
       setSubmitting(false);
@@ -187,7 +188,7 @@ export default function GuestDetails({
         <div className="text-center">
           <h1 className="text-2xl font-bold text-foreground mb-1">Your details</h1>
           <p className="text-sm text-muted-foreground">
-            Used for your check-in record at{" "}
+            Used for your verified visit record at{" "}
             <strong className="text-foreground">{hotelName}</strong>
           </p>
         </div>
@@ -244,14 +245,8 @@ export default function GuestDetails({
               />
             </div>
 
-            <div
-              className="flex gap-3 rounded-lg p-3"
-              style={{
-                background: "var(--iverifi-accent-soft)",
-                border: "1px solid var(--iverifi-accent-border)",
-              }}
-            >
-              <span className="text-base flex-shrink-0">🔐</span>
+            <div className="flex gap-2.5 rounded-xl p-3 items-center border border-[var(--iverifi-accent-border)] bg-[var(--iverifi-accent-soft)]">
+              <Lock className="w-4 h-4 text-[var(--iverifi-accent)] shrink-0" />
               <p className="text-xs text-muted-foreground leading-snug">
                 <strong className="text-foreground">Documents are never stored.</strong> iVeriFi
                 reads only verified status from govt portals. DPDP Act 2023 compliant.

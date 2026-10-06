@@ -41,26 +41,22 @@ const ProtectedLayout = () => {
   return (
     <SidebarProvider>
       <SidebarInset className="min-h-0 min-w-0 overflow-x-hidden bg-background text-foreground">
-        <header className="flex h-18 shrink-0 items-center justify-between gap-2 border-b border-border bg-background pl-0 pr-4 min-w-0 overflow-hidden md:px-4">
-          <div className="-ml-[120px] flex h-24 min-w-[320px] shrink-0 items-center justify-start gap-2 overflow-hidden rounded-lg pr-2 md:min-w-[420px] md:-ml-[140px] md:pl-0">
-            <div
-              onClick={() => navigate("/")}
-              className="flex cursor-pointer origin-[0_50%] scale-[6] items-center justify-start md:origin-left"
-            >
-              <IverifiLogo
-                containerClassName="inline-flex shrink-0 justify-start"
-                className="h-[56px] w-[90px] min-w-[90px] shrink-0 object-contain object-left align-bottom md:w-[75px] md:min-w-[75px]"
-              />
-            </div>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
+        <header className="sticky top-0 z-40 flex h-16 shrink-0 items-center justify-between border-b border-border bg-background/95 px-4 backdrop-blur-md transition-colors sm:px-6">
+          <button
+            type="button"
+            onClick={() => navigate("/")}
+            className="flex items-center gap-2 rounded-xl transition-transform active:scale-95 focus:outline-hidden"
+          >
+            <IverifiLogo />
+          </button>
+          <div className="flex items-center gap-2.5 shrink-0">
             <button
               type="button"
               aria-label="Toggle theme"
               onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-              className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-transparent text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+              className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-card/60 text-foreground shadow-2xs backdrop-blur-sm transition-all hover:bg-accent hover:text-accent-foreground"
             >
-              {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+              {theme === "dark" ? <Sun className="h-4 w-4 text-amber-500" /> : <Moon className="h-4 w-4 text-slate-700" />}
             </button>
             <HeaderProfileMenu />
           </div>
