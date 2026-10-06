@@ -38,8 +38,8 @@ function PinDots({ length, filled }: { length: number; filled: number }) {
           className={cn(
             "h-3 w-3 rounded-full transition-all duration-200",
             i < filled
-              ? "bg-teal-400 scale-125 shadow-md shadow-teal-400/50 ring-2 ring-teal-400/30"
-              : "bg-slate-700/80 border border-slate-600/50 scale-100"
+              ? "bg-teal-600 dark:bg-teal-400 scale-125 shadow-md shadow-teal-600/30 dark:shadow-teal-400/50 ring-2 ring-teal-600/20 dark:ring-teal-400/30"
+              : "bg-slate-200 dark:bg-slate-700/80 border border-slate-300/70 dark:border-slate-600/50 scale-100"
           )}
         />
       ))}
@@ -74,8 +74,8 @@ function Keypad({
             className={cn(
               "flex h-13 w-13 sm:h-14 sm:w-14 mx-auto items-center justify-center rounded-full transition-all duration-150 select-none cursor-pointer active:scale-90 disabled:opacity-40 text-xl font-bold",
               isDelete
-                ? "bg-transparent text-slate-400 hover:text-white hover:bg-slate-800/60"
-                : "border border-slate-700/70 bg-slate-800/80 text-white hover:bg-slate-700/90 hover:border-teal-400/60 hover:text-teal-300 shadow-sm active:scale-95"
+                ? "bg-transparent text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/60"
+                : "border border-slate-200/80 dark:border-slate-700/70 bg-slate-100/90 dark:bg-slate-800/80 text-slate-800 dark:text-white hover:bg-teal-50 dark:hover:bg-slate-700/90 hover:border-teal-400/60 dark:hover:border-teal-400/60 hover:text-teal-700 dark:hover:text-teal-300 shadow-2xs dark:shadow-sm"
             )}
           >
             {isDelete ? <Delete className="h-5 w-5" /> : k}
@@ -304,14 +304,14 @@ export function PinLockScreen({ uid, mode, onUnlocked }: Props) {
   ];
 
   return (
-    <div className="dark fixed inset-0 z-[99999] flex items-center justify-center bg-slate-950/85 backdrop-blur-xl p-4">
+    <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-slate-900/30 dark:bg-slate-950/80 backdrop-blur-md dark:backdrop-blur-xl p-4">
       {/* Centered Glass Security Vault Card */}
-      <div className="relative w-full max-w-[340px] rounded-3xl border border-slate-800/90 bg-slate-900/95 p-6 shadow-2xl shadow-black/80 backdrop-blur-2xl flex flex-col items-center gap-4 text-center my-auto animate-in fade-in zoom-in-95 duration-200">
+      <div className="relative w-full max-w-[340px] rounded-3xl border border-slate-200/90 dark:border-slate-800/90 bg-white/95 dark:bg-slate-900/95 p-6 shadow-2xl shadow-slate-900/10 dark:shadow-black/80 backdrop-blur-xl dark:backdrop-blur-2xl flex flex-col items-center gap-4 text-center my-auto animate-in fade-in zoom-in-95 duration-200">
         
         {/* Brand Header */}
         <div className="flex flex-col items-center gap-1.5">
           <IverifiLogo className="h-7 w-auto object-contain" />
-          <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-teal-500/15 border border-teal-500/30 text-teal-400 shadow-sm mt-0.5">
+          <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-teal-500/10 dark:bg-teal-500/15 border border-teal-500/25 dark:border-teal-500/30 text-teal-600 dark:text-teal-400 shadow-2xs mt-0.5">
             <Lock className="h-4 w-4" />
           </div>
         </div>
@@ -320,10 +320,10 @@ export function PinLockScreen({ uid, mode, onUnlocked }: Props) {
         {isPinScreen && (
           <div className="flex flex-col items-center w-full gap-3">
             <div>
-              <h1 className="text-lg font-bold text-white tracking-tight">
+              <h1 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight">
                 {pinScreenTitle[screen]}
               </h1>
-              <p className="text-[11px] text-slate-400 mt-0.5">
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
                 {pinScreenSubtitle[screen]}
               </p>
             </div>
@@ -343,7 +343,7 @@ export function PinLockScreen({ uid, mode, onUnlocked }: Props) {
             <PinDots length={PIN_LENGTH} filled={pin.length} />
 
             {error && (
-              <p className="text-[11px] text-rose-400 font-semibold text-center animate-in fade-in duration-200">
+              <p className="text-[11px] text-rose-500 dark:text-rose-400 font-semibold text-center animate-in fade-in duration-200">
                 {error}
               </p>
             )}
@@ -360,7 +360,7 @@ export function PinLockScreen({ uid, mode, onUnlocked }: Props) {
               <button
                 type="button"
                 onClick={() => { setScreen("forgot-phone"); setError(""); }}
-                className="text-[11px] font-semibold text-teal-400 hover:text-teal-300 hover:underline pt-0.5 transition-colors cursor-pointer"
+                className="text-[11px] font-semibold text-teal-600 hover:text-teal-700 dark:text-teal-400 dark:hover:text-teal-300 hover:underline pt-0.5 transition-colors cursor-pointer"
               >
                 Forgot PIN?
               </button>
@@ -372,25 +372,25 @@ export function PinLockScreen({ uid, mode, onUnlocked }: Props) {
         {screen === "forgot-phone" && (
           <form onSubmit={handleForgotSendOtp} className="flex w-full flex-col gap-3.5 text-left">
             <div className="text-center">
-              <h1 className="text-lg font-bold text-white tracking-tight">
+              <h1 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight">
                 Reset your PIN
               </h1>
-              <p className="text-[11px] text-slate-400 mt-0.5">
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
                 Enter your registered mobile number for an OTP.
               </p>
             </div>
 
             <div className="space-y-1">
-              <label className="text-[11px] font-semibold text-slate-200">Mobile number</label>
+              <label className="text-[11px] font-semibold text-slate-700 dark:text-slate-200">Mobile number</label>
               <div className="flex gap-1.5">
                 <select
                   value={forgotCountryCode}
                   onChange={(e) => setForgotCountryCode(e.target.value)}
                   disabled={isLoading}
-                  className="h-9 w-24 shrink-0 rounded-xl border border-slate-700 bg-slate-800 px-2 text-xs text-white focus:outline-hidden focus:border-teal-500"
+                  className="h-9 w-24 shrink-0 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-2 text-xs text-slate-900 dark:text-white focus:outline-hidden focus:border-teal-500"
                 >
                   {COUNTRY_CODES.map(({ code, label }) => (
-                    <option key={code} value={code} className="bg-slate-900 text-white">{label}</option>
+                    <option key={code} value={code} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">{label}</option>
                   ))}
                 </select>
                 <input
@@ -400,17 +400,17 @@ export function PinLockScreen({ uid, mode, onUnlocked }: Props) {
                   value={forgotPhone}
                   onChange={(e) => setForgotPhone(e.target.value.replace(/\D/g, "").slice(0, 15))}
                   disabled={isLoading}
-                  className="h-9 flex-1 rounded-xl border border-slate-700 bg-slate-800 px-3 text-xs text-white placeholder:text-slate-500 focus:outline-hidden focus:border-teal-500"
+                  className="h-9 flex-1 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 text-xs text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-hidden focus:border-teal-500"
                 />
               </div>
             </div>
 
-            {error && <p className="text-[11px] text-rose-400 font-semibold">{error}</p>}
+            {error && <p className="text-[11px] text-rose-500 dark:text-rose-400 font-semibold">{error}</p>}
 
             <Button
               type="submit"
               disabled={isLoading || forgotPhone.length < 6}
-              className="h-9 w-full bg-teal-500 hover:bg-teal-600 text-white font-semibold rounded-xl text-xs shadow-md shadow-teal-500/20 cursor-pointer"
+              className="h-9 w-full bg-teal-600 hover:bg-teal-700 dark:bg-teal-500 dark:hover:bg-teal-600 text-white font-semibold rounded-xl text-xs shadow-md shadow-teal-500/20 cursor-pointer"
             >
               {isLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : null}
               {isLoading ? "Sending OTP…" : "Send Verification OTP →"}
@@ -419,7 +419,7 @@ export function PinLockScreen({ uid, mode, onUnlocked }: Props) {
             <button
               type="button"
               onClick={() => { setScreen("lock"); setError(""); }}
-              className="text-[11px] text-center text-slate-400 hover:text-slate-200 font-medium hover:underline flex items-center justify-center gap-1 cursor-pointer"
+              className="text-[11px] text-center text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 font-medium hover:underline flex items-center justify-center gap-1 cursor-pointer"
             >
               <ArrowLeft className="w-3 h-3" /> Back to PIN entry
             </button>
@@ -430,16 +430,16 @@ export function PinLockScreen({ uid, mode, onUnlocked }: Props) {
         {screen === "forgot-otp" && (
           <form onSubmit={handleForgotVerifyOtp} className="flex w-full flex-col gap-3.5 text-left">
             <div className="text-center">
-              <h1 className="text-lg font-bold text-white tracking-tight">
+              <h1 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight">
                 Enter Verification OTP
               </h1>
-              <p className="text-[11px] text-slate-400 mt-0.5">
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
                 Sent to {forgotCountryCode} {forgotPhone}
               </p>
             </div>
 
             <div className="space-y-1">
-              <label className="text-[11px] font-semibold text-slate-200">6-Digit Code</label>
+              <label className="text-[11px] font-semibold text-slate-700 dark:text-slate-200">6-Digit Code</label>
               <input
                 type="text"
                 inputMode="numeric"
@@ -451,16 +451,16 @@ export function PinLockScreen({ uid, mode, onUnlocked }: Props) {
                   setError("");
                 }}
                 disabled={isLoading}
-                className="h-10 w-full rounded-xl border border-slate-700 bg-slate-800 px-3 text-center text-base font-bold tracking-[0.3em] text-white placeholder:text-slate-500 placeholder:tracking-normal focus:outline-hidden focus:border-teal-500"
+                className="h-10 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 text-center text-base font-bold tracking-[0.3em] text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 placeholder:tracking-normal focus:outline-hidden focus:border-teal-500"
               />
             </div>
 
-            {error && <p className="text-[11px] text-rose-400 font-semibold">{error}</p>}
+            {error && <p className="text-[11px] text-rose-500 dark:text-rose-400 font-semibold">{error}</p>}
 
             <Button
               type="submit"
               disabled={isLoading || forgotOtp.length !== 6}
-              className="h-9 w-full bg-teal-500 hover:bg-teal-600 text-white font-semibold rounded-xl text-xs shadow-md shadow-teal-500/20 cursor-pointer"
+              className="h-9 w-full bg-teal-600 hover:bg-teal-700 dark:bg-teal-500 dark:hover:bg-teal-600 text-white font-semibold rounded-xl text-xs shadow-md shadow-teal-500/20 cursor-pointer"
             >
               {isLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : null}
               {isLoading ? "Verifying…" : "Verify & Reset PIN"}
@@ -469,7 +469,7 @@ export function PinLockScreen({ uid, mode, onUnlocked }: Props) {
             <button
               type="button"
               onClick={() => { setScreen("forgot-phone"); setError(""); setForgotOtp(""); }}
-              className="text-[11px] text-center text-slate-400 hover:text-slate-200 font-medium hover:underline flex items-center justify-center gap-1 cursor-pointer"
+              className="text-[11px] text-center text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 font-medium hover:underline flex items-center justify-center gap-1 cursor-pointer"
             >
               <ArrowLeft className="w-3 h-3" /> Change mobile number
             </button>
@@ -477,8 +477,8 @@ export function PinLockScreen({ uid, mode, onUnlocked }: Props) {
         )}
 
         {/* Security Footer */}
-        <div className="flex items-center justify-center gap-1.5 text-[10px] text-slate-400 font-medium pt-1 border-t border-slate-800/80 w-full">
-          <ShieldCheck className="w-3.5 h-3.5 text-teal-400" />
+        <div className="flex items-center justify-center gap-1.5 text-[10px] text-slate-500 dark:text-slate-400 font-medium pt-1 border-t border-slate-200/80 dark:border-slate-800/80 w-full">
+          <ShieldCheck className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
           <span>Protected under DPDP Act 2023</span>
         </div>
       </div>
