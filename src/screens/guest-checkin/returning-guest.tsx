@@ -13,6 +13,7 @@ import {
   User,
   Hash,
   Calendar,
+  Clock,
   MapPin,
   ShieldCheck,
   ShieldAlert,
@@ -202,15 +203,23 @@ export default function ReturningGuest({
                 ))}
               </div>
             </div>
+            {/* Auto-Revocation Timer Badge */}
+            <div className="flex items-center gap-2 pt-2 border-t border-[var(--iverifi-card-border)] text-xs text-muted-foreground">
+              <Clock className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+              <span>
+                <strong>Auto-Revocation:</strong> Access terminates automatically in 24 hours under DPDP Act 2023.
+              </span>
+            </div>
           </CardContent>
         </Card>
 
         <Button
           disabled={!selected}
           onClick={onContinue}
-          className="w-full h-12 bg-gradient-to-r from-[#00e0ff] to-[#7B5CF5] text-slate-950 font-semibold shadow-[0_0_24px_rgba(0,224,255,0.25)] hover:from-[#40e8ff] hover:to-[#9274ff] disabled:opacity-40"
+          className="w-full h-12 bg-gradient-to-r from-teal-500 to-cyan-500 text-slate-950 font-bold shadow-md shadow-teal-500/25 hover:from-teal-600 hover:to-cyan-600 disabled:opacity-40 flex items-center justify-center gap-2 text-sm"
         >
-          Continue →
+          <Sparkles className="w-4 h-4" />
+          <span>Express Check-In ({LABELS[selected?.document_type ?? ""] ?? "ID"}) →</span>
         </Button>
 
         <Button
