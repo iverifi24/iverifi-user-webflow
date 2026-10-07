@@ -25,6 +25,7 @@ import { addDays, format } from "date-fns";
 import {
   CheckCircle,
   ChevronRight,
+  Globe2,
   Loader2,
   Lock,
   Plus,
@@ -54,6 +55,7 @@ import { VerifierBadge } from "@/components/verifier-badge";
 import { DocumentTypeIcon } from "@/components/document-type-icon";
 import { QRScannerModal } from "@/components/qr-scanner-modal";
 import { FeedbackModal } from "@/components/feedback-modal";
+import { VenueRecognitionModal } from "@/components/venue-recognition-modal";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
@@ -113,18 +115,44 @@ const FAMILY_DOC_OPTIONS = [
 const FAMILY_DOC_UNKNOWN = { type: "UNKNOWN", label: "ID Document", subtitle: "Verified", productCode: "KYC", iconType: "AADHAAR_CARD" } as const;
 type FamilyDocType = (typeof FAMILY_DOC_OPTIONS)[number]["type"];
 
-/** Subtitle under document name (e.g. "UIDAI Verified") */
-const DOC_TYPE_SUBTITLE: Record<string, string> = {
-  DRIVING_LICENSE: "State RTO Verified",
-  AADHAAR_CARD: "UIDAI Verified",
-  PAN_CARD: "Income Tax Department",
-  PASSPORT: "Passport Seva",
-  "C-Form (Foreign Guest)":
-    "Auto-filled from passport · FRRO compliance for hotels",
-};
 
-const getDocSubtitle = (docType: string): string =>
-  DOC_TYPE_SUBTITLE[docType] ?? "Verified";
+
+
+
+const SMART_CARD_META: Record<
+  string,
+  {
+    issuer: string;
+    unverifiedTime: string;
+    unverifiedProvider: string;
+    gradient: string;
+  }
+> = {
+  AADHAAR_CARD: {
+    issuer: "UIDAI · Govt of India",
+    unverifiedTime: "30s",
+    unverifiedProvider: "DigiLocker",
+    gradient: "from-slate-900/90 via-slate-800 to-indigo-950/70",
+  },
+  DRIVING_LICENSE: {
+    issuer: "MoRTH · State Transport",
+    unverifiedTime: "45s",
+    unverifiedProvider: "Parivahan",
+    gradient: "from-slate-900/90 via-slate-800 to-teal-950/70",
+  },
+  PAN_CARD: {
+    issuer: "Income Tax Dept · Govt of India",
+    unverifiedTime: "30s",
+    unverifiedProvider: "NSDL / DigiLocker",
+    gradient: "from-slate-900/90 via-slate-800 to-sky-950/70",
+  },
+  PASSPORT: {
+    issuer: "Ministry of External Affairs",
+    unverifiedTime: "60s",
+    unverifiedProvider: "Passport Seva",
+    gradient: "from-slate-900/90 via-slate-800 to-amber-950/60",
+  },
+};
 
 interface Credential {
   id?: string;
@@ -298,49 +326,7 @@ const pickByIncludes = (obj: Record<string, any>, includes: string[]): any => {
   return null;
 };
 
-const SHARE_SUMMARY_BY_DOC: Record<string, string[]> = {
-  AADHAAR_CARD: [
-    "Photo",
-    "Full name",
-    "Aadhaar (masked)",
-    "Age 18+",
-    "Address",
-    "City",
-    "State",
-    "Pincode",
-  ],
-  PAN_CARD: ["Photo", "Full name", "PAN number", "Date of birth", "Age 18+"],
-  DRIVING_LICENSE: [
-    "Photo",
-    "Full name",
-    "Licence number",
-    "Valid till",
-    "Vehicle class",
-    "City",
-    "State",
-  ],
-  PASSPORT: [
-    "Photo",
-    "Full name",
-    "Passport No. (masked)",
-    "Nationality",
-    "Valid till",
-  ],
-  "C-Form (Foreign Guest)": [
-    "Surname",
-    "Given name",
-    "Nationality",
-    "Passport No.",
-    "Date of birth",
-    "Sex",
-    "Arrival date",
-    "Port of arrival",
-    "Visa No.",
-    "Visa type",
-    "Address in India",
-  ],
-  "Foreign Passport": ["Passport photo", "Visa / immigration stamp", "Selfie"],
-};
+
 
 const Connections = () => {
   const [searchParams] = useSearchParams();
@@ -427,7 +413,6 @@ const Connections = () => {
   const [shareSelectedDocType, setShareSelectedDocType] = useState<
     string | null
   >(null);
-  const [shareExpiryHours, setShareExpiryHours] = useState("24");
   const [scannerOpen, setScannerOpen] = useState(false);
   /** Type-to-confirm for delete: user must type "DELETE" to enable the Delete button */
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
@@ -943,19 +928,6 @@ const Connections = () => {
     }
   }, [code]);
 
-  const shareSummary = useMemo(() => {
-    if (!shareSelectedDocType) return [];
-    if (shareSelectedDocType.startsWith("FAMILY:"))
-      return (
-        SHARE_SUMMARY_BY_DOC["AADHAAR_CARD"] ?? [
-          "Full name",
-          "Aadhaar (masked)",
-          "Age indicator",
-        ]
-      );
-    return SHARE_SUMMARY_BY_DOC[shareSelectedDocType] ?? ["Full name"];
-  }, [shareSelectedDocType]);
-
   const connectedRequestorName = useMemo(() => {
     return (
       recipientData?.data?.requests?.[0]?.recipients?.name ||
@@ -970,6 +942,22 @@ const Connections = () => {
     );
   }, [recipientData]);
 
+  const connectedRequestorType = useMemo(() => {
+    return (
+      (recipientData?.data?.requests?.[0]?.recipients?.businessType as string) || null
+    );
+  }, [recipientData]);
+
+  const connectedRequestorAddress = useMemo(() => {
+    const r = recipientData?.data?.requests?.[0]?.recipients;
+    if (!r) return null;
+    if (r.address) return String(r.address);
+    if (r.location) return String(r.location);
+    const parts = [r.city, r.state].filter(Boolean);
+    if (parts.length) return parts.join(", ");
+    return null;
+  }, [recipientData]);
+
   // QR scan / deep link: show the same "Share now" sheet as vault share, without extra taps
   useEffect(() => {
     if (!code || !isValidQRCode(code)) return;
@@ -979,7 +967,6 @@ const Connections = () => {
     autoShareSheetOpenedForCodeRef.current = code;
     checkinFlowStartedAt.current = Date.now();
     setShareSelectedDocType(firstShareableDocType);
-    setShareExpiryHours("24");
     setShareSheetOpen(true);
   }, [code, isRecipientLoading, connectedRequestorName, firstShareableDocType]);
 
@@ -1366,6 +1353,100 @@ const Connections = () => {
     }
   };
 
+  const handleExpressCheckIn = async () => {
+    if (!shareSelectedDocType) {
+      toast.error("Please select a document to share.");
+      return;
+    }
+    if (shareSelectedDocType === "Foreign Passport") {
+      setShareSheetOpen(false);
+      setForeignPassportDialogOpen(true);
+      return;
+    }
+    if (shareSelectedDocType.startsWith("FAMILY:")) {
+      if (!derivedConnectionId) {
+        toast.error("No connection found. Scan a QR first.");
+        return;
+      }
+      const memberId = shareSelectedDocType.slice(7);
+      const member = (familyData?.data?.family_members || []).find(
+        (m: any) => m.id === memberId
+      );
+      if (!member) {
+        toast.error("Family member credential not found.");
+        return;
+      }
+      const credentialId =
+        member.credential_id || member.id || member.credentialId;
+      if (!credentialId) {
+        toast.error("Invalid credential ID.");
+        return;
+      }
+      if (isCheckInOutInFlight || isCheckInUpdating) return;
+      setCheckInOutInFlight(true);
+      try {
+        await updateCredentials({
+          credential_request_id: derivedConnectionId,
+          credentials: [
+            {
+              credential_id: credentialId,
+              document_type: "AADHAAR_CARD",
+              status: "Active",
+              expiry_date: format(addDays(new Date(), 30), "yyyy-MM-dd"),
+            },
+          ],
+        }).unwrap();
+        if (code && isValidQRCode(code)) {
+          await updateCheckInStatus({
+            credential_request_id: derivedConnectionId,
+            credentials: [],
+            status: "checkin",
+            credential_id: credentialId,
+            ...(checkinFlowStartedAt.current != null
+              ? { client_started_at: checkinFlowStartedAt.current }
+              : {}),
+          }).unwrap();
+          clearPendingRecipientId();
+          processedCodeRef.current = null;
+          navigate(location.pathname, { replace: true });
+          toast.success(
+            "Family member Aadhaar shared. Check-in request sent."
+          );
+          await refetchCredentials();
+          setFeedbackRequestId(derivedConnectionId);
+          setFeedbackOpen(true);
+        } else {
+          toast.success("Family member Aadhaar shared successfully.");
+          await refetchRecipient();
+        }
+        setShareSheetOpen(false);
+      } catch (err: any) {
+        toast.error(
+          err?.data?.message
+            ? String(err.data.message)
+            : "Failed to share. Please try again."
+        );
+      } finally {
+        setCheckInOutInFlight(false);
+      }
+      return;
+    }
+    try {
+      if (code && isValidQRCode(code)) {
+        await handleShareAndRequestCheckIn(
+          shareSelectedDocType as DocumentType
+        );
+      } else {
+        await handleShareCredentials(
+          shareSelectedDocType as DocumentType
+        );
+      }
+      setShareSheetOpen(false);
+    } catch {
+      /* toast already shown */
+    }
+  };
+
   // verify document via Kwik iframe — the original path, now called directly for non-DL docs
   // and by the DL choice modal "No — Use Camera Scan" button.
   const handleVerifyDocumentKwik = async (
@@ -1649,125 +1730,194 @@ const Connections = () => {
         )}
 
         <div className="space-y-6 pt-2">
-          {/* Top stats (iVerifi app style) */}
+          {/* Top interactive stats */}
           <div className="grid grid-cols-3 gap-3">
-            <div className="rounded-2xl border border-[color:var(--iverifi-stat-border)] bg-[var(--iverifi-stat-bg)] p-4">
-              <div className="text-center">
-                <div className="text-xl font-semibold text-teal-600 dark:text-[#00e0ff]">
-                  {
-                    HOME_DOCUMENT_TYPES.filter(
-                      (t) => !!verifiedCredentialsMap[t],
-                    ).length
-                  }
-                </div>
-                <div className="mt-1 text-center text-[11px] font-semibold tracking-widest uppercase text-[var(--iverifi-text-muted)]">
-                  Verified
-                </div>
+            <button
+              type="button"
+              onClick={() => {
+                const el = document.getElementById("wallet-documents-section");
+                el?.scrollIntoView({ behavior: "smooth" });
+              }}
+              className="group flex flex-col items-center justify-center rounded-2xl border border-border/70 bg-card/70 p-3.5 sm:p-4 text-center shadow-xs transition-all duration-200 hover:border-teal-500/40 hover:bg-card hover:shadow-md active:scale-95 cursor-pointer backdrop-blur-xs"
+            >
+              <div className="text-xl sm:text-2xl font-black text-teal-600 dark:text-cyan-400 transition-transform group-hover:scale-105">
+                {
+                  HOME_DOCUMENT_TYPES.filter(
+                    (t) => !!verifiedCredentialsMap[t],
+                  ).length
+                }
+                <span className="text-xs font-normal text-muted-foreground ml-0.5">/{HOME_DOCUMENT_TYPES.length}</span>
               </div>
-            </div>
-            <div className="rounded-2xl border border-[color:var(--iverifi-stat-border)] bg-[var(--iverifi-stat-bg)] p-4">
-              <div className="text-center">
-                <div className="text-xl font-semibold text-teal-600 dark:text-[#00e0ff]">
-                  {connectionsData?.data?.requests?.length ?? 0}
-                </div>
-                <div className="mt-1 text-center text-[11px] font-semibold tracking-widest uppercase text-[var(--iverifi-text-muted)]">
-                  Stays
-                </div>
+              <div className="mt-1 text-[10px] sm:text-[11px] font-bold tracking-wider uppercase text-muted-foreground group-hover:text-foreground">
+                Verified IDs
               </div>
-            </div>
-            <div className="rounded-2xl border border-[color:var(--iverifi-stat-border)] bg-[var(--iverifi-stat-bg)] p-4">
-              <div className="text-center">
-                <div className="text-xl font-semibold text-teal-600 dark:text-[#00e0ff]">
-                  {
-                    (connectionsData?.data?.requests ?? []).filter(
-                      (r: any) => r?.check_in_status === "pending",
-                    ).length
-                  }
-                </div>
-                <div className="mt-1 text-center text-[11px] font-semibold tracking-widest uppercase text-[var(--iverifi-text-muted)]">
-                  Pending
-                </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => navigate("/connections")}
+              className="group flex flex-col items-center justify-center rounded-2xl border border-border/70 bg-card/70 p-3.5 sm:p-4 text-center shadow-xs transition-all duration-200 hover:border-teal-500/40 hover:bg-card hover:shadow-md active:scale-95 cursor-pointer backdrop-blur-xs"
+            >
+              <div className="text-xl sm:text-2xl font-black text-teal-600 dark:text-cyan-400 transition-transform group-hover:scale-105">
+                {connectionsData?.data?.requests?.length ?? 0}
               </div>
-            </div>
+              <div className="mt-1 text-[10px] sm:text-[11px] font-bold tracking-wider uppercase text-muted-foreground group-hover:text-foreground">
+                Shared With
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => navigate("/connections")}
+              className="group flex flex-col items-center justify-center rounded-2xl border border-border/70 bg-card/70 p-3.5 sm:p-4 text-center shadow-xs transition-all duration-200 hover:border-amber-500/40 hover:bg-card hover:shadow-md active:scale-95 cursor-pointer backdrop-blur-xs"
+            >
+              <div className="text-xl sm:text-2xl font-black text-amber-500 dark:text-amber-400 transition-transform group-hover:scale-105">
+                {
+                  (connectionsData?.data?.requests ?? []).filter(
+                    (r: any) => r?.check_in_status === "pending",
+                  ).length
+                }
+              </div>
+              <div className="mt-1 text-[10px] sm:text-[11px] font-bold tracking-wider uppercase text-muted-foreground group-hover:text-foreground">
+                Pending
+              </div>
+            </button>
           </div>
 
           {/* Documents */}
-          <div className="space-y-3">
+          <div id="wallet-documents-section" className="space-y-3 scroll-mt-20">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <div className="text-[11px] font-semibold tracking-widest uppercase text-[var(--iverifi-text-muted)]">
-                  DOCUMENTS
+                <div className="text-[11px] font-bold tracking-widest uppercase text-muted-foreground">
+                  DIGITAL CREDENTIALS
                 </div>
+                <p className="text-xs text-muted-foreground/80 mt-0.5">
+                  Govt-verified digital identities secured under DPDP Act 2023
+                </p>
               </div>
               <Button
                 type="button"
                 variant="outline"
-                className="h-9 rounded-xl border border-[color:var(--iverifi-border-subtle)] bg-[var(--iverifi-muted-surface)] px-3 text-[var(--iverifi-text-secondary)] hover:bg-[var(--iverifi-card-hover)]"
+                className="h-8.5 rounded-xl border border-border bg-card/80 px-3 text-xs font-semibold text-foreground hover:bg-accent hover:border-teal-500/40 transition-all shadow-2xs"
                 onClick={() => navigate("/add-documents")}
               >
-                <Plus className="h-4 w-4 mr-1" />
-                Add
+                <Plus className="h-3.5 w-3.5 mr-1 text-teal-600 dark:text-cyan-400" />
+                Add Document
               </Button>
             </div>
 
-            <div className="space-y-2">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               {HOME_DOCUMENT_TYPES.map((docType) => {
                 const isVerified = !!verifiedCredentialsMap[docType];
-                const subtitle = getDocSubtitle(docType);
+                const meta = SMART_CARD_META[docType] || {
+                  issuer: "Govt of India",
+                  unverifiedTime: "30s",
+                  unverifiedProvider: "DigiLocker",
+                  gradient: "from-slate-900/90 via-slate-800 to-slate-900/80",
+                };
                 const title = docType
                   .replace(/_/g, " ")
                   .toLowerCase()
                   .replace(/\b\w/g, (c) => c.toUpperCase());
-                return (
+                
+                return isVerified ? (
+                  /* ── Verified Physical Smart-Card (Apple Wallet Aesthetic) ── */
                   <div
                     key={docType}
-                    className="flex cursor-pointer items-center justify-between gap-3 rounded-2xl border border-[color:var(--iverifi-card-border)] bg-[var(--iverifi-card)] px-4 py-3"
+                    className={`group relative flex flex-col justify-between rounded-2xl border border-border/80 bg-gradient-to-br ${meta.gradient} p-4 sm:p-5 text-white shadow-md hover:shadow-xl hover:border-teal-400/50 transition-all duration-200 cursor-pointer overflow-hidden backdrop-blur-md`}
                     role="button"
-                    onClick={() =>
-                      isVerified
-                        ? setSelectedDocType(docType)
-                        : handleVerifyDocument(docType)
-                    }
+                    onClick={() => setSelectedDocType(docType)}
                   >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[color:var(--iverifi-icon-border)] bg-[var(--iverifi-muted-surface)]">
+                    {/* Top Smart-Card Header */}
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[10px] font-mono uppercase tracking-widest text-slate-300 font-semibold truncate">
+                        {meta.issuer}
+                      </span>
+                      {/* Micro-Holographic Gold Chip */}
+                      <div className="flex h-5 w-7 shrink-0 items-center justify-center rounded-sm border border-amber-300/40 bg-gradient-to-tr from-amber-400/30 via-amber-200/50 to-amber-500/20 shadow-xs">
+                        <div className="h-2 w-3 rounded-2xs border border-amber-300/60 bg-amber-300/20" />
+                      </div>
+                    </div>
+
+                    {/* Card Center: Document Title & Icon */}
+                    <div className="my-3 flex items-center gap-3">
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/10 border border-white/15 backdrop-blur-md text-white shadow-inner group-hover:scale-105 transition-transform">
                         <DocumentTypeIcon
                           documentType={docType}
-                          className="text-[var(--iverifi-text-secondary)]"
+                          className="text-white"
                         />
                       </div>
                       <div className="min-w-0">
-                        <div className="truncate text-sm font-semibold text-[var(--iverifi-text-primary)]">
+                        <div className="truncate text-base font-black tracking-tight text-white">
                           {title}
                         </div>
-                        <div className="truncate text-xs text-[var(--iverifi-text-muted)]">
-                          {subtitle}
+                        <div className="text-[10px] text-teal-300 font-medium flex items-center gap-1 mt-0.5">
+                          <Lock className="h-3 w-3" />
+                          <span>Zero-Knowledge Protected</span>
                         </div>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 shrink-0">
-                      {isVerified ? (
-                        <>
-                          <CheckCircle className="h-4 w-4 text-emerald-600 dark:text-[#00c896]" />
-                          <ChevronRight className="h-4 w-4 text-[var(--iverifi-text-muted)]" />
-                        </>
-                      ) : (
-                        <>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            className="h-9 rounded-xl border border-amber-400 bg-transparent text-amber-600 hover:bg-amber-50 dark:border-[#f5a623] dark:text-[#f5a623] dark:hover:bg-[rgba(245,166,35,0.12)]"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleVerifyDocument(docType);
-                            }}
-                          >
-                            Verify
-                          </Button>
-                          <ChevronRight className="h-4 w-4 text-[var(--iverifi-text-muted)]" />
-                        </>
-                      )}
+                    {/* Card Footer: Status & Action */}
+                    <div className="flex items-center justify-between pt-2.5 border-t border-white/15 text-xs">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/20 border border-emerald-400/30 px-2 py-0.5 text-[10px] font-bold text-emerald-300">
+                        <CheckCircle className="h-3 w-3" />
+                        DigiLocker Verified
+                      </span>
+                      <span className="inline-flex items-center text-[11px] font-semibold text-teal-300 group-hover:translate-x-1 transition-transform">
+                        Inspect Card <ChevronRight className="h-3.5 w-3.5 ml-0.5" />
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  /* ── Unverified "Add to Vault" Slot ── */
+                  <div
+                    key={docType}
+                    className="group relative flex flex-col justify-between rounded-2xl border-2 border-dashed border-border/80 bg-card/40 p-4 sm:p-5 hover:border-teal-500/50 hover:bg-muted/30 transition-all duration-200 cursor-pointer shadow-xs"
+                    role="button"
+                    onClick={() => handleVerifyDocument(docType)}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground truncate">
+                        {meta.issuer}
+                      </span>
+                      <span className="inline-flex items-center gap-1 rounded-full bg-teal-500/10 border border-teal-500/20 px-2 py-0.5 text-[9px] font-bold text-teal-700 dark:text-cyan-400">
+                        ⚡ {meta.unverifiedProvider} (~{meta.unverifiedTime})
+                      </span>
+                    </div>
+
+                    <div className="my-3 flex items-center gap-3">
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-dashed border-border/80 bg-muted/40 text-muted-foreground group-hover:border-teal-500/40 group-hover:text-teal-600 transition-colors">
+                        <DocumentTypeIcon
+                          documentType={docType}
+                          className="opacity-70"
+                        />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-bold text-foreground">
+                          {title}
+                        </div>
+                        <div className="text-[11px] text-muted-foreground">
+                          Not added to vault
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-2.5 border-t border-border/50 text-xs">
+                      <span className="text-[10px] text-muted-foreground">
+                        Requires 1-time verification
+                      </span>
+                      <Button
+                        type="button"
+                        size="sm"
+                        className="h-7 rounded-lg bg-teal-600 hover:bg-teal-700 text-white text-[11px] font-bold px-3 shadow-xs cursor-pointer"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleVerifyDocument(docType);
+                        }}
+                      >
+                        + Add to Vault
+                      </Button>
                     </div>
                   </div>
                 );
@@ -1814,7 +1964,7 @@ const Connections = () => {
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[color:var(--iverifi-icon-border)] bg-[var(--iverifi-muted-surface)]">
-                        <span className="text-lg">🛂</span>
+                        <Globe2 className="h-5 w-5 text-[var(--iverifi-accent)]" />
                       </div>
                       <div className="min-w-0">
                         <div className="truncate text-sm font-semibold text-[var(--iverifi-text-primary)]">
@@ -1823,7 +1973,7 @@ const Connections = () => {
                         <div className="truncate text-xs text-[var(--iverifi-text-muted)]">
                           {qrActive
                             ? "Upload passport, visa & selfie"
-                            : "Scan hotel QR to upload & submit"}
+                            : "Scan business QR to upload & submit"}
                         </div>
                       </div>
                     </div>
@@ -2207,7 +2357,6 @@ const Connections = () => {
                 onClick={() => {
                   checkinFlowStartedAt.current = Date.now();
                   setShareSelectedDocType(selectedDocType);
-                  setShareExpiryHours("24");
                   setSelectedDocType(null);
                   setShareSheetOpen(true);
                 }}
@@ -2595,7 +2744,6 @@ const Connections = () => {
                     onClick={() => {
                       checkinFlowStartedAt.current = Date.now();
                       setShareSelectedDocType(`FAMILY:${member.id}`);
-                      setShareExpiryHours("24");
                       setSelectedFamilyMember(null);
                       setShareSheetOpen(true);
                     }}
@@ -2661,1296 +2809,39 @@ const Connections = () => {
           );
         })()}
 
-      {shareSheetOpen ? (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "var(--iverifi-overlay)",
-            backdropFilter: "blur(4px)",
-            zIndex: 10050,
-            display: "flex",
-            alignItems: "flex-end",
-          }}
-          onClick={() => setShareSheetOpen(false)}
-          role="presentation"
-        >
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="share-sheet-title"
-            style={{
-              width: "100%",
-              maxHeight: "96dvh",
-              background: "var(--iverifi-sheet)",
-              borderRadius: "24px 24px 0 0",
-              border: "1px solid var(--iverifi-sheet-border)",
-              borderBottom: "none",
-              overflowY: "auto",
-              padding: "8px 20px calc(88px + env(safe-area-inset-bottom,0px))",
-              animation: "slide-up .3s cubic-bezier(.34,1.56,.64,1)",
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div
-              style={{
-                width: 36,
-                height: 4,
-                borderRadius: 2,
-                background: "var(--iverifi-sheet-handle)",
-                margin: "0 auto 20px",
-              }}
-            />
-
-            {verifiedDocTypesForShare.length === 0 &&
-            !(code && isValidQRCode(code)) ? (
-              <div style={{ textAlign: "center", padding: "16px 0 8px" }}>
-                <div style={{ fontSize: 40, marginBottom: 12 }}>🪪</div>
-                <div
-                  id="share-sheet-title"
-                  style={{
-                    fontSize: 19,
-                    fontWeight: 800,
-                    color: "var(--iverifi-text-primary)",
-                    marginBottom: 8,
-                  }}
-                >
-                  No verified documents
-                </div>
-                <div
-                  style={{
-                    fontSize: 13,
-                    color: "var(--iverifi-label)",
-                    marginBottom: 20,
-                    lineHeight: 1.5,
-                  }}
-                >
-                  Verify at least one document before sharing.
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShareSheetOpen(false);
-                  }}
-                  style={{
-                    width: "100%",
-                    padding: "15px",
-                    borderRadius: 14,
-                    background: "var(--iverifi-success-soft)",
-                    border: "1px solid var(--iverifi-success-border)",
-                    color: "var(--iverifi-success)",
-                    fontSize: 15,
-                    fontWeight: 700,
-                    cursor: "pointer",
-                  }}
-                >
-                  Go to Vault →
-                </button>
-              </div>
-            ) : !connectedRequestorName ? (
-              code ? (
-                isRecipientLoading ? (
-                  <div
-                    style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      padding: "40px 0",
-                      gap: 16,
-                    }}
-                  >
-                    <Loader2
-                      className="h-10 w-10 animate-spin text-teal-600 dark:text-[#00e0ff]"
-                      aria-hidden
-                    />
-                    <div
-                      id="share-sheet-title"
-                      style={{
-                        fontSize: 15,
-                        color: "var(--iverifi-hint-text)",
-                        textAlign: "center",
-                      }}
-                    >
-                      Loading property…
-                    </div>
-                  </div>
-                ) : (
-                  <div style={{ textAlign: "center", padding: "8px 0 16px" }}>
-                    <div
-                      id="share-sheet-title"
-                      style={{
-                        fontSize: 19,
-                        fontWeight: 800,
-                        color: "var(--iverifi-text-primary)",
-                        marginBottom: 10,
-                      }}
-                    >
-                      Couldn&apos;t load this stay
-                    </div>
-                    <p
-                      style={{
-                        fontSize: 13,
-                        color: "var(--iverifi-label)",
-                        marginBottom: 20,
-                        lineHeight: 1.5,
-                      }}
-                    >
-                      Check your connection, then try again. Your QR scan is
-                      saved in the link.
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => void refetchRecipient()}
-                      style={{
-                        width: "100%",
-                        padding: "15px",
-                        borderRadius: 14,
-                        background: "rgba(0,200,150,0.12)",
-                        border: "1px solid rgba(0,200,150,0.25)",
-                        color: "var(--iverifi-success)",
-                        fontSize: 15,
-                        fontWeight: 700,
-                        cursor: "pointer",
-                        marginBottom: 10,
-                      }}
-                    >
-                      Retry
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setShareSheetOpen(false)}
-                      style={{
-                        width: "100%",
-                        marginTop: 2,
-                        padding: "14px",
-                        borderRadius: 12,
-                        background: "var(--iverifi-muted-surface)",
-                        border: "1px solid var(--iverifi-border-subtle)",
-                        color: "var(--iverifi-label)",
-                        fontSize: 14,
-                        cursor: "pointer",
-                      }}
-                    >
-                      Close
-                    </button>
-                  </div>
-                )
-              ) : (
-                <div>
-                  <div
-                    style={{
-                      margin: "0 auto 20px",
-                      width: 80,
-                      height: 80,
-                      borderRadius: 20,
-                      border: "1px solid var(--iverifi-accent-border)",
-                      background:
-                        "linear-gradient(135deg, var(--iverifi-accent-soft), rgba(123,92,245,0.12))",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                    }}
-                  >
-                    <svg
-                      width="36"
-                      height="36"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="var(--iverifi-accent)"
-                      strokeWidth="1.5"
-                      strokeLinecap="round"
-                      aria-hidden="true"
-                    >
-                      <path d="M4 7V5a1 1 0 0 1 1-1h2M4 17v2a1 1 0 0 0 1 1h2M20 7V5a1 1 0 0 0-1-1h-2M20 17v2a1 1 0 0 1-1 1h-2" />
-                      <rect x="9" y="9" width="6" height="6" rx="1" />
-                    </svg>
-                  </div>
-                  <div
-                    id="share-sheet-title"
-                    style={{
-                      fontSize: 19,
-                      fontWeight: 800,
-                      color: "var(--iverifi-text-primary)",
-                      marginBottom: 10,
-                      textAlign: "center",
-                    }}
-                  >
-                    Scan to connect first
-                  </div>
-                  <div
-                    style={{
-                      fontSize: 13,
-                      color: "var(--iverifi-label)",
-                      lineHeight: 1.6,
-                      marginBottom: 20,
-                      textAlign: "center",
-                    }}
-                  >
-                    Scan the hotel&apos;s iVerifi QR (from Vault → Share, or the
-                    Scan tab). Then pick a document and confirm in one step.
-                  </div>
-                  <div
-                    style={{
-                      borderRadius: 16,
-                      border: "1px solid var(--iverifi-border-subtle)",
-                      background: "var(--iverifi-surface-1)",
-                      padding: 16,
-                      marginBottom: 20,
-                    }}
-                  >
-                    {[
-                      [
-                        "📷",
-                        "Scan their QR",
-                        "Ask the property to show their iVerifi QR",
-                      ],
-                      [
-                        "✓",
-                        "Connection verified",
-                        "Their identity is confirmed by iVerifi",
-                      ],
-                      [
-                        "📤",
-                        "Choose & share",
-                        "Pick a document and share securely",
-                      ],
-                    ].map(([icon, title, desc]) => (
-                      <div
-                        key={title}
-                        style={{
-                          display: "flex",
-                          gap: 12,
-                          alignItems: "flex-start",
-                          marginBottom: title === "Choose & share" ? 0 : 12,
-                        }}
-                      >
-                        <div
-                          style={{
-                            width: 32,
-                            height: 32,
-                            flexShrink: 0,
-                            borderRadius: 10,
-                            border: "1px solid var(--iverifi-accent-border)",
-                            background: "var(--iverifi-accent-soft)",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            fontSize: 12,
-                          }}
-                        >
-                          {icon}
-                        </div>
-                        <div>
-                          <div
-                            style={{
-                              fontSize: 14,
-                              fontWeight: 700,
-                              color: "var(--iverifi-text-primary)",
-                            }}
-                          >
-                            {title}
-                          </div>
-                          <div
-                            style={{
-                              fontSize: 12,
-                              color: "var(--iverifi-label)",
-                              marginTop: 2,
-                            }}
-                          >
-                            {desc}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  {/* C-Form & Foreign Passport — disabled until QR scanned */}
-                  {[
-                    // { label: "C-Form (Foreign Guest)", subtitle: "Scan hotel QR to fill & submit C-Form", icon: <DocumentTypeIcon documentType="C-Form (Foreign Guest)" className="text-[var(--iverifi-text-primary)] h-5 w-5" /> },
-                    {
-                      label: "Foreign Passport",
-                      subtitle: "Scan hotel QR to upload & submit",
-                      icon: <span style={{ fontSize: 18 }}>🛂</span>,
-                    },
-                  ].map((opt) => (
-                    <div
-                      key={opt.label}
-                      style={{
-                        background: "var(--iverifi-surface-1)",
-                        borderRadius: 14,
-                        padding: "4px 12px",
-                        marginBottom: 8,
-                        border: "1px solid var(--iverifi-border-subtle)",
-                        opacity: 0.45,
-                      }}
-                    >
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 12,
-                          padding: "12px 4px",
-                        }}
-                      >
-                        <div
-                          style={{
-                            width: 40,
-                            height: 40,
-                            flexShrink: 0,
-                            borderRadius: 12,
-                            border: "1px solid var(--iverifi-accent-border)",
-                            background: "var(--iverifi-accent-soft)",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                          }}
-                        >
-                          {opt.icon}
-                        </div>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div
-                            style={{
-                              fontSize: 14,
-                              fontWeight: 700,
-                              color: "var(--iverifi-text-primary)",
-                            }}
-                          >
-                            {opt.label}
-                          </div>
-                          <div
-                            style={{
-                              fontSize: 11,
-                              color: "var(--iverifi-label)",
-                            }}
-                          >
-                            {opt.subtitle}
-                          </div>
-                        </div>
-                        <div
-                          style={{
-                            width: 20,
-                            height: 20,
-                            borderRadius: "50%",
-                            border: "2px solid var(--iverifi-ring-muted)",
-                            flexShrink: 0,
-                          }}
-                        />
-                      </div>
-                    </div>
-                  ))}
-
-                  <div
-                    style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: 10,
-                    }}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShareSheetOpen(false);
-                        setScannerOpen(true);
-                      }}
-                      style={{
-                        width: "100%",
-                        padding: "15px",
-                        borderRadius: 14,
-                        background: "rgba(0,200,150,0.12)",
-                        border: "1px solid rgba(0,200,150,0.25)",
-                        color: "var(--iverifi-success)",
-                        fontSize: 15,
-                        fontWeight: 700,
-                        cursor: "pointer",
-                      }}
-                    >
-                      Open Scanner
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setShareSheetOpen(false)}
-                      style={{
-                        width: "100%",
-                        marginTop: 2,
-                        padding: "14px",
-                        borderRadius: 12,
-                        background: "var(--iverifi-muted-surface)",
-                        border: "1px solid var(--iverifi-border-subtle)",
-                        color: "var(--iverifi-label)",
-                        fontSize: 14,
-                        cursor: "pointer",
-                      }}
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              )
-            ) : (
-              <div>
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 14,
-                    marginBottom: 16,
-                  }}
-                >
-                  <div
-                    style={{
-                      width: 52,
-                      height: 52,
-                      borderRadius: 15,
-                      flexShrink: 0,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      background: "var(--iverifi-accent-soft)",
-                      border: "1px solid var(--iverifi-accent-border)",
-                      overflow: "hidden",
-                    }}
-                  >
-                    {connectedRequestorLogo ? (
-                      <img
-                        src={connectedRequestorLogo}
-                        alt="Hotel Logo"
-                        style={{
-                          width: "80%",
-                          height: "80%",
-                          objectFit: "contain",
-                        }}
-                      />
-                    ) : (
-                      <Share2
-                        className="h-6 w-6 text-[var(--iverifi-text-primary)]"
-                        strokeWidth={2}
-                      />
-                    )}
-                  </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div
-                      id="share-sheet-title"
-                      style={{
-                        fontSize: 19,
-                        fontWeight: 800,
-                        color: "var(--iverifi-text-primary)",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      {code && isValidQRCode(code)
-                        ? connectedRequestorName || "Property"
-                        : "Share a document"}
-                    </div>
-                    <div
-                      style={{
-                        marginTop: 6,
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 8,
-                        flexWrap: "wrap",
-                      }}
-                    >
-                      <span
-                        style={{
-                          display: "inline-flex",
-                          alignItems: "center",
-                          borderRadius: 999,
-                          border: "1px solid var(--iverifi-success-border)",
-                          background: "var(--iverifi-success-soft)",
-                          padding: "2px 8px",
-                          fontSize: 10,
-                          fontWeight: 700,
-                          color: "var(--iverifi-success)",
-                        }}
-                      >
-                        {code && isValidQRCode(code)
-                          ? "✓ Verified"
-                          : `✓ ${connectedRequestorName}`}
-                      </span>
-                      <span
-                        style={{ fontSize: 10, color: "var(--iverifi-label)" }}
-                      >
-                        {code && isValidQRCode(code)
-                          ? "by iVerifi"
-                          : "iVerifi verified"}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                <div
-                  style={{
-                    fontSize: 13,
-                    color: "var(--iverifi-label)",
-                    marginBottom: 14,
-                    lineHeight: 1.5,
-                  }}
-                >
-                  {code && isValidQRCode(code)
-                    ? `Select an ID below and tap Share — your check-in request will be sent automatically.`
-                    : `Choose which document to share with ${connectedRequestorName}.`}
-                </div>
-
-                <div
-                  style={{
-                    fontSize: 11,
-                    fontWeight: 700,
-                    letterSpacing: "0.08em",
-                    textTransform: "uppercase",
-                    color: "var(--iverifi-label)",
-                    marginBottom: 8,
-                  }}
-                >
-                  Choose document
-                </div>
-
-                <div
-                  style={{
-                    background: "var(--iverifi-surface-1)",
-                    borderRadius: 14,
-                    padding: "4px 12px",
-                    marginBottom: 14,
-                    border: "1px solid var(--iverifi-border-subtle)",
-                  }}
-                >
-                  {verifiedDocTypesForShare.length === 0 && (
-                    <button
-                      type="button"
-                      onClick={() => setShareSheetOpen(false)}
-                      style={{
-                        width: "100%",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 12,
-                        padding: "14px 4px",
-                        border: "none",
-                        background: "transparent",
-                        cursor: "pointer",
-                        textAlign: "left",
-                      }}
-                    >
-                      <div
-                        style={{
-                          width: 40,
-                          height: 40,
-                          flexShrink: 0,
-                          borderRadius: 12,
-                          border: "1px solid var(--iverifi-success-border)",
-                          background: "var(--iverifi-success-soft)",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          fontSize: 18,
-                        }}
-                      >
-                        +
-                      </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div
-                          style={{
-                            fontSize: 14,
-                            fontWeight: 700,
-                            color: "var(--iverifi-success)",
-                          }}
-                        >
-                          Add a document
-                        </div>
-                        <div
-                          style={{
-                            fontSize: 11,
-                            color: "var(--iverifi-label)",
-                            marginTop: 2,
-                          }}
-                        >
-                          Verify your Aadhaar, Driving Licence, or Passport to
-                          check in
-                        </div>
-                      </div>
-                    </button>
-                  )}
-                  {verifiedDocTypesForShare.map((docType, idx) => {
-                    const selected = shareSelectedDocType === docType;
-                    const label = docType.includes("_")
-                      ? titleCase(docType)
-                      : docType;
-                    return (
-                      <button
-                        key={docType}
-                        type="button"
-                        onClick={() => setShareSelectedDocType(docType)}
-                        style={{
-                          width: "100%",
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 12,
-                          padding: "12px 4px",
-                          border: "none",
-                          borderBottom:
-                            idx === verifiedDocTypesForShare.length - 1
-                              ? "none"
-                              : "1px solid var(--iverifi-row-divider)",
-                          background: selected
-                            ? "rgba(0,224,255,0.06)"
-                            : "transparent",
-                          cursor: "pointer",
-                          textAlign: "left",
-                          borderRadius: selected ? 8 : 0,
-                        }}
-                      >
-                        <div
-                          style={{
-                            width: 40,
-                            height: 40,
-                            flexShrink: 0,
-                            borderRadius: 12,
-                            border: "1px solid rgba(0,224,255,0.18)",
-                            background: "rgba(0,224,255,0.08)",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                          }}
-                        >
-                          <DocumentTypeIcon
-                            documentType={docType}
-                            className="text-[var(--iverifi-text-primary)] h-5 w-5"
-                          />
-                        </div>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div
-                            style={{
-                              fontSize: 14,
-                              fontWeight: 700,
-                              color: selected
-                                ? "var(--iverifi-accent)"
-                                : "var(--iverifi-text-primary)",
-                            }}
-                          >
-                            {label}
-                          </div>
-                          <div
-                            style={{
-                              fontSize: 11,
-                              color: "var(--iverifi-label)",
-                            }}
-                          >
-                            Verified
-                          </div>
-                        </div>
-                        <div
-                          style={{
-                            width: 20,
-                            height: 20,
-                            borderRadius: "50%",
-                            border: selected
-                              ? "2px solid var(--iverifi-accent)"
-                              : "2px solid var(--iverifi-ring-muted)",
-                            background: selected
-                              ? "var(--iverifi-accent)"
-                              : "transparent",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            flexShrink: 0,
-                          }}
-                        >
-                          {selected ? (
-                            <div
-                              style={{
-                                width: 8,
-                                height: 8,
-                                borderRadius: "50%",
-                                background: "#000",
-                              }}
-                            />
-                          ) : null}
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-
-                {/* Family IDs in share sheet */}
-                {(() => {
-                  const verifiedMembers = (
-                    familyData?.data?.family_members || []
-                  ).filter((m: any) => (m.verification_status === "auto_approved" || m.state === "auto_approved"));
-                  if (verifiedMembers.length === 0) return null;
-                  return (
-                    <div style={{ marginTop: 12 }}>
-                      <div
-                        style={{
-                          fontSize: 11,
-                          fontWeight: 700,
-                          letterSpacing: "0.08em",
-                          textTransform: "uppercase",
-                          color: "var(--iverifi-label)",
-                          marginBottom: 8,
-                        }}
-                      >
-                        Family IDs
-                      </div>
-                      <div
-                        style={{
-                          background: "var(--iverifi-surface-1)",
-                          borderRadius: 14,
-                          padding: "4px 12px",
-                          border: "1px solid var(--iverifi-border-subtle)",
-                        }}
-                      >
-                        {verifiedMembers.map((member: any, idx: number) => {
-                          const nickname =
-                            member.member_nickname ||
-                            member.nickname ||
-                            "Family member";
-                          const key = `FAMILY:${member.id}`;
-                          const isSelected = shareSelectedDocType === key;
-                          return (
-                            <button
-                              key={key}
-                              type="button"
-                              onClick={() => setShareSelectedDocType(key)}
-                              style={{
-                                width: "100%",
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 12,
-                                padding: "12px 4px",
-                                border: "none",
-                                borderBottom:
-                                  idx === verifiedMembers.length - 1
-                                    ? "none"
-                                    : "1px solid var(--iverifi-row-divider)",
-                                background: isSelected
-                                  ? "rgba(0,224,255,0.06)"
-                                  : "transparent",
-                                cursor: "pointer",
-                                textAlign: "left",
-                                borderRadius: isSelected ? 8 : 0,
-                              }}
-                            >
-                              <div
-                                style={{
-                                  width: 40,
-                                  height: 40,
-                                  flexShrink: 0,
-                                  borderRadius: 12,
-                                  border: "1px solid rgba(0,224,255,0.18)",
-                                  background: "rgba(0,224,255,0.08)",
-                                  display: "flex",
-                                  alignItems: "center",
-                                  justifyContent: "center",
-                                }}
-                              >
-                                <DocumentTypeIcon
-                                  documentType="AADHAAR_CARD"
-                                  className="text-[var(--iverifi-text-primary)] h-5 w-5"
-                                />
-                              </div>
-                              <div style={{ flex: 1, minWidth: 0 }}>
-                                <div
-                                  style={{
-                                    fontSize: 14,
-                                    fontWeight: 700,
-                                    color: isSelected
-                                      ? "var(--iverifi-accent)"
-                                      : "var(--iverifi-text-primary)",
-                                    overflow: "hidden",
-                                    textOverflow: "ellipsis",
-                                    whiteSpace: "nowrap",
-                                  }}
-                                >
-                                  {nickname}
-                                </div>
-                                <div
-                                  style={{
-                                    fontSize: 11,
-                                    color: "var(--iverifi-label)",
-                                  }}
-                                >
-                                  Aadhaar · UIDAI Verified
-                                </div>
-                              </div>
-                              <div
-                                style={{
-                                  width: 20,
-                                  height: 20,
-                                  borderRadius: "50%",
-                                  border: isSelected
-                                    ? "2px solid var(--iverifi-accent)"
-                                    : "2px solid var(--iverifi-ring-muted)",
-                                  background: isSelected
-                                    ? "var(--iverifi-accent)"
-                                    : "transparent",
-                                  display: "flex",
-                                  alignItems: "center",
-                                  justifyContent: "center",
-                                  flexShrink: 0,
-                                }}
-                              >
-                                {isSelected ? (
-                                  <div
-                                    style={{
-                                      width: 8,
-                                      height: 8,
-                                      borderRadius: "50%",
-                                      background: "#000",
-                                    }}
-                                  />
-                                ) : null}
-                              </div>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  );
-                })()}
-
-                {/* Foreign options — C-Form and Foreign Passport — only enabled when a hotel QR has been scanned */}
-                {(() => {
-                  const qrActive = !!(code && isValidQRCode(code));
-                  const foreignOptions = [
-                    // {
-                    //   key: "C-Form (Foreign Guest)",
-                    //   label: "C-Form (Foreign Guest)",
-                    //   subtitle: qrActive ? "FRRO compliance · Fill & submit on check-in" : "Scan a hotel QR to use C-Form",
-                    //   icon: <DocumentTypeIcon documentType="C-Form (Foreign Guest)" className="text-[var(--iverifi-text-primary)] h-5 w-5" />,
-                    // },
-                    {
-                      key: "Foreign Passport",
-                      label: "Foreign Passport",
-                      subtitle: qrActive
-                        ? "Upload passport, visa & selfie on check-in"
-                        : "Scan a hotel QR to use this option",
-                      icon: <span style={{ fontSize: 18 }}>🛂</span>,
-                    },
-                  ];
-                  return foreignOptions.map((opt, idx) => {
-                    const isSelected = shareSelectedDocType === opt.key;
-                    return (
-                      <button
-                        key={opt.key}
-                        type="button"
-                        disabled={!qrActive}
-                        onClick={() =>
-                          qrActive && setShareSelectedDocType(opt.key)
-                        }
-                        style={{
-                          width: "100%",
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 12,
-                          padding: "12px 4px",
-                          border: "none",
-                          borderTop:
-                            verifiedDocTypesForShare.length > 0 || idx > 0
-                              ? "1px solid var(--iverifi-row-divider)"
-                              : "none",
-                          background: isSelected
-                            ? "var(--iverifi-accent-soft)"
-                            : "transparent",
-                          cursor: qrActive ? "pointer" : "not-allowed",
-                          textAlign: "left",
-                          borderRadius: isSelected ? 8 : 0,
-                          opacity: qrActive ? 1 : 0.4,
-                        }}
-                      >
-                        <div
-                          style={{
-                            width: 40,
-                            height: 40,
-                            flexShrink: 0,
-                            borderRadius: 12,
-                            border: "1px solid var(--iverifi-accent-border)",
-                            background: "var(--iverifi-accent-soft)",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                          }}
-                        >
-                          {opt.icon}
-                        </div>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div
-                            style={{
-                              fontSize: 14,
-                              fontWeight: 700,
-                              color: isSelected
-                                ? "var(--iverifi-accent)"
-                                : "var(--iverifi-text-primary)",
-                            }}
-                          >
-                            {opt.label}
-                          </div>
-                          <div
-                            style={{
-                              fontSize: 11,
-                              color: "var(--iverifi-label)",
-                            }}
-                          >
-                            {opt.subtitle}
-                          </div>
-                        </div>
-                        <div
-                          style={{
-                            width: 20,
-                            height: 20,
-                            borderRadius: "50%",
-                            flexShrink: 0,
-                            border: isSelected
-                              ? "2px solid var(--iverifi-accent)"
-                              : "2px solid var(--iverifi-ring-muted)",
-                            background: isSelected
-                              ? "var(--iverifi-accent)"
-                              : "transparent",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                          }}
-                        >
-                          {isSelected ? (
-                            <div
-                              style={{
-                                width: 8,
-                                height: 8,
-                                borderRadius: "50%",
-                                background: "#000",
-                              }}
-                            />
-                          ) : null}
-                        </div>
-                      </button>
-                    );
-                  });
-                })()}
-
-                {shareSelectedDocType ? (
-                  <div
-                    style={{
-                      marginBottom: 14,
-                      borderRadius: 14,
-                      border: "1px solid var(--iverifi-border-subtle)",
-                      background: "var(--iverifi-surface-1)",
-                      padding: 14,
-                    }}
-                  >
-                    <div
-                      style={{
-                        fontSize: 11,
-                        fontWeight: 700,
-                        letterSpacing: "0.08em",
-                        textTransform: "uppercase",
-                        color: "var(--iverifi-label)",
-                        marginBottom: 10,
-                      }}
-                    >
-                      What gets shared
-                    </div>
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                      {shareSummary.map((field) => (
-                        <span
-                          key={field}
-                          style={{
-                            borderRadius: 999,
-                            border: "1px solid var(--iverifi-accent-border)",
-                            background: "var(--iverifi-accent-soft)",
-                            padding: "4px 12px",
-                            fontSize: 12,
-                            color: "var(--iverifi-accent)",
-                          }}
-                        >
-                          {field}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                ) : null}
-
-                {!code || !isValidQRCode(code) ? (
-                  <>
-                    <div
-                      style={{
-                        fontSize: 11,
-                        fontWeight: 700,
-                        letterSpacing: "0.08em",
-                        textTransform: "uppercase",
-                        color: "var(--iverifi-label)",
-                        marginTop: 4,
-                        marginBottom: 8,
-                      }}
-                    >
-                      Link expires after
-                    </div>
-                    <div
-                      style={{
-                        display: "grid",
-                        gridTemplateColumns: "repeat(3, 1fr)",
-                        gap: 8,
-                        marginBottom: 16,
-                      }}
-                    >
-                      {[
-                        ["1", "1 hour"],
-                        ["24", "24 hours"],
-                        ["168", "7 days"],
-                      ].map(([value, label]) => (
-                        <button
-                          key={value}
-                          type="button"
-                          onClick={() => setShareExpiryHours(value)}
-                          style={{
-                            padding: "10px 8px",
-                            borderRadius: 12,
-                            border:
-                              shareExpiryHours === value
-                                ? "1px solid var(--iverifi-accent)"
-                                : "1px solid var(--iverifi-ring-muted)",
-                            background:
-                              shareExpiryHours === value
-                                ? "var(--iverifi-accent-soft)"
-                                : "var(--iverifi-surface-1)",
-                            color:
-                              shareExpiryHours === value
-                                ? "var(--iverifi-accent)"
-                                : "var(--iverifi-hint-text)",
-                            fontSize: 11,
-                            fontWeight: 600,
-                            cursor: "pointer",
-                          }}
-                        >
-                          {label}
-                        </button>
-                      ))}
-                    </div>
-                  </>
-                ) : null}
-
-                <div
-                  style={{
-                    padding: 12,
-                    background: "var(--iverifi-accent-soft)",
-                    border: "1px solid var(--iverifi-accent-border)",
-                    borderRadius: 12,
-                    marginBottom: 16,
-                    fontSize: 12,
-                    color: "var(--iverifi-hint-text)",
-                    lineHeight: 1.6,
-                  }}
-                >
-                  ℹ️ Recipient cannot re-share. Revocable from Activity. DPDP
-                  Act 2023.
-                  {code && isValidQRCode(code) ? (
-                    <span
-                      style={{
-                        display: "block",
-                        marginTop: 6,
-                        color: "var(--iverifi-label)",
-                      }}
-                    >
-                      After you confirm, this property link clears — scan again
-                      if you need another stay.
-                    </span>
-                  ) : null}
-                </div>
-
-                <div
-                  style={{ display: "flex", flexDirection: "column", gap: 10 }}
-                >
-                  <button
-                    type="button"
-                    disabled={
-                      !shareSelectedDocType ||
-                      !connectedRequestorName ||
-                      (!!code &&
-                        isValidQRCode(code) &&
-                        (isCheckInOutInFlight || isCheckInUpdating))
-                    }
-                    style={{
-                      width: "100%",
-                      padding: "15px",
-                      borderRadius: 14,
-                      background: "rgba(0,200,150,0.12)",
-                      border: "1px solid rgba(0,200,150,0.25)",
-                      color: "var(--iverifi-success)",
-                      fontSize: 15,
-                      fontWeight: 700,
-                      cursor:
-                        !shareSelectedDocType ||
-                        !connectedRequestorName ||
-                        (!!code &&
-                          isValidQRCode(code) &&
-                          (isCheckInOutInFlight || isCheckInUpdating))
-                          ? "not-allowed"
-                          : "pointer",
-                      opacity:
-                        !shareSelectedDocType ||
-                        !connectedRequestorName ||
-                        (!!code &&
-                          isValidQRCode(code) &&
-                          (isCheckInOutInFlight || isCheckInUpdating))
-                          ? 0.45
-                          : 1,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: 8,
-                    }}
-                    onClick={async () => {
-                      if (!shareSelectedDocType) return;
-                      // C-Form: open fill dialog
-                      if (shareSelectedDocType === "C-Form (Foreign Guest)") {
-                        // setCformRef(generateCFormRef(connectedRequestorName || "Hotel"));
-                        // setCformDialogOpen(true);
-                        return;
-                      }
-                      // Foreign Passport: close share sheet first, then open photo upload dialog
-                      if (shareSelectedDocType === "Foreign Passport") {
-                        setShareSheetOpen(false);
-                        setForeignPassportDialogOpen(true);
-                        return;
-                      }
-                      // Family member share
-                      if (shareSelectedDocType.startsWith("FAMILY:")) {
-                        if (!derivedConnectionId) {
-                          toast.error("No connection found. Scan a QR first.");
-                          return;
-                        }
-                        const memberId = shareSelectedDocType.slice(7);
-                        const member = (
-                          familyData?.data?.family_members || []
-                        ).find((m: any) => m.id === memberId);
-                        if (!member) {
-                          toast.error("Family member credential not found.");
-                          return;
-                        }
-                        const credentialId =
-                          member.credential_id ||
-                          member.id ||
-                          member.credentialId;
-                        if (!credentialId) {
-                          toast.error("Invalid credential ID.");
-                          return;
-                        }
-                        if (isCheckInOutInFlight || isCheckInUpdating) return;
-                        setCheckInOutInFlight(true);
-                        try {
-                          await updateCredentials({
-                            credential_request_id: derivedConnectionId,
-                            credentials: [
-                              {
-                                credential_id: credentialId,
-                                document_type: "AADHAAR_CARD",
-                                status: "Active",
-                                expiry_date: format(
-                                  addDays(new Date(), 30),
-                                  "yyyy-MM-dd",
-                                ),
-                              },
-                            ],
-                          }).unwrap();
-                          if (code && isValidQRCode(code)) {
-                            await updateCheckInStatus({
-                              credential_request_id: derivedConnectionId,
-                              credentials: [],
-                              status: "checkin",
-                              credential_id: credentialId,
-                              ...(checkinFlowStartedAt.current != null
-                                ? {
-                                    client_started_at:
-                                      checkinFlowStartedAt.current,
-                                  }
-                                : {}),
-                            }).unwrap();
-                            clearPendingRecipientId();
-                            processedCodeRef.current = null;
-                            navigate(location.pathname, { replace: true });
-                            toast.success(
-                              "Family member Aadhaar shared. Check-in request sent.",
-                            );
-                            await refetchCredentials();
-                            setFeedbackRequestId(derivedConnectionId);
-                            setFeedbackOpen(true);
-                          } else {
-                            toast.success(
-                              "Family member Aadhaar shared successfully.",
-                            );
-                            await refetchRecipient();
-                          }
-                          setShareSheetOpen(false);
-                        } catch (err: any) {
-                          toast.error(
-                            err?.data?.message
-                              ? String(err.data.message)
-                              : "Failed to share. Please try again.",
-                          );
-                        } finally {
-                          setCheckInOutInFlight(false);
-                        }
-                        return;
-                      }
-                      try {
-                        if (code && isValidQRCode(code)) {
-                          await handleShareAndRequestCheckIn(
-                            shareSelectedDocType as DocumentType,
-                          );
-                        } else {
-                          await handleShareCredentials(
-                            shareSelectedDocType as DocumentType,
-                          );
-                        }
-                        setShareSheetOpen(false);
-                      } catch {
-                        /* toast already shown; keep sheet open */
-                      }
-                    }}
-                  >
-                    {isCheckInOutInFlight || isCheckInUpdating ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin shrink-0" />
-                        Working…
-                      </>
-                    ) : (
-                      <>
-                        <Share2 className="h-4 w-4 shrink-0" />
-                        {shareSelectedDocType === "C-Form (Foreign Guest)"
-                          ? "Submit C-Form & Check In →"
-                          : shareSelectedDocType === "Foreign Passport"
-                            ? "Upload Photos & Check In →"
-                            : shareSelectedDocType?.startsWith("FAMILY:")
-                              ? code && isValidQRCode(code)
-                                ? "Share & request check-in →"
-                                : "Share now →"
-                              : code && isValidQRCode(code)
-                                ? "Share & request check-in →"
-                                : "Share now →"}
-                      </>
-                    )}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShareSheetOpen(false)}
-                    style={{
-                      width: "100%",
-                      marginTop: 2,
-                      padding: "14px",
-                      borderRadius: 12,
-                      background: "var(--iverifi-muted-surface)",
-                      border: "1px solid var(--iverifi-border-subtle)",
-                      color: "var(--iverifi-label)",
-                      fontSize: 14,
-                      cursor: "pointer",
-                    }}
-                  >
-                    Close
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      ) : null}
+      <VenueRecognitionModal
+        open={shareSheetOpen}
+        onClose={() => setShareSheetOpen(false)}
+        businessName={connectedRequestorName}
+        businessLogo={connectedRequestorLogo}
+        businessType={connectedRequestorType}
+        businessAddress={connectedRequestorAddress}
+        isCompany={isCompanyRecipient}
+        code={code}
+        verifiedDocTypes={verifiedDocTypesForShare}
+        selectedDocType={shareSelectedDocType}
+        onSelectDocType={setShareSelectedDocType}
+        selectedIdentityInfo={selectedIdentityInfo}
+        selectedDetails={selectedDetails}
+        familyMembers={
+          familyData?.data?.family_members?.filter(
+            (m: any) =>
+              m.verification_status === "auto_approved" ||
+              m.state === "auto_approved"
+          ) || []
+        }
+        isLoading={isRecipientLoading}
+        isSubmitting={isCheckInOutInFlight || isCheckInUpdating}
+        onConfirmCheckIn={handleExpressCheckIn}
+        onVerifyNewDoc={() => {
+          setShareSheetOpen(false);
+          handleVerifyDocument("AADHAAR_CARD");
+        }}
+        onOpenScanner={() => {
+          setShareSheetOpen(false);
+          setScannerOpen(true);
+        }}
+      />
 
       <QRScannerModal
         open={scannerOpen}

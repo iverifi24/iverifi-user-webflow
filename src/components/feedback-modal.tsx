@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useSubmitFeedbackMutation } from "@/redux/api";
 import { toast } from "sonner";
+import { Star, MessageSquare } from "lucide-react";
 
 interface FeedbackModalProps {
   open: boolean;
@@ -9,7 +10,6 @@ interface FeedbackModalProps {
   onClose: () => void;
 }
 
-const EMOJI = ["😞", "😕", "😐", "😊", "🤩"];
 const LABELS = ["Poor", "Fair", "Okay", "Good", "Excellent"];
 
 export function FeedbackModal({ open, credentialRequestId, hotelName, onClose }: FeedbackModalProps) {
@@ -41,133 +41,86 @@ export function FeedbackModal({ open, credentialRequestId, hotelName, onClose }:
 
   return (
     <div
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "var(--iverifi-overlay)",
-        backdropFilter: "blur(4px)",
-        zIndex: 10200,
-        display: "flex",
-        alignItems: "flex-end",
-      }}
+      className="fixed inset-0 z-[10200] flex items-end sm:items-center sm:justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
       onClick={onClose}
     >
       <div
-        style={{
-          width: "100%",
-          background: "var(--iverifi-sheet)",
-          borderRadius: "24px 24px 0 0",
-          border: "1px solid var(--iverifi-sheet-border)",
-          borderBottom: "none",
-          padding: "8px 20px calc(88px + env(safe-area-inset-bottom,0px))",
-          animation: "slide-up .3s cubic-bezier(.34,1.56,.64,1)",
-        }}
+        className="w-full sm:max-w-md rounded-t-[28px] sm:rounded-2xl border border-[var(--iverifi-sheet-border)] bg-[var(--iverifi-sheet,#0f172a)] p-6 pb-8 shadow-2xl animate-in slide-in-from-bottom-5 duration-300"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Handle */}
-        <div style={{ width: 36, height: 4, borderRadius: 2, background: "var(--iverifi-sheet-handle)", margin: "0 auto 22px" }} />
+        {/* Handle for mobile */}
+        <div className="w-10 h-1 rounded-full bg-[var(--iverifi-sheet-handle,#334155)] mx-auto mb-5 sm:hidden" />
 
         {/* Header */}
-        <div style={{ textAlign: "center", marginBottom: 20 }}>
-          <div style={{ fontSize: 36, marginBottom: 8 }}>
-            {active ? EMOJI[active - 1] : "⭐"}
+        <div className="text-center mb-6">
+          <div className="w-12 h-12 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 flex items-center justify-center mx-auto mb-3 shadow-[0_0_20px_rgba(0,224,255,0.15)]">
+            <MessageSquare className="w-6 h-6" />
           </div>
-          <div style={{ fontSize: 18, fontWeight: 800, color: "var(--iverifi-text-primary)" }}>
-            How was the check-in experience?
-          </div>
-          <div style={{ fontSize: 13, color: "var(--iverifi-label)", marginTop: 4 }}>
-            Rate your iVerifi check-in at {hotelName}
-          </div>
+          <h3 className="text-xl font-bold text-foreground">
+            How was your verification experience?
+          </h3>
+          <p className="text-sm text-muted-foreground mt-1">
+            Rate your iVerifi digital verification at <span className="text-foreground font-medium">{hotelName || "this organization"}</span>
+          </p>
         </div>
 
-        {/* Stars */}
-        <div style={{ display: "flex", justifyContent: "center", gap: 10, marginBottom: 8 }}>
-          {[1, 2, 3, 4, 5].map((star) => (
-            <button
-              key={star}
-              type="button"
-              onClick={() => setRating(star)}
-              onMouseEnter={() => setHovered(star)}
-              onMouseLeave={() => setHovered(0)}
-              style={{
-                background: "none",
-                border: "none",
-                cursor: "pointer",
-                padding: 4,
-                fontSize: 36,
-                lineHeight: 1,
-                transition: "transform 0.15s",
-                transform: star <= active ? "scale(1.15)" : "scale(1)",
-                filter: star <= active ? "none" : "grayscale(1) opacity(0.35)",
-              }}
-              aria-label={`Rate ${star} star${star !== 1 ? "s" : ""}`}
-            >
-              ⭐
-            </button>
-          ))}
+        {/* Star Rating */}
+        <div className="flex justify-center items-center gap-2 mb-2">
+          {[1, 2, 3, 4, 5].map((star) => {
+            const isFilled = star <= active;
+            return (
+              <button
+                key={star}
+                type="button"
+                onClick={() => setRating(star)}
+                onMouseEnter={() => setHovered(star)}
+                onMouseLeave={() => setHovered(0)}
+                className="p-2 rounded-xl transition-all duration-150 transform hover:scale-110 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
+                aria-label={`Rate ${star} star${star !== 1 ? "s" : ""}`}
+              >
+                <Star
+                  className={`w-8 h-8 transition-colors ${
+                    isFilled
+                      ? "fill-amber-400 text-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.5)]"
+                      : "text-slate-600 fill-transparent hover:text-slate-400"
+                  }`}
+                />
+              </button>
+            );
+          })}
         </div>
 
-        {/* Label */}
-        <div style={{ textAlign: "center", fontSize: 13, fontWeight: 700, color: "var(--iverifi-accent)", minHeight: 20, marginBottom: 16 }}>
+        {/* Sentiment Label */}
+        <div className="text-center text-sm font-semibold text-cyan-400 h-6 mb-4 transition-all">
           {active ? LABELS[active - 1] : ""}
         </div>
 
         {/* Optional message */}
-        <textarea
-          placeholder="Anything we can improve? (optional)"
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          maxLength={400}
-          rows={3}
-          style={{
-            width: "100%",
-            padding: "12px 14px",
-            borderRadius: 12,
-            background: "var(--iverifi-muted-surface)",
-            border: "1.5px solid var(--iverifi-border-subtle)",
-            color: "var(--iverifi-text-primary)",
-            fontSize: 14,
-            resize: "none",
-            outline: "none",
-            boxSizing: "border-box",
-            fontFamily: "inherit",
-          }}
-        />
+        <div className="mb-5">
+          <textarea
+            placeholder="Share your thoughts or suggestions... (optional)"
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            maxLength={400}
+            rows={3}
+            className="w-full rounded-xl bg-slate-900/60 border border-slate-800 p-3.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-cyan-400 focus:border-cyan-400 resize-none transition"
+          />
+        </div>
 
         {/* Buttons */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 16 }}>
+        <div className="flex flex-col gap-2.5">
           <button
             type="button"
             disabled={!rating || isLoading}
             onClick={handleSubmit}
-            style={{
-              width: "100%",
-              padding: "15px",
-              borderRadius: 14,
-              background: "linear-gradient(135deg,#00e0ff,#7B5CF5)",
-              border: "none",
-              color: "#fff",
-              fontSize: 15,
-              fontWeight: 700,
-              cursor: rating && !isLoading ? "pointer" : "not-allowed",
-              opacity: rating && !isLoading ? 1 : 0.4,
-            }}
+            className="w-full py-3.5 px-4 rounded-xl font-semibold text-slate-950 bg-gradient-to-r from-[#00e0ff] to-[#7B5CF5] shadow-[0_0_20px_rgba(0,224,255,0.25)] hover:from-[#40e8ff] hover:to-[#9274ff] transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
           >
             {isLoading ? "Submitting…" : "Submit feedback →"}
           </button>
           <button
             type="button"
             onClick={onClose}
-            style={{
-              width: "100%",
-              padding: "14px",
-              borderRadius: 12,
-              background: "var(--iverifi-muted-surface)",
-              border: "1px solid var(--iverifi-border-subtle)",
-              color: "var(--iverifi-label)",
-              fontSize: 14,
-              cursor: "pointer",
-            }}
+            className="w-full py-3 px-4 rounded-xl text-sm font-medium text-muted-foreground hover:text-foreground bg-slate-900/40 hover:bg-slate-800/60 border border-slate-800/80 transition cursor-pointer"
           >
             Skip
           </button>
