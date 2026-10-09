@@ -5,6 +5,7 @@ import {
   useCreateCredentialMutation,
 } from "@/redux/api";
 import { toast } from "sonner";
+import { startDigilockerFlow } from "@/utils/digilockerStart";
 import { X } from "lucide-react";
 
 const IVERIFI_ORIGIN = import.meta.env.VITE_KWIK_ORIGIN || "https://iverifi.app.getkwikid.com";
@@ -183,21 +184,22 @@ export default function GuestFamilySelect({ hotelName, hotelLogoUrl, onContinue,
   }, [nickname, handleStartKwikVerification]);
 
   // DL: DigiLocker redirect
-  const handleDLDigiLocker = useCallback(() => {
+  const handleDLDigiLocker = useCallback(async () => {
     const trimmed = nickname.trim();
     sessionStorage.setItem("pendingFamilyDLNickname", trimmed);
     setDlChoiceOpen(false);
     setNickname("");
-    const apiBase = ((import.meta as any).env.VITE_BASE_URL as string || "").replace(/\/$/, "");
-    const returnUrl = `${window.location.origin}/checkin`;
-    window.location.assign(
-      `${apiBase}/webhook/digilocker-aadhaar-oauth-start` +
-      `?applicant_id=${encodeURIComponent(user!.uid)}` +
-      `&doc_type=DL&is_family_member=true` +
-      `&member_nickname=${encodeURIComponent(trimmed)}` +
-      `&return_url=${encodeURIComponent(returnUrl)}`
-    );
-  }, [nickname, user]);
+    try {
+      await startDigilockerFlow({
+        docType: "DL",
+        isFamilyMember: true,
+        memberNickname: trimmed,
+        returnUrl: `${window.location.origin}/checkin`,
+      });
+    } catch (e: any) {
+      toast.error(e?.message || "Could not start DigiLocker verification");
+    }
+  }, [nickname]);
 
   const toggleMember = (id: string) => {
     setSelectedIds((prev) => {

@@ -15,6 +15,7 @@ import {
 import type { ForeignPassportPhotos } from "@/components/foreign-passport-dialog";
 import type { FlowCredential } from "./guest-checkin-flow";
 import { toast } from "sonner";
+import { startDigilockerFlow } from "@/utils/digilockerStart";
 import { useSearchParams, useNavigate, useLocation } from "react-router-dom";
 
 import { Globe2, CreditCard, Car, FileBadge, Plane, ShieldCheck, Sparkles } from "lucide-react";
@@ -351,16 +352,14 @@ export default function GuestDocSelect({
   // ── DL verification handlers ──
   const handleVerifyDLKwik = () => openKwikIframe("DRIVING_LICENSE", "DL");
 
-  const handleVerifyDLWithDigiLocker = () => {
+  const handleVerifyDLWithDigiLocker = async () => {
     const user = auth.currentUser;
     if (!user) { onError("Not authenticated. Please restart."); return; }
-    const apiBase = ((import.meta as any).env.VITE_BASE_URL as string || "").replace(/\/$/, "");
-    const returnUrl = `${window.location.origin}/checkin`;
-    window.location.assign(
-      `${apiBase}/webhook/digilocker-aadhaar-oauth-start` +
-      `?applicant_id=${encodeURIComponent(user.uid)}&doc_type=DL` +
-      `&return_url=${encodeURIComponent(returnUrl)}`,
-    );
+    try {
+      await startDigilockerFlow({ docType: "DL", returnUrl: `${window.location.origin}/checkin` });
+    } catch (e: any) {
+      toast.error(e?.message || "Could not start DigiLocker verification");
+    }
   };
 
   // User manually closed the iframe without completing — show failed screen immediately.
