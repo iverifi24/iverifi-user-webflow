@@ -3,14 +3,13 @@ import { useLocation } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { DigiLockerIcon } from "@/components/digilocker-icon";
-import { useAuth } from "@/context/auth_context";
+import { startDigilockerFlow } from "@/utils/digilockerStart";
 
 function useQuery() {
   return new URLSearchParams(useLocation().search);
 }
 
 const AadhaarDigiLockerTest = () => {
-  const { user } = useAuth();
   const query = useQuery();
   const [result, setResult] = useState<any>(null);
   const [resultJson, setResultJson] = useState<string | null>(null);
@@ -29,13 +28,12 @@ const AadhaarDigiLockerTest = () => {
     }
   }, [query]);
 
-  const applicantId = user?.uid || (user as any)?.id || "";
-
-  const handleStartFlow = () => {
-    const apiBase =
-      (import.meta as any).env.VITE_BASE_URL || 'http://localhost:9000/api/v1';
-    const url = `${apiBase}/webhook/digilocker-aadhaar-oauth-start?applicant_id=${encodeURIComponent(applicantId || "test")}`;
-    window.location.assign(url);
+  const handleStartFlow = async () => {
+    try {
+      await startDigilockerFlow({});
+    } catch (e: any) {
+      window.alert(e?.message || "Could not start DigiLocker verification");
+    }
   };
 
   const apiBase = (import.meta as any).env.VITE_BASE_URL || 'http://localhost:9000/api/v1';

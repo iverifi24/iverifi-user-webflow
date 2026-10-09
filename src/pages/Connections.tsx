@@ -45,6 +45,7 @@ import {
   getRecipientIdFromStorage,
 } from "@/utils/connectionFlow";
 import { toast } from "sonner";
+import { startDigilockerFlow } from "@/utils/digilockerStart";
 import {
   Dialog,
   DialogContent,
@@ -1506,15 +1507,15 @@ const Connections = () => {
     return handleVerifyDocumentKwik(documentType);
   };
 
-  const handleVerifyDLWithDigiLocker = () => {
+  const handleVerifyDLWithDigiLocker = async () => {
     const currentUser = auth.currentUser;
     if (!currentUser) return toast.error("User not authenticated");
     if (code) saveRecipientIdForLater(code);
-    const apiBase = ((import.meta as any).env.VITE_BASE_URL as string || "").replace(/\/$/, "");
-    window.location.assign(
-      `${apiBase}/webhook/digilocker-aadhaar-oauth-start` +
-      `?applicant_id=${encodeURIComponent(currentUser.uid)}&doc_type=DL`,
-    );
+    try {
+      await startDigilockerFlow({ docType: "DL" });
+    } catch (e: any) {
+      toast.error(e?.message || "Could not start DigiLocker verification");
+    }
   };
 
   const startDLSelfieCamera = async () => {
