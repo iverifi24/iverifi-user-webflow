@@ -16,6 +16,11 @@ import GuestFamilySelect from "./guest-family-select";
 import type { FamilyCredential } from "./guest-family-select";
 import { SupportWidget } from "@/components/support-widget";
 import { PinLockScreen } from "@/components/pin-lock-screen";
+import { Button } from "@/components/ui/button";
+import { AlertTriangle, Building2, Home, LogOut } from "lucide-react";
+import { getVenueCopy } from "@/utils/venueCopy";
+import { StepProgressBar } from "./checkin-steps";
+import { CheckinStepContext, buildStepLabels } from "./checkin-step-context";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -37,7 +42,11 @@ export type FlowStep =
 export interface HotelInfo {
   name: string;
   logo_url: string | null;
+  businessType?: string | null;
 }
+
+/** "quota" = the venue cannot accept more requests; retrying will not help */
+export type FlowErrorKind = "general" | "quota";
 
 export interface FlowCredential {
   id: string;
@@ -70,25 +79,31 @@ export interface GuestFlowState {
   /** Timestamp when user tapped "Start Check-In" */
   startedAt: number;
   errorMessage: string;
+  errorKind: FlowErrorKind;
 }
 
-// ── Progress map ─────────────────────────────────────────────────────────────
+// ── Step map ─────────────────────────────────────────────────────────────────
+// Which visible step (see buildStepLabels) each internal flow state belongs to.
+// "family" is only reached when the venue allows companions; "details" is always last.
 
-const PROGRESS: Record<FlowStep, number> = {
-  loading: 0,
-  landing: 0,
-  phone: 18,
-  otp: 36,
-  checking: 50,
-  kyc: 55,
-  family: 62,
-  details: 70,
-  returning: 62,
-  submitting: 85,
-  confirm: 100,
-  checkedin: 0,
-  error: 0,
-};
+function stepIndexFor(step: FlowStep, labelCount: number): number {
+  switch (step) {
+    case "phone":
+    case "otp":
+    case "checking":
+      return 0;
+    case "kyc":
+    case "returning":
+      return 1;
+    case "family":
+      return 2;
+    case "details":
+    case "submitting":
+      return labelCount - 1;
+    default:
+      return -1;
+  }
+}
 
 // ── Main component ────────────────────────────────────────────────────────────
 
@@ -118,6 +133,7 @@ export default function GuestCheckinFlow() {
       checkInResult: null,
       startedAt: guestCheckin.getStartedAt() || Date.now(),
       errorMessage: "",
+      errorKind: "general",
     };
   });
 
@@ -186,7 +202,15 @@ export default function GuestCheckinFlow() {
     }
   }, [state.step, state.selectedCredential]);
 
-  const progress = PROGRESS[state.step] ?? 0;
+  const copy = getVenueCopy(state.hotelInfo?.businessType);
+  const venueName = state.hotelInfo?.name || copy.venueFallback;
+  const stepLabels = buildStepLabels(copy.allowsCompanions);
+  const stepIndex = stepIndexFor(state.step, stepLabels.length);
+  // After choosing an ID, solo-visit venues skip the companions step entirely
+  const stepAfterId: FlowStep = copy.allowsCompanions ? "family" : "details";
+
+  const failWith = (msg: string, kind: FlowErrorKind = "general") =>
+    advance({ step: "error", errorMessage: msg, errorKind: kind });
 
   // ── Render ────────────────────────────────────────────────────────────────
 
@@ -216,7 +240,7 @@ export default function GuestCheckinFlow() {
       case "otp":
         return (
           <GuestPhoneAuth
-            hotelName={state.hotelInfo?.name ?? "the hotel"}
+            hotelName={venueName}
             hotelLogoUrl={state.hotelInfo?.logo_url ?? null}
             onAuthSuccess={(phone) => advance({ phone, step: "checking" })}
             onBack={() => advance({ step: "landing" })}
@@ -227,8 +251,10 @@ export default function GuestCheckinFlow() {
         return (
           <GuestChecking
             hotelCode={state.hotelCode}
-            hotelName={state.hotelInfo?.name ?? "the hotel"}
+            hotelName={venueName}
             startedAt={state.startedAt}
+            staffTerm={copy.staffTerm}
+            actionNoun={copy.actionNoun}
             onResult={({ connectionId, credentials, isReturning, selectedCredential }) =>
               advance({
                 connectionId,
@@ -238,20 +264,21 @@ export default function GuestCheckinFlow() {
                 step: isReturning ? "returning" : "kyc",
               })
             }
-            onError={(msg) => advance({ step: "error", errorMessage: msg })}
+            onError={failWith}
           />
         );
 
       case "kyc":
         return (
           <GuestKyc
-            hotelName={state.hotelInfo?.name ?? "the hotel"}
+            hotelName={venueName}
             hotelLogoUrl={state.hotelInfo?.logo_url ?? null}
+            staffTerm={copy.staffTerm}
             existingCredentials={state.credentials}
             connectionId={state.connectionId}
             startedAt={state.startedAt}
             onSelected={(credential) =>
-              advance({ selectedCredential: credential, credentials: state.credentials.find(c => c.id === credential.id) ? state.credentials : [...state.credentials, credential], step: "family" })
+              advance({ selectedCredential: credential, credentials: state.credentials.find(c => c.id === credential.id) ? state.credentials : [...state.credentials, credential], step: stepAfterId })
             }
             onForeignCheckin={(result, docType) => advance({
               step: "confirm",
@@ -261,18 +288,20 @@ export default function GuestCheckinFlow() {
                 : state.selectedCredential,
             })}
             onManualDetails={(docType) => advance({
-              step: "family",
+              step: stepAfterId,
               selectedCredential: { id: "manual", document_type: docType, state: "auto_approved" },
             })}
-            onError={(msg) => advance({ step: "error", errorMessage: msg })}
-            onBack={() => advance({ step: "checking" })}
+            onError={failWith}
+            // Only returning visitors have a real previous screen (their saved IDs).
+            // For new visitors "back" used to re-run the connection and land here again.
+            onBack={state.isReturning ? () => advance({ step: "returning" }) : undefined}
           />
         );
 
       case "family":
         return (
           <GuestFamilySelect
-            hotelName={state.hotelInfo?.name ?? "the hotel"}
+            hotelName={venueName}
             hotelLogoUrl={state.hotelInfo?.logo_url ?? null}
             onContinue={(selected) => advance({ selectedFamilyCredentials: selected, step: "details" })}
             onSkip={() => advance({ selectedFamilyCredentials: [], step: "details" })}
@@ -282,8 +311,9 @@ export default function GuestCheckinFlow() {
       case "details":
         return (
           <GuestDetails
-            hotelName={state.hotelInfo?.name ?? "the hotel"}
+            hotelName={venueName}
             hotelLogoUrl={state.hotelInfo?.logo_url ?? null}
+            staffTerm={copy.staffTerm}
             phone={state.phone}
             credential={state.selectedCredential}
             credentials={state.credentials}
@@ -293,7 +323,7 @@ export default function GuestCheckinFlow() {
             onSuccess={(result) =>
               advance({ step: "confirm", checkInResult: result })
             }
-            onError={(msg) => advance({ step: "error", errorMessage: msg })}
+            onError={failWith}
             onCredentialChange={(c) => advance({ selectedCredential: c })}
           />
         );
@@ -301,11 +331,11 @@ export default function GuestCheckinFlow() {
       case "returning":
         return (
           <ReturningGuest
-            hotelName={state.hotelInfo?.name ?? "the hotel"}
+            hotelName={venueName}
             hotelLogoUrl={state.hotelInfo?.logo_url ?? null}
             credentials={state.credentials}
             selectedCredential={state.selectedCredential}
-            onContinue={() => advance({ step: "family" })}
+            onContinue={() => advance({ step: stepAfterId })}
             onCredentialChange={(c) => advance({ selectedCredential: c })}
             onVerifyNew={() => advance({ step: "kyc" })}
           />
@@ -316,7 +346,7 @@ export default function GuestCheckinFlow() {
           <div className="min-h-screen flex items-center justify-center">
             <div className="flex flex-col items-center gap-4">
               <div className="w-12 h-12 rounded-full border-2 border-[var(--iverifi-accent)] border-t-transparent animate-spin" />
-              <p className="text-muted-foreground text-sm">Submitting check-in…</p>
+              <p className="text-muted-foreground text-sm">Submitting your {copy.actionNoun}…</p>
             </div>
           </div>
         );
@@ -324,8 +354,11 @@ export default function GuestCheckinFlow() {
       case "confirm":
         return (
           <GuestConfirmation
-            hotelName={state.hotelInfo?.name ?? "the hotel"}
+            hotelName={venueName}
             hotelLogoUrl={state.hotelInfo?.logo_url ?? null}
+            hotelCode={state.hotelCode}
+            staffTerm={copy.staffTerm}
+            actionNoun={copy.actionNoun}
             credential={state.selectedCredential}
             checkInResult={state.checkInResult}
             connectionId={state.connectionId}
@@ -337,59 +370,77 @@ export default function GuestCheckinFlow() {
         return (
           <div className="flex min-h-screen flex-col items-center justify-center px-4 py-8">
             <div className="w-full max-w-sm flex flex-col items-center gap-5 text-center">
-              <div
-                className="w-20 h-20 rounded-full flex items-center justify-center text-4xl"
-                style={{ background: "var(--iverifi-accent-soft)", border: "2px solid var(--iverifi-accent-border)" }}
-              >
-                🏨
+              <div className="w-20 h-20 rounded-full flex items-center justify-center bg-[var(--iverifi-accent-soft)] border-2 border-[var(--iverifi-accent-border)] text-[var(--iverifi-accent)]">
+                <Building2 className="w-9 h-9" />
               </div>
               <div>
                 <h1 className="text-2xl font-bold text-foreground mb-1">Already checked in</h1>
                 <p className="text-sm text-muted-foreground leading-relaxed max-w-xs">
-                  You're already checked in at <strong className="text-foreground">{state.hotelInfo?.name ?? "this hotel"}</strong>.
-                  Please check out at the front desk before checking in again.
+                  You're already checked in at <strong className="text-foreground">{venueName}</strong>.
+                  Please check out with {copy.staffTerm} before checking in again.
                 </p>
               </div>
-              <button
-                className="w-full py-4 rounded-2xl text-slate-950 font-semibold text-base"
-                style={{ background: "linear-gradient(135deg,#00e0ff,#7B5CF5)" }}
+              <Button
+                variant="brand"
+                className="w-full h-12 rounded-2xl text-base"
                 onClick={() => { guestCheckin.clear(); navigate("/"); }}
               >
                 Back to Home
-              </button>
+              </Button>
             </div>
           </div>
         );
 
-      case "error":
+      case "error": {
+        const isQuota = state.errorKind === "quota";
         return (
           <div className="min-h-screen flex flex-col items-center justify-center gap-6 px-6 text-center">
-            <div
-              className="w-20 h-20 rounded-[24px] flex items-center justify-center text-4xl"
-              style={{ background: "var(--iverifi-danger-soft)", border: "1px solid rgba(220,38,38,0.3)" }}
-            >
-              ⚠️
+            <div className="w-20 h-20 rounded-[24px] flex items-center justify-center bg-[var(--iverifi-danger-soft)] border border-red-600/30 text-red-500">
+              <AlertTriangle className="w-9 h-9" />
             </div>
-            <h2 className="text-foreground text-2xl font-extrabold">
-              Something went wrong
-            </h2>
-            <p className="text-muted-foreground text-sm leading-relaxed max-w-xs">
-              {state.errorMessage || "An unexpected error occurred. Please try again."}
-            </p>
-            <button
-              className="w-full max-w-xs py-4 rounded-2xl bg-gradient-to-r from-[#00E5C3] to-[#6C63FF] text-slate-950 font-extrabold text-base"
-              onClick={() => {
-                if (state.errorMessage?.includes("24 hours")) {
-                  window.location.reload();
-                } else {
-                  advance({ step: "landing", errorMessage: "" });
-                }
-              }}
-            >
-              Try Again
-            </button>
+            <div className="flex flex-col gap-2">
+              <h2 className="text-foreground text-2xl font-bold">
+                {isQuota ? "Unable to continue right now" : "Something went wrong"}
+              </h2>
+              <p className="text-muted-foreground text-sm leading-relaxed max-w-xs">
+                {state.errorMessage || "An unexpected error occurred. Please try again."}
+              </p>
+            </div>
+            {isQuota ? (
+              // Retrying cannot fix a venue-side limit; send the visitor to staff instead
+              <div className="w-full max-w-xs flex flex-col gap-3">
+                <p className="rounded-2xl border border-border bg-muted/40 px-4 py-3 text-sm text-foreground">
+                  Please speak to {copy.staffTerm} for assistance.
+                </p>
+                {user && (
+                  <Button
+                    variant="outline"
+                    className="w-full h-12 rounded-2xl"
+                    onClick={() => { guestCheckin.clear(); navigate("/"); }}
+                  >
+                    Back to Home
+                  </Button>
+                )}
+              </div>
+            ) : (
+              <Button
+                variant="brand"
+                className="w-full max-w-xs h-12 rounded-2xl text-base"
+                onClick={() => {
+                  if (state.errorMessage?.includes("24 hours")) {
+                    window.location.reload();
+                  } else {
+                    // Signed-in visitors retry the connection; others start again from the landing page
+                    advance({ step: user ? "checking" : "landing", errorMessage: "", errorKind: "general" });
+                  }
+                }}
+              >
+                Try Again
+              </Button>
+            )}
           </div>
         );
+      }
 
       default:
         return null;
@@ -397,6 +448,7 @@ export default function GuestCheckinFlow() {
   };
 
   return (
+    <CheckinStepContext.Provider value={{ index: stepIndex, labels: stepLabels }}>
     <div className="relative min-h-screen bg-background overflow-hidden">
       {/* Noise overlay — subtle in light, more visible in dark */}
       <div
@@ -411,13 +463,9 @@ export default function GuestCheckinFlow() {
       {state.step !== "loading" && user && (
         <button
           onClick={() => navigate("/")}
-          className="fixed top-4 left-4 z-50 flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors border border-border"
-          style={{ background: "var(--iverifi-muted-surface)" }}
+          className="fixed top-4 left-4 z-50 flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors border border-border bg-[var(--iverifi-muted-surface)]"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
-            <polyline points="9 22 9 12 15 12 15 22"/>
-          </svg>
+          <Home className="w-4 h-4" />
           Home
         </button>
       )}
@@ -426,31 +474,15 @@ export default function GuestCheckinFlow() {
       {state.step !== "loading" && user && (
         <button
           onClick={() => { logoutUser(); guestCheckin.clear(); navigate("/login"); }}
-          className="fixed top-4 right-4 z-50 flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium text-muted-foreground hover:text-red-500 transition-colors border border-border"
-          style={{ background: "var(--iverifi-muted-surface)" }}
+          className="fixed top-4 right-4 z-50 flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium text-muted-foreground hover:text-red-500 transition-colors border border-border bg-[var(--iverifi-muted-surface)]"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-            <polyline points="16 17 21 12 16 7"/>
-            <line x1="21" y1="12" x2="9" y2="12"/>
-          </svg>
+          <LogOut className="w-4 h-4" />
           Logout
         </button>
       )}
 
-      {/* Progress bar */}
-      {state.step !== "loading" && state.step !== "landing" && state.step !== "error" && state.step !== "kyc" && state.step !== "checkedin" && (
-        <div className="fixed top-0 left-0 right-0 h-1 bg-black/10 dark:bg-white/5 z-50 max-w-[420px] mx-auto">
-          <div
-            className="h-full rounded-r-sm"
-            style={{
-              width: `${progress}%`,
-              background: "linear-gradient(135deg, #00E5C3 0%, #6C63FF 100%)",
-              transition: "width 0.5s cubic-bezier(0.4,0,0.2,1)",
-            }}
-          />
-        </div>
-      )}
+      {/* Segmented step progress (hidden on landing, confirmation and error screens) */}
+      <StepProgressBar />
 
       {/* Content */}
       <div className="w-full max-w-[420px] mx-auto min-h-screen flex flex-col">
@@ -471,6 +503,7 @@ export default function GuestCheckinFlow() {
         />
       )}
     </div>
+    </CheckinStepContext.Provider>
   );
 }
 
@@ -480,16 +513,18 @@ interface CheckingProps {
   hotelCode: string;
   hotelName: string;
   startedAt: number;
+  staffTerm: string;
+  actionNoun: string;
   onResult: (r: {
     connectionId: string;
     credentials: FlowCredential[];
     isReturning: boolean;
     selectedCredential: FlowCredential | null;
   }) => void;
-  onError: (msg: string) => void;
+  onError: (msg: string, kind?: FlowErrorKind) => void;
 }
 
-function GuestChecking({ hotelCode, hotelName, startedAt: _startedAt, onResult, onError }: CheckingProps) {
+function GuestChecking({ hotelCode, hotelName, startedAt: _startedAt, staffTerm, actionNoun, onResult, onError }: CheckingProps) {
   const [addConnection] = useAddConnectionMutation();
   const { data: credsData, isLoading: credsLoading } = useGetCredentialsQuery();
   const { isLoading: recipientLoading } = useGetRecipientCredentialsQuery(hotelCode, { skip: !hotelCode });
@@ -531,9 +566,9 @@ function GuestChecking({ hotelCode, hotelName, startedAt: _startedAt, onResult, 
       } catch (err: any) {
         const status = err?.status ?? err?.originalStatus;
         if (status === 403) {
-          onError("This property has reached its check-in limit. Please speak to the front desk.");
+          onError(`${hotelName} cannot accept new requests right now. Please speak to ${staffTerm}.`, "quota");
         } else {
-          onError(err?.data?.message || err?.message || "Failed to connect to hotel. Please try again.");
+          onError(err?.data?.message || err?.message || "Could not connect to the venue. Please try again.");
         }
       }
     })();
@@ -546,9 +581,9 @@ function GuestChecking({ hotelCode, hotelName, startedAt: _startedAt, onResult, 
       </div>
       <div className="text-center">
         <p className="text-foreground font-bold text-lg mb-1">
-          Connecting to {hotelName || "Organization"}
+          Connecting to {hotelName}
         </p>
-        <p className="text-muted-foreground text-sm">Setting up your verification & check-in…</p>
+        <p className="text-muted-foreground text-sm">Setting up your verification and {actionNoun}…</p>
       </div>
     </div>
   );

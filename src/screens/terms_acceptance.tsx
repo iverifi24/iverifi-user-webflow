@@ -151,7 +151,7 @@ export default function TermsAcceptance() {
                   {
                     icon: <Send className="h-4 w-4 text-sky-400" />,
                     title: "Share Verified Result",
-                    desc: `Only 'verified ✓' status sent to ${connectionName}.`,
+                    desc: `Only the 'verified' status is sent to ${connectionName}.`,
                   },
                 ].map((step, i, arr) => (
                   <div key={i}>
@@ -193,7 +193,7 @@ export default function TermsAcceptance() {
                   {
                     icon: <Send className="h-4 w-4 text-sky-400" />,
                     title: "Share Verified Result",
-                    desc: `Only 'verified ✓' status sent to ${connectionName}.`,
+                    desc: `Only the 'verified' status is sent to ${connectionName}.`,
                   },
                 ].map((step, i, arr) => (
                   <div key={i} className="flex items-center gap-2 flex-1">
@@ -339,7 +339,7 @@ export default function TermsAcceptance() {
               </Button>
 
               <p className="text-center text-xs text-[var(--iverifi-text-muted)]">
-                Protected by 256-bit encryption • Takes 30 seconds
+                Encrypted connection · Takes about a minute
               </p>
             </div>
           </div>

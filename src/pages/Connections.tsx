@@ -30,7 +30,9 @@ import {
   Lock,
   Plus,
   Share2,
+  UserRound,
   X,
+  Zap,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -674,14 +676,14 @@ const Connections = () => {
     const age =
       computedAge != null
         ? computedAge >= 18
-          ? "Above 18 ✓"
-          : "Below 18 ✗"
+          ? "Above 18"
+          : "Below 18"
         : typeof isAbove18Raw === "boolean"
           ? isAbove18Raw
-            ? "Above 18 ✓"
-            : "Below 18 ✗"
+            ? "Above 18"
+            : "Below 18"
           : String(isAbove18Raw || "").toLowerCase() === "true"
-            ? "Above 18 ✓"
+            ? "Above 18"
             : "—";
 
     const explicitLast4 =
@@ -1178,7 +1180,7 @@ const Connections = () => {
       clearPendingRecipientId();
       processedCodeRef.current = null;
       navigate(location.pathname, { replace: true });
-      toast.success("C-Form submitted. Check-in request sent to the property.");
+      toast.success("C-Form submitted. Check-in request sent to the venue.");
       await refetchCredentials();
       setFeedbackRequestId(derivedConnectionId);
       setFeedbackOpen(true);
@@ -1222,7 +1224,7 @@ const Connections = () => {
       processedCodeRef.current = null;
       navigate(location.pathname, { replace: true });
       toast.success(
-        "Foreign Passport submitted. Check-in request sent to the property.",
+        "Foreign Passport submitted. Check-in request sent to the venue.",
       );
       await refetchCredentials();
       setFeedbackRequestId(derivedConnectionId);
@@ -1337,7 +1339,7 @@ const Connections = () => {
       processedCodeRef.current = null;
       navigate(location.pathname, { replace: true });
 
-      toast.success("Document shared. Check-in request sent to the property.");
+      toast.success("Document shared. Check-in request sent to the venue.");
 
       await refetchCredentials();
       setFeedbackRequestId(derivedConnectionId);
@@ -1699,12 +1701,12 @@ const Connections = () => {
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <div className="min-w-0">
                 <div className="text-[10px] font-semibold tracking-widest uppercase text-teal-600/80 dark:text-[#00e0ff]/80">
-                  Active property
+                  Active venue
                 </div>
                 <div className="truncate text-sm font-semibold text-[var(--iverifi-text-primary)]">
                   {isRecipientLoading
                     ? "Loading…"
-                    : connectedRequestorName || "Property"}
+                    : connectedRequestorName || "Venue"}
                 </div>
                 <p className="text-xs text-[var(--iverifi-text-muted)] mt-1">
                   Select an ID below and tap Share — your check-in request will
@@ -1883,7 +1885,7 @@ const Connections = () => {
                         {meta.issuer}
                       </span>
                       <span className="inline-flex items-center gap-1 rounded-full bg-teal-500/10 border border-teal-500/20 px-2 py-0.5 text-[9px] font-bold text-teal-700 dark:text-cyan-400">
-                        ⚡ {meta.unverifiedProvider} (~{meta.unverifiedTime})
+                        <Zap className="h-2.5 w-2.5" /> {meta.unverifiedProvider} (~{meta.unverifiedTime})
                       </span>
                     </div>
 
@@ -1946,7 +1948,7 @@ const Connections = () => {
                       </div>
                       <div className="min-w-0">
                         <div className="truncate text-sm font-semibold text-[var(--iverifi-text-primary)]">{"C-Form (Foreign Guest)"}</div>
-                        <div className="truncate text-xs text-[var(--iverifi-text-muted)]">{qrActive ? "Fill & submit on check-in" : "Scan hotel QR to fill & submit"}</div>
+                        <div className="truncate text-xs text-[var(--iverifi-text-muted)]">{qrActive ? "Fill & submit on check-in" : "Scan the venue QR to fill & submit"}</div>
                       </div>
                     </div>
                     {qrActive ? <ChevronRight className="h-4 w-4 shrink-0 text-[var(--iverifi-text-muted)]" /> : <Lock className="h-4 w-4 shrink-0 text-[var(--iverifi-text-muted)]" />}
@@ -2207,7 +2209,7 @@ const Connections = () => {
                     }}
                   />
                 ) : (
-                  "👤"
+                  <UserRound className="h-1/2 w-1/2 text-muted-foreground" />
                 )}
               </div>
               <div>
@@ -2245,7 +2247,7 @@ const Connections = () => {
                         border: `1px solid ${isAbove18 ? "var(--iverifi-success-border)" : "var(--iverifi-warning-border)"}`,
                       }}
                     >
-                      {isAbove18 ? "✓ Age 18+" : "Under 18"}
+                      {isAbove18 ? "Age 18+" : "Under 18"}
                     </div>
                   );
                 })()}
@@ -2347,9 +2349,12 @@ const Connections = () => {
                 lineHeight: 1.6,
               }}
             >
-              {selectedDocType === "C-Form (Foreign Guest)"
-                ? "🔒 Only share with registered hotels for FRRO compliance."
-                : "🔒 Full document number never stored. DPDP Act 2023."}
+              <span className="inline-flex items-start gap-1.5">
+                <Lock className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                {selectedDocType === "C-Form (Foreign Guest)"
+                  ? "Only share with registered establishments, as required for FRRO compliance."
+                  : "Full document number never stored. DPDP Act 2023."}
+              </span>
             </div>
 
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -2477,8 +2482,8 @@ const Connections = () => {
           const ageLabel =
             isAbove18 != null
               ? isAbove18
-                ? "Above 18 ✓"
-                : "Below 18 ✗"
+                ? "Above 18"
+                : "Below 18"
               : "—";
           const docType = member.document_type || "FAMILY_AADHAAR";
           const memberDoc = FAMILY_DOC_OPTIONS.find((o) => o.type === docType) ?? FAMILY_DOC_UNKNOWN;
@@ -2493,8 +2498,8 @@ const Connections = () => {
             : docType === "FAMILY_PAN" ? "PAN No."
             : "Aadhaar";
           const privacyNote = isAadhaarFamily
-            ? "🔒 Full Aadhaar number never stored. DPDP Act 2023."
-            : `🔒 Full ${memberDoc.label} number never stored. DPDP Act 2023.`;
+            ? "Full Aadhaar number never stored. DPDP Act 2023."
+            : `Full ${memberDoc.label} number never stored. DPDP Act 2023.`;
           let photo: string | null = null;
           const rootFace = pickFirst(flat, ["face_url"]);
           if (
@@ -2637,7 +2642,7 @@ const Connections = () => {
                         }}
                       />
                     ) : (
-                      "👤"
+                      <UserRound className="h-1/2 w-1/2 text-muted-foreground" />
                     )}
                   </div>
                   <div>
@@ -2734,7 +2739,7 @@ const Connections = () => {
                     lineHeight: 1.6,
                   }}
                 >
-                  {privacyNote}
+                  <span className="inline-flex items-start gap-1.5"><Lock className="h-3.5 w-3.5 mt-0.5 shrink-0" />{privacyNote}</span>
                 </div>
                 {/* Actions */}
                 <div

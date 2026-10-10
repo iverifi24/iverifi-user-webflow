@@ -420,7 +420,7 @@ const ConnectionDetails = () => {
                   </span>
                 </div>
                 <p className="text-sm font-normal text-[var(--iverifi-label)]">
-                  {activities.length} stay{activities.length !== 1 ? "s" : ""} at this property
+                  {activities.length} visit{activities.length !== 1 ? "s" : ""} here
                 </p>
               </div>
             </div>
@@ -742,7 +742,7 @@ const ConnectionDetails = () => {
                   </span>
                 </div>
                 <p className="text-sm font-normal text-[var(--iverifi-label)]">
-                  {activities.length} stay{activities.length !== 1 ? "s" : ""} at this property
+                  {activities.length} visit{activities.length !== 1 ? "s" : ""} here
                 </p>
               </div>
             </div>

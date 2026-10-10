@@ -6,7 +6,11 @@ import {
 } from "@/redux/api";
 import { toast } from "sonner";
 import { startDigilockerFlow } from "@/utils/digilockerStart";
-import { X } from "lucide-react";
+import { X, Check, UserPlus } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { IverifiLogo } from "@/components/iverifi-logo";
+import { HotelBadge } from "@/components/hotel-badge";
+import { StepPill } from "./checkin-steps";
 
 const IVERIFI_ORIGIN = import.meta.env.VITE_KWIK_ORIGIN || "https://iverifi.app.getkwikid.com";
 const KWIK_CLIENT_ID = import.meta.env.VITE_KWIK_CLIENT_ID || "iverifi";
@@ -15,7 +19,7 @@ const POLL_INTERVAL_MS = 2000;
 const FAMILY_DOC_OPTIONS = [
   { type: "FAMILY_AADHAAR",  label: "Aadhaar",        productCode: "KYC" },
   { type: "FAMILY_PASSPORT", label: "Passport",        productCode: "PP"  },
-  { type: "FAMILY_DL",       label: "Driving License", productCode: "DL"  },
+  { type: "FAMILY_DL",       label: "Driving Licence", productCode: "DL"  },
   { type: "FAMILY_PAN",      label: "PAN Card",        productCode: "PC"  },
 ] as const;
 type FamilyDocType = (typeof FAMILY_DOC_OPTIONS)[number]["type"];
@@ -218,47 +222,49 @@ export default function GuestFamilySelect({ hotelName, hotelLogoUrl, onContinue,
   return (
     <div className="flex min-h-screen flex-col items-center px-4 py-8">
       {/* Header */}
-      <div className="w-full max-w-sm flex flex-col items-center gap-4 mb-6">
-        {hotelLogoUrl && (
-          <img src={hotelLogoUrl} alt={hotelName} className="w-16 h-16 rounded-2xl object-cover" />
-        )}
-        <h1 className="text-2xl font-extrabold text-foreground text-center">Visiting with family or companions?</h1>
-        <p className="text-sm text-muted-foreground text-center leading-relaxed">
-          Add accompanying members or companions so{" "}
-          <span className="font-semibold text-foreground">{hotelName}</span> can verify everyone smoothly.
-        </p>
+      <div className="w-full max-w-sm flex flex-col items-center gap-4 mb-6 pt-8">
+        <IverifiLogo />
+        <HotelBadge name={hotelName} logoUrl={hotelLogoUrl} />
+        <div className="text-center">
+          <StepPill />
+          <h1 className="text-2xl font-bold text-foreground">Visiting with companions?</h1>
+          <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed">
+            Add the people with you so{" "}
+            <span className="font-semibold text-foreground">{hotelName}</span> can verify everyone together.
+            You can skip this if you are on your own.
+          </p>
+        </div>
       </div>
 
       {/* Family member list */}
       <div className="w-full max-w-sm flex flex-col gap-3 mb-4">
         {familyMembers.length === 0 && (
-          <p className="text-sm text-muted-foreground text-center py-4">No verified accompanying members yet.</p>
+          <p className="text-sm text-muted-foreground text-center py-4">No verified companions yet.</p>
         )}
         {familyMembers.map((member) => {
           const docLabel = FAMILY_DOC_OPTIONS.find((o) => o.type === member.document_type)?.label ?? "Document";
+          const isSelected = selectedIds.has(member.id);
           return (
             <button
               key={member.id}
+              type="button"
               onClick={() => toggleMember(member.id)}
-              className="w-full flex items-center gap-3 rounded-2xl border p-4 text-left transition-colors"
-              style={{
-                borderColor: selectedIds.has(member.id) ? "var(--iverifi-accent)" : "rgba(255,255,255,0.1)",
-                background: selectedIds.has(member.id) ? "var(--iverifi-accent-soft)" : "var(--iverifi-card-bg, rgba(255,255,255,0.04))",
-              }}
+              aria-pressed={isSelected}
+              className={`w-full flex items-center gap-3 rounded-2xl border p-4 text-left transition-colors ${
+                isSelected
+                  ? "border-[var(--iverifi-accent)] bg-[var(--iverifi-accent-soft)]"
+                  : "border-border bg-card/60 hover:border-foreground/30"
+              }`}
             >
               {/* Checkbox */}
               <div
-                className="w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0"
-                style={{
-                  borderColor: selectedIds.has(member.id) ? "var(--iverifi-accent)" : "rgba(255,255,255,0.3)",
-                  background: selectedIds.has(member.id) ? "var(--iverifi-accent)" : "transparent",
-                }}
+                className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 ${
+                  isSelected
+                    ? "border-[var(--iverifi-accent)] bg-[var(--iverifi-accent)] text-slate-950"
+                    : "border-muted-foreground/40"
+                }`}
               >
-                {selectedIds.has(member.id) && (
-                  <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
-                    <path d="M1 4L3.5 6.5L9 1" stroke="#000" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                )}
+                {isSelected && <Check className="w-3 h-3" strokeWidth={3} />}
               </div>
               <div className="flex-1 min-w-0">
                 <p className="font-semibold text-foreground truncate">{member.member_nickname}</p>
@@ -271,42 +277,39 @@ export default function GuestFamilySelect({ hotelName, hotelLogoUrl, onContinue,
 
       {/* Add family member button */}
       <button
+        type="button"
         onClick={() => { setAddDialogOpen(true); setNickname(""); setNicknameError(""); setDocType("FAMILY_AADHAAR"); }}
-        className="w-full max-w-sm rounded-2xl border border-dashed py-3 text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors mb-8"
-        style={{ borderColor: "rgba(255,255,255,0.2)" }}
+        className="w-full max-w-sm inline-flex items-center justify-center gap-1.5 rounded-2xl border border-dashed border-border py-3 text-sm font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors mb-8"
       >
-        + Add member / companion
+        <UserPlus className="w-4 h-4" /> Add a companion
       </button>
 
       {/* Footer buttons */}
       <div className="w-full max-w-sm flex flex-col gap-3 mt-auto">
-        <button
+        <Button
+          variant="brand"
           onClick={handleContinue}
           disabled={selectedIds.size === 0}
-          className="w-full py-4 rounded-2xl font-extrabold text-base transition-opacity"
-          style={{
-            background: "linear-gradient(135deg,#00e0ff,#7B5CF5)",
-            color: "#0a0a0a",
-            opacity: selectedIds.size === 0 ? 0.5 : 1,
-          }}
+          className="w-full h-12 rounded-2xl text-base font-bold"
         >
-          Continue with {selectedIds.size > 0 ? `${selectedIds.size} member${selectedIds.size > 1 ? "s" : ""}` : "selected"}
-        </button>
-        <button
+          Continue with {selectedIds.size > 0 ? `${selectedIds.size} companion${selectedIds.size > 1 ? "s" : ""}` : "selected"}
+        </Button>
+        <Button
+          variant="ghost"
           onClick={onSkip}
-          className="w-full py-3 rounded-2xl text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors"
+          className="w-full h-11 rounded-2xl text-sm font-semibold text-muted-foreground hover:text-foreground"
         >
-          Skip — continue alone
-        </button>
+          Skip, I'm on my own
+        </Button>
       </div>
 
       {/* Add-member dialog */}
       {addDialogOpen && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm">
-          <div className="w-full max-w-sm rounded-t-3xl bg-[var(--iverifi-bg,#0d0d0d)] p-6 flex flex-col gap-4">
+          <div className="w-full max-w-sm rounded-t-3xl border border-border bg-background p-6 flex flex-col gap-4 shadow-2xl">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-extrabold text-foreground">Add accompanying member</h2>
-              <button onClick={() => setAddDialogOpen(false)}>
+              <h2 className="text-lg font-bold text-foreground">Add a companion</h2>
+              <button type="button" aria-label="Close" onClick={() => setAddDialogOpen(false)}>
                 <X className="w-5 h-5 text-muted-foreground" />
               </button>
             </div>
@@ -318,12 +321,12 @@ export default function GuestFamilySelect({ hotelName, hotelLogoUrl, onContinue,
                   key={opt.type}
                   type="button"
                   onClick={() => setDocType(opt.type)}
-                  className="rounded-xl border px-3 py-2.5 text-sm font-semibold text-left transition-colors"
-                  style={{
-                    borderColor: docType === opt.type ? "var(--iverifi-accent)" : "rgba(255,255,255,0.1)",
-                    background: docType === opt.type ? "var(--iverifi-accent-soft)" : "rgba(255,255,255,0.04)",
-                    color: docType === opt.type ? "var(--iverifi-accent)" : "rgba(255,255,255,0.6)",
-                  }}
+                  aria-pressed={docType === opt.type}
+                  className={`rounded-xl border px-3 py-2.5 text-sm font-semibold text-left transition-colors ${
+                    docType === opt.type
+                      ? "border-[var(--iverifi-accent)] bg-[var(--iverifi-accent-soft)] text-[var(--iverifi-accent)]"
+                      : "border-border bg-muted/40 text-muted-foreground hover:text-foreground"
+                  }`}
                 >
                   {opt.label}
                 </button>
@@ -331,27 +334,28 @@ export default function GuestFamilySelect({ hotelName, hotelLogoUrl, onContinue,
             </div>
 
             <div className="flex flex-col gap-1">
-              <label className="text-xs text-muted-foreground font-medium">Name / Nickname</label>
+              <label htmlFor="companion-name" className="text-xs text-muted-foreground font-medium">Name / Nickname</label>
               <input
-                className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-[var(--iverifi-accent)]"
-                placeholder="e.g. Spouse, Mom, Child 1"
+                id="companion-name"
+                className="w-full rounded-xl border border-border bg-muted/40 px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-[var(--iverifi-accent)]"
+                placeholder="e.g. Spouse, Parent, Colleague"
                 value={nickname}
                 onChange={(e) => { setNickname(e.target.value); setNicknameError(""); }}
                 maxLength={32}
                 autoFocus
               />
-              {nicknameError && <p className="text-xs text-red-400 mt-1">{nicknameError}</p>}
+              {nicknameError && <p className="text-xs text-red-500 mt-1">{nicknameError}</p>}
             </div>
-            <button
+            <Button
+              variant="brand"
               onClick={handleStartVerification}
               disabled={isStarting}
-              className="w-full py-4 rounded-2xl font-extrabold text-base"
-              style={{ background: "linear-gradient(135deg,#00e0ff,#7B5CF5)", color: "#0a0a0a", opacity: isStarting ? 0.6 : 1 }}
+              className="w-full h-12 rounded-2xl text-base font-bold"
             >
               {isStarting ? "Starting…" : `Start ${FAMILY_DOC_OPTIONS.find((o) => o.type === docType)?.label ?? ""} Verification`}
-            </button>
+            </Button>
             <p className="text-xs text-muted-foreground text-center">
-              We'll open a secure KYC verification window.
+              We'll open a secure verification window.
             </p>
           </div>
         </div>
@@ -360,27 +364,27 @@ export default function GuestFamilySelect({ hotelName, hotelLogoUrl, onContinue,
       {/* DL choice modal */}
       {dlChoiceOpen && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm">
-          <div className="w-full max-w-sm rounded-t-3xl bg-[var(--iverifi-bg,#0d0d0d)] p-6 flex flex-col gap-4">
-            <h2 className="text-lg font-extrabold text-foreground">Verify Driving License</h2>
+          <div className="w-full max-w-sm rounded-t-3xl border border-border bg-background p-6 flex flex-col gap-4 shadow-2xl">
+            <h2 className="text-lg font-bold text-foreground">Verify Driving Licence</h2>
             <p className="text-sm text-muted-foreground">
-              Does <strong className="text-foreground">{nickname || "this family member"}</strong> have a DigiLocker account with their Driving License on it?
+              Does <strong className="text-foreground">{nickname || "this companion"}</strong> have a DigiLocker account with their Driving Licence on it?
             </p>
-            <button
+            <Button
+              variant="brand"
               onClick={handleDLDigiLocker}
-              className="w-full py-4 rounded-2xl font-extrabold text-base"
-              style={{ background: "linear-gradient(135deg,#00e0ff,#7B5CF5)", color: "#0a0a0a" }}
+              className="w-full h-12 rounded-2xl text-base font-bold"
             >
-              Yes — Use DigiLocker
-            </button>
-            <button
+              Yes, use DigiLocker
+            </Button>
+            <Button
+              variant="outline"
               onClick={handleDLKwik}
               disabled={isStarting}
-              className="w-full py-3 rounded-2xl text-sm font-semibold border text-foreground transition-colors hover:bg-white/5"
-              style={{ borderColor: "rgba(255,255,255,0.2)", opacity: isStarting ? 0.6 : 1 }}
+              className="w-full h-11 rounded-2xl text-sm font-semibold"
             >
-              {isStarting ? "Starting…" : "No — Use Camera Scan"}
-            </button>
-            <button onClick={() => setDlChoiceOpen(false)} className="text-xs text-muted-foreground text-center">
+              {isStarting ? "Starting…" : "No, use camera scan"}
+            </Button>
+            <button type="button" onClick={() => setDlChoiceOpen(false)} className="text-xs text-muted-foreground text-center">
               Cancel
             </button>
           </div>
@@ -392,12 +396,13 @@ export default function GuestFamilySelect({ hotelName, hotelLogoUrl, onContinue,
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
           <div className="relative w-full max-w-xl mx-4 flex flex-col" style={{ height: "88vh" }}>
             <button
+              type="button"
               className="absolute -top-9 right-0 flex items-center gap-1 text-xs text-white/70 hover:text-white"
               onClick={() => {
                 setIframeUrl(null);
                 setPollInterval(0);
                 pendingNicknameRef.current = null;
-                toast.info("Verification not completed — you can add family members later from the Family IDs screen.");
+                toast.info("Verification not completed. You can add companions later from the Family IDs screen.");
               }}
             >
               <X className="w-4 h-4" /> Close
@@ -406,7 +411,7 @@ export default function GuestFamilySelect({ hotelName, hotelLogoUrl, onContinue,
               src={iframeUrl}
               className="w-full h-full rounded-2xl border-0"
               allow="camera; microphone"
-              title="Family member KYC verification"
+              title="Companion ID verification"
             />
           </div>
         </div>

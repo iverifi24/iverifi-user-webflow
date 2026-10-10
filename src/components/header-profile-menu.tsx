@@ -265,7 +265,7 @@ export function HeaderProfileMenu() {
                 <li>Your activity and check-in history</li>
                 <li>Your Firebase authentication account (you will not be able to sign in with this email or phone again)</li>
               </ul>
-              <p>If you have shared credentials with any property, they will no longer have access to your documents.</p>
+              <p>If you have shared credentials with any organization, they will no longer have access to your documents.</p>
               <p className="pt-2 text-foreground">
                 To confirm, type <strong className="font-mono text-red-500">DELETE</strong> below.
               </p>

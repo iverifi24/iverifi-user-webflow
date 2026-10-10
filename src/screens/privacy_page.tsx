@@ -291,11 +291,11 @@ export default function PrivacyPage() {
             </ul>
             <p className="text-sm sm:text-base text-muted-foreground mb-2">All service providers are:</p>
             <ul className="list-disc list-inside text-sm sm:text-base text-muted-foreground space-y-1 mb-3 sm:mb-4 ml-2 sm:ml-4">
-              <li>✓ Bound by strict Data Processing Agreements (DPAs)</li>
-              <li>✓ Required to maintain confidentiality</li>
-              <li>✓ Prohibited from using data for their own purposes</li>
-              <li>✓ Subject to regular security audits</li>
-              <li>✓ Located in India or provide adequate data protection safeguards</li>
+              <li>Bound by strict Data Processing Agreements (DPAs)</li>
+              <li>Required to maintain confidentiality</li>
+              <li>Prohibited from using data for their own purposes</li>
+              <li>Subject to regular security audits</li>
+              <li>Located in India or provide adequate data protection safeguards</li>
             </ul>
 
             <h2 className="text-xl sm:text-2xl font-bold text-foreground mt-6 sm:mt-8 mb-2 sm:mb-4">
@@ -474,11 +474,11 @@ export default function PrivacyPage() {
               6.4 What We Will NEVER Do
             </h3>
             <ul className="list-disc list-inside text-sm sm:text-base text-muted-foreground space-y-1 mb-3 sm:mb-4 ml-2 sm:ml-4">
-              <li>❌ Sell your data to third parties</li>
-              <li>❌ Share data for advertising or marketing purposes</li>
-              <li>❌ Provide data to data brokers or aggregators</li>
-              <li>❌ Share data with social media platforms</li>
-              <li>❌ Allow unauthorized access to your information</li>
+              <li>Sell your data to third parties</li>
+              <li>Share data for advertising or marketing purposes</li>
+              <li>Provide data to data brokers or aggregators</li>
+              <li>Share data with social media platforms</li>
+              <li>Allow unauthorized access to your information</li>
             </ul>
 
             <h2 className="text-xl sm:text-2xl font-bold text-foreground mt-6 sm:mt-8 mb-2 sm:mb-4">

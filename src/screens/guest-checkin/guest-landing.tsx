@@ -4,7 +4,9 @@ import { IverifiLogo } from "@/components/iverifi-logo";
 import { HotelBadge } from "@/components/hotel-badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ShieldCheck, Landmark, CheckCircle2 } from "lucide-react";
+import { ShieldCheck, Landmark, CheckCircle2, Zap, Clock } from "lucide-react";
+import { getVenueCopy } from "@/utils/venueCopy";
+import { buildStepLabels } from "./checkin-step-context";
 import type { HotelInfo } from "./guest-checkin-flow";
 
 interface Props {
@@ -21,8 +23,16 @@ export default function GuestLanding({ hotelCode, onHotelInfo, onStart }: Props)
     if (data?.data && !data.hasError) onHotelInfo(data.data);
   }, [data]);
 
-  const hotelName = data?.data?.name ?? (isLoading ? "Loading…" : "Verification Portal");
+  const copy = getVenueCopy(data?.data?.businessType);
+  const hotelName = data?.data?.name ?? (isLoading ? "" : "Verification Portal");
   const logoUrl = data?.data?.logo_url ?? null;
+  const stepLabels = buildStepLabels(copy.allowsCompanions);
+  const stepHints: Record<string, string> = {
+    "Sign in": "Mobile OTP",
+    "Verify ID": "Government ID",
+    Companions: "Optional",
+    Confirm: "Share & finish",
+  };
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center px-4 py-8">
@@ -39,34 +49,29 @@ export default function GuestLanding({ hotelCode, onHotelInfo, onStart }: Props)
           {/* Header & Subtitle */}
           <div>
             <div className="inline-flex items-center gap-1.5 rounded-full bg-cyan-500/10 border border-cyan-500/20 px-3 py-1 text-xs font-semibold text-[var(--iverifi-accent)] mb-3">
-              ⚡ Instant Paperless Check-in
+              <Zap className="h-3.5 w-3.5" /> Instant paperless {copy.actionNoun}
             </div>
             <h1 className="text-2xl font-bold tracking-tight text-foreground">
               Verify Your Identity
             </h1>
             <p className="text-muted-foreground text-xs sm:text-sm mt-1.5 leading-relaxed">
               Complete instant digital verification for{" "}
-              <strong className="text-foreground">{hotelName}</strong> in 3 simple steps.
+              {hotelName ? <strong className="text-foreground">{hotelName}</strong> : copy.venueFallback} in {stepLabels.length} short steps.
             </p>
           </div>
 
-          {/* Micro-Stepper Flow */}
-          <div className="grid grid-cols-3 gap-2 py-1 text-left">
-            <div className="flex flex-col gap-1 rounded-2xl bg-muted/50 dark:bg-slate-800/40 border border-border/50 p-2.5">
-              <span className="text-[10px] font-bold text-[var(--iverifi-accent)] uppercase tracking-wider">Step 1</span>
-              <span className="text-xs font-semibold text-foreground leading-tight">Mobile OTP</span>
-              <span className="text-[10px] text-muted-foreground">Quick login</span>
-            </div>
-            <div className="flex flex-col gap-1 rounded-2xl bg-muted/50 dark:bg-slate-800/40 border border-border/50 p-2.5">
-              <span className="text-[10px] font-bold text-[var(--iverifi-accent)] uppercase tracking-wider">Step 2</span>
-              <span className="text-xs font-semibold text-foreground leading-tight">Govt ID</span>
-              <span className="text-[10px] text-muted-foreground">DigiLocker</span>
-            </div>
-            <div className="flex flex-col gap-1 rounded-2xl bg-muted/50 dark:bg-slate-800/40 border border-border/50 p-2.5">
-              <span className="text-[10px] font-bold text-emerald-500 uppercase tracking-wider">Step 3</span>
-              <span className="text-xs font-semibold text-foreground leading-tight">Entry Pass</span>
-              <span className="text-[10px] text-muted-foreground">Instant check-in</span>
-            </div>
+          {/* Micro-Stepper Flow — same steps as the progress bar inside the flow */}
+          <div
+            className="grid gap-2 py-1 text-left"
+            style={{ gridTemplateColumns: `repeat(${stepLabels.length}, minmax(0, 1fr))` }}
+          >
+            {stepLabels.map((label, i) => (
+              <div key={label} className="flex flex-col gap-1 rounded-2xl bg-muted/50 dark:bg-slate-800/40 border border-border/50 p-2.5">
+                <span className="text-[10px] font-bold text-[var(--iverifi-accent)] uppercase tracking-wider">Step {i + 1}</span>
+                <span className="text-xs font-semibold text-foreground leading-tight">{label}</span>
+                <span className="text-[10px] text-muted-foreground">{stepHints[label]}</span>
+              </div>
+            ))}
           </div>
 
           {/* Trust Pills */}
@@ -131,15 +136,16 @@ export default function GuestLanding({ hotelCode, onHotelInfo, onStart }: Props)
 
           {/* CTA Button */}
           <Button
+            variant="brand"
             onClick={onStart}
             disabled={isLoading || !agreed}
-            className="w-full bg-gradient-to-r from-[#00e0ff] to-[#7B5CF5] text-slate-950 font-bold dark:shadow-[0_0_24px_rgba(0,224,255,0.3)] hover:from-[#40e8ff] hover:to-[#9274ff] h-12 rounded-2xl text-base disabled:opacity-40 transition-all cursor-pointer"
+            className="w-full h-12 rounded-2xl text-base font-bold cursor-pointer"
           >
             Start Verification →
           </Button>
 
-          <p className="text-[11px] text-muted-foreground">
-            ⚡ Takes ~30 seconds • No physical paperwork needed
+          <p className="inline-flex items-center justify-center gap-1.5 text-[11px] text-muted-foreground">
+            <Clock className="h-3.5 w-3.5 shrink-0" /> Takes about a minute · No paperwork needed
           </p>
         </div>
       </div>

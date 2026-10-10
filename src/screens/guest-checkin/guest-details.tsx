@@ -14,8 +14,10 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { IverifiLogo } from "@/components/iverifi-logo";
 import { HotelBadge } from "@/components/hotel-badge";
-import { Lock } from "lucide-react";
-import type { FlowCredential } from "./guest-checkin-flow";
+import { Lock, BadgeCheck } from "lucide-react";
+import type { FlowCredential, FlowErrorKind } from "./guest-checkin-flow";
+import { StepPill } from "./checkin-steps";
+import { useAuth } from "@/context/auth_context";
 import type { FamilyCredential } from "./guest-family-select";
 
 function extractNameFromCredential(cred: FlowCredential | null): { firstName: string; lastName: string } {
@@ -50,6 +52,7 @@ function extractNameFromCredential(cred: FlowCredential | null): { firstName: st
 interface Props {
   hotelName: string;
   hotelLogoUrl?: string | null;
+  staffTerm: string;
   phone: string;
   credential: FlowCredential | null;
   credentials: FlowCredential[];
@@ -57,13 +60,14 @@ interface Props {
   connectionId: string;
   startedAt: number;
   onSuccess: (result: "approved" | "pending") => void;
-  onError: (msg: string) => void;
+  onError: (msg: string, kind?: FlowErrorKind) => void;
   onCredentialChange: (c: FlowCredential) => void;
 }
 
 export default function GuestDetails({
   hotelName,
   hotelLogoUrl,
+  staffTerm,
   phone,
   credential,
   credentials,
@@ -77,8 +81,14 @@ export default function GuestDetails({
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [emailLocked, setEmailLocked] = useState(false);
-  const [phoneInput, setPhoneInput] = useState(phone ?? "");
-  useEffect(() => { if (phone && !phoneInput) setPhoneInput(phone); }, [phone]);
+  // Name read from the verified ID document cannot be edited, so the venue receives the verified name
+  const [nameLocked, setNameLocked] = useState(false);
+  // A phone number confirmed by OTP sign-in cannot be edited either
+  const { user } = useAuth();
+  const verifiedPhone = user?.phoneNumber || phone || "";
+  const phoneLocked = Boolean(verifiedPhone);
+  const [phoneInput, setPhoneInput] = useState(verifiedPhone);
+  useEffect(() => { if (verifiedPhone) setPhoneInput(verifiedPhone); }, [verifiedPhone]);
   const [submitting, setSubmitting] = useState(false);
 
   const [updateCredentialsRequest] = useUpdateCredentialsRequestMutation();
@@ -92,6 +102,9 @@ export default function GuestDetails({
     if (fn) {
       setFirstName(fn);
       setLastName(ln);
+      setNameLocked(true);
+    } else {
+      setNameLocked(false);
     }
     // Always fetch profile — needed for email and phone regardless of whether OCR gave us a name.
     getApplicantProfileFromBackend()
@@ -168,14 +181,14 @@ export default function GuestDetails({
     } catch (err: any) {
       const status = err?.status ?? err?.originalStatus;
       if (status === 403) {
-        onError("This establishment has reached its verification quota. Please contact the desk or support.");
+        onError(`${hotelName} cannot accept new requests right now. Please speak to ${staffTerm}.`, "quota");
       } else {
         onError(err?.data?.message || err?.message || "Failed to submit verification. Please try again.");
       }
     } finally {
       setSubmitting(false);
     }
-  }, [firstName, lastName, email, phoneInput, selected, familyCredentials, connectionId, startedAt, updateCredentialsRequest, updateCheckInStatus, onSuccess, onError]);
+  }, [firstName, lastName, email, phoneInput, selected, familyCredentials, connectionId, startedAt, hotelName, staffTerm, updateCredentialsRequest, updateCheckInStatus, onSuccess, onError]);
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center px-4 py-8">
@@ -186,6 +199,7 @@ export default function GuestDetails({
         <HotelBadge name={hotelName} logoUrl={hotelLogoUrl} />
 
         <div className="text-center">
+          <StepPill />
           <h1 className="text-2xl font-bold text-foreground mb-1">Your details</h1>
           <p className="text-sm text-muted-foreground">
             Used for your verified visit record at{" "}
@@ -202,8 +216,8 @@ export default function GuestDetails({
                   value={firstName}
                   onChange={(e) => setFirstName(e.target.value)}
                   placeholder="e.g. Arjun"
-                  disabled={submitting}
-                  className="bg-background border-[color:var(--iverifi-card-border)]"
+                  disabled={submitting || nameLocked}
+                  className="bg-background border-[color:var(--iverifi-card-border)] disabled:opacity-80 disabled:cursor-not-allowed"
                 />
               </div>
               <div className="flex-1 flex flex-col gap-1.5">
@@ -212,11 +226,17 @@ export default function GuestDetails({
                   value={lastName}
                   onChange={(e) => setLastName(e.target.value)}
                   placeholder="e.g. Sharma"
-                  disabled={submitting}
-                  className="bg-background border-[color:var(--iverifi-card-border)]"
+                  disabled={submitting || nameLocked}
+                  className="bg-background border-[color:var(--iverifi-card-border)] disabled:opacity-80 disabled:cursor-not-allowed"
                 />
               </div>
             </div>
+            {nameLocked && (
+              <p className="-mt-2 flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                <BadgeCheck className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+                Name taken from your verified ID
+              </p>
+            )}
 
             <div className="flex flex-col gap-1.5">
               <Label className="text-xs font-medium text-muted-foreground">Phone Number</Label>
@@ -225,9 +245,15 @@ export default function GuestDetails({
                 onChange={(e) => setPhoneInput(e.target.value)}
                 placeholder="Phone number"
                 type="tel"
-                disabled={submitting}
-                className="bg-background border-[color:var(--iverifi-card-border)]"
+                disabled={submitting || phoneLocked}
+                className="bg-background border-[color:var(--iverifi-card-border)] disabled:opacity-80 disabled:cursor-not-allowed"
               />
+              {phoneLocked && (
+                <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                  <BadgeCheck className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+                  Confirmed by OTP
+                </p>
+              )}
             </div>
 
             <div className="flex flex-col gap-1.5">
@@ -248,17 +274,18 @@ export default function GuestDetails({
             <div className="flex gap-2.5 rounded-xl p-3 items-center border border-[var(--iverifi-accent-border)] bg-[var(--iverifi-accent-soft)]">
               <Lock className="w-4 h-4 text-[var(--iverifi-accent)] shrink-0" />
               <p className="text-xs text-muted-foreground leading-snug">
-                <strong className="text-foreground">Documents are never stored.</strong> iVeriFi
-                reads only verified status from govt portals. DPDP Act 2023 compliant.
+                <strong className="text-foreground">Shared only with your consent.</strong>{" "}
+                {hotelName} receives these details and your verified ID for this visit, under the DPDP Act 2023.
               </p>
             </div>
           </CardContent>
         </Card>
 
         <Button
+          variant="brand"
           disabled={!firstName.trim() || submitting}
           onClick={handleSubmit}
-          className="w-full h-12 bg-gradient-to-r from-[#00e0ff] to-[#7B5CF5] text-slate-950 font-semibold dark:shadow-[0_0_24px_rgba(0,224,255,0.3)] hover:from-[#40e8ff] hover:to-[#9274ff] disabled:opacity-40"
+          className="w-full h-12"
         >
           {submitting ? (
             <span className="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin inline-block" />

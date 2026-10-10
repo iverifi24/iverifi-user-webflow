@@ -13,6 +13,7 @@ import {
   X,
   Users,
   Check,
+  Lock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DocumentTypeIcon } from "@/components/document-type-icon";
@@ -137,7 +138,7 @@ export function VenueRecognitionModal({
         },
         {
           label: "Age Verification",
-          value: selectedIdentityInfo?.age || "Above 18 ✓",
+          value: selectedIdentityInfo?.age || "Above 18",
           masked: true,
           note: "Zero-Knowledge Proof (actual DOB concealed)",
         },
@@ -584,7 +585,7 @@ export function VenueRecognitionModal({
                 </div>
               ))}
               <div className="text-[10px] text-muted-foreground/80 leading-relaxed pt-1">
-                🔒 <strong>DPDP Act 2023 Selective Disclosure:</strong> Your raw
+                <Lock className="inline h-3 w-3 mr-1 -mt-0.5" /><strong>DPDP Act 2023 Selective Disclosure:</strong> Your raw
                 full identity number and exact date of birth remain encrypted.
                 The recipient receives cryptographic proof only.
               </div>

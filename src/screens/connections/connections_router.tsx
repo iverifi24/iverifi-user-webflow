@@ -230,7 +230,7 @@ const ConnectionsRouter = () => {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search by business, hotel, employer, or category..."
+                placeholder="Search by business, employer, or category..."
                 className="w-full h-10 pl-10 pr-9 rounded-xl border border-border/80 bg-card text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-teal-500/30 transition-all"
               />
               {searchQuery && (
