@@ -51,7 +51,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         }
 
         // Fetch PIN hash from Firestore (source of truth)
-        const hash = await fetchPinHash(firebaseUser.uid);
+        const hash = await fetchPinHash();
         setPinHash(hash);
         setNeedsPinSetup(hash === null);
         setPinLocked(hash !== null); // require unlock on every fresh page load

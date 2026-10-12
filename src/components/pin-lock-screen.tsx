@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { IverifiLogo } from "@/components/iverifi-logo";
-import { savePinToFirestore, verifyPin } from "@/utils/pin";
+import { savePin, verifyPin } from "@/utils/pin";
+import { auth } from "@/firebase/firebase_setup";
+import { signInWithCustomToken } from "firebase/auth";
 import { useAuth } from "@/context/auth_context";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -105,7 +107,7 @@ function Keypad({
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export function PinLockScreen({ uid, mode, onUnlocked }: Props) {
+export function PinLockScreen({ mode, onUnlocked }: Props) {
   const { pinHash, setPinHash, setPinLocked, setNeedsPinSetup } = useAuth();
 
   const [screen, setScreen] = useState<Screen>(mode);
@@ -187,7 +189,8 @@ export function PinLockScreen({ uid, mode, onUnlocked }: Props) {
     if (!pinHash) return;
     setIsLoading(true);
     try {
-      const ok = await verifyPin(pinHash, value);
+      const check = await verifyPin(value);
+      const ok = check.ok;
       if (ok) {
         try {
           if (typeof navigator !== "undefined" && navigator.vibrate) {
@@ -196,12 +199,15 @@ export function PinLockScreen({ uid, mode, onUnlocked }: Props) {
         } catch {}
         onUnlocked();
       } else {
-        const next = attempts + 1;
-        setAttempts(next);
+        // the server counts the attempts and does the locking, so reloading the page does not reset it
+        const left = check.remaining;
+        setAttempts(check.locked || left === 0 ? 5 : attempts + 1);
         setError(
-          next >= 5
+          check.locked || left === 0
             ? "Too many attempts. Please use Forgot PIN."
-            : `Incorrect PIN (${5 - next} left)`
+            : left != null
+              ? `Incorrect PIN (${left} left)`
+              : "Incorrect PIN"
         );
         try {
           if (typeof navigator !== "undefined" && navigator.vibrate) {
@@ -241,7 +247,7 @@ export function PinLockScreen({ uid, mode, onUnlocked }: Props) {
     }
     setIsLoading(true);
     try {
-      const newHash = await savePinToFirestore(uid, value);
+      const newHash = await savePin(value);
       setPinHash(newHash);
       setPinLocked(false);
       setNeedsPinSetup(false);
@@ -309,6 +315,9 @@ export function PinLockScreen({ uid, mode, onUnlocked }: Props) {
       if (!res.ok || !json?.data?.token) {
         throw new Error(json?.message || "Invalid or expired code. Request a new one.");
       }
+      // The server only lets a PIN be reset right after a fresh sign-in, so sign in again with the token the
+      // phone check returned (it is a Firebase custom token for the account that owns this number).
+      await signInWithCustomToken(auth, json.data.token);
       setScreen("forgot-reset");
       setPin("");
     } catch (err: any) {

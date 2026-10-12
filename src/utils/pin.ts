@@ -1,24 +1,31 @@
-import { doc, getDoc, setDoc } from "firebase/firestore";
-import { db } from "@/firebase/firebase_setup";
+import { auth } from "@/firebase/firebase_setup";
+import { getIdToken } from "firebase/auth";
 
-// ── Hashing ───────────────────────────────────────────────────────────────────
+// The PIN is hashed and checked by the backend (bcrypt + lockout). The browser never sees a hash any more.
+// "server" stands in for the old hash in the auth context: non-null means "this account has a PIN".
+export const PIN_SET_MARKER = "server";
 
-export async function hashPin(pin: string): Promise<string> {
-  const msgUint8 = new TextEncoder().encode(pin);
-  const hashBuffer = await crypto.subtle.digest("SHA-256", msgUint8);
-  return Array.from(new Uint8Array(hashBuffer))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
+const apiBase = ((import.meta.env?.VITE_BASE_URL as string | undefined) || "").replace(/\/$/, "");
+
+async function pinRequest(method: "GET" | "POST", path: string, body?: unknown) {
+  const user = auth.currentUser;
+  if (!user) throw new Error("User not authenticated");
+  const token = await getIdToken(user);
+  const resp = await fetch(`${apiBase}/users/pin/${path}`, {
+    method,
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  const json = await resp.json().catch(() => null);
+  return { resp, json };
 }
 
-// ── Firestore PIN storage ─────────────────────────────────────────────────────
-
-/** Fetch the stored PIN hash from Firestore. Returns null if no PIN set yet. */
-export async function fetchPinHash(uid: string): Promise<string | null> {
+/** Does this account have a PIN? Returns the marker when it does, null when it does not (or the check failed). */
+export async function fetchPinHash(): Promise<string | null> {
   try {
-    const snap = await getDoc(doc(db, "applicants", uid));
-    if (!snap.exists()) return null;
-    return snap.data()?.pinHash ?? null;
+    const { resp, json } = await pinRequest("GET", "status");
+    if (!resp.ok) return null;
+    return json?.data?.hasPin ? PIN_SET_MARKER : null;
   } catch (err) {
     console.error("fetchPinHash error:", err);
     return null;
@@ -26,19 +33,29 @@ export async function fetchPinHash(uid: string): Promise<string | null> {
 }
 
 /**
- * Hash `pin` and persist it to Firestore. Returns the hash so the caller can
- * update in-memory context immediately without a second read.
+ * Save a PIN. First PIN: nothing else needed. Changing it needs the current PIN, or a sign-in within the last few
+ * minutes (the Forgot-PIN flow signs in again with the token the phone check returns).
  */
-export async function savePinToFirestore(uid: string, pin: string): Promise<string> {
-  const hash = await hashPin(pin);
-  await setDoc(doc(db, "applicants", uid), { pinHash: hash }, { merge: true });
-  return hash;
+export async function savePin(pin: string, currentPin?: string): Promise<string> {
+  const { resp, json } = await pinRequest("POST", "set", { pin, currentPin });
+  if (!resp.ok) throw new Error(json?.message || "Could not save PIN");
+  return PIN_SET_MARKER;
 }
 
-/** Compare a plain-text PIN against the stored hash (in-memory comparison). */
-export async function verifyPin(storedHash: string, pin: string): Promise<boolean> {
-  const hash = await hashPin(pin);
-  return hash === storedHash;
+export interface PinCheck {
+  ok: boolean;
+  locked: boolean;
+  remaining: number | null;
+}
+
+/** Check a PIN with the server. Wrong guesses are counted there; 5 in a row lock the account for 15 minutes. */
+export async function verifyPin(pin: string): Promise<PinCheck> {
+  const { resp, json } = await pinRequest("POST", "verify", { pin });
+  if (resp.ok) return { ok: true, locked: false, remaining: null };
+  if (resp.status === 401 || resp.status === 429) {
+    return { ok: false, locked: resp.status === 429, remaining: json?.data?.remaining ?? null };
+  }
+  throw new Error(json?.message || "Could not check PIN");
 }
 
 // ── 30-day session (low-risk metadata, localStorage is fine here) ─────────────
