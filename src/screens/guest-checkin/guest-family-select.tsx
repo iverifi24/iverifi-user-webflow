@@ -17,10 +17,10 @@ const KWIK_CLIENT_ID = import.meta.env.VITE_KWIK_CLIENT_ID || "iverifi";
 const POLL_INTERVAL_MS = 2000;
 
 const FAMILY_DOC_OPTIONS = [
-  { type: "FAMILY_AADHAAR",  label: "Aadhaar",        productCode: "KYC" },
-  { type: "FAMILY_PASSPORT", label: "Passport",        productCode: "PP"  },
-  { type: "FAMILY_DL",       label: "Driving Licence", productCode: "DL"  },
-  { type: "FAMILY_PAN",      label: "PAN Card",        productCode: "PC"  },
+  { type: "FAMILY_AADHAAR", label: "Aadhaar", productCode: "KYC" },
+  { type: "FAMILY_PASSPORT", label: "Passport", productCode: "PP" },
+  { type: "FAMILY_DL", label: "Driving Licence", productCode: "DL" },
+  { type: "FAMILY_PAN", label: "PAN Card", productCode: "PC" },
 ] as const;
 type FamilyDocType = (typeof FAMILY_DOC_OPTIONS)[number]["type"];
 
@@ -250,19 +250,17 @@ export default function GuestFamilySelect({ hotelName, hotelLogoUrl, onContinue,
               type="button"
               onClick={() => toggleMember(member.id)}
               aria-pressed={isSelected}
-              className={`w-full flex items-center gap-3 rounded-2xl border p-4 text-left transition-colors ${
-                isSelected
+              className={`w-full flex items-center gap-3 rounded-2xl border p-4 text-left transition-colors ${isSelected
                   ? "border-[var(--iverifi-accent)] bg-[var(--iverifi-accent-soft)]"
                   : "border-border bg-card/60 hover:border-foreground/30"
-              }`}
+                }`}
             >
               {/* Checkbox */}
               <div
-                className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 ${
-                  isSelected
+                className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 ${isSelected
                     ? "border-[var(--iverifi-accent)] bg-[var(--iverifi-accent)] text-slate-950"
                     : "border-muted-foreground/40"
-                }`}
+                  }`}
               >
                 {isSelected && <Check className="w-3 h-3" strokeWidth={3} />}
               </div>
@@ -322,11 +320,10 @@ export default function GuestFamilySelect({ hotelName, hotelLogoUrl, onContinue,
                   type="button"
                   onClick={() => setDocType(opt.type)}
                   aria-pressed={docType === opt.type}
-                  className={`rounded-xl border px-3 py-2.5 text-sm font-semibold text-left transition-colors ${
-                    docType === opt.type
+                  className={`rounded-xl border px-3 py-2.5 text-sm font-semibold text-left transition-colors ${docType === opt.type
                       ? "border-[var(--iverifi-accent)] bg-[var(--iverifi-accent-soft)] text-[var(--iverifi-accent)]"
                       : "border-border bg-muted/40 text-muted-foreground hover:text-foreground"
-                  }`}
+                    }`}
                 >
                   {opt.label}
                 </button>
