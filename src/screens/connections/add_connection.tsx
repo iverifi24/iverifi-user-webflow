@@ -15,7 +15,7 @@ import { useAddConnectionMutation } from "@/redux/api";
 import { toast } from "sonner";
 
 const AddConnectionModal = () => {
-  const [open, setOpen] = useState(false); // ✅ Control dialog state
+  const [open, setOpen] = useState(false); // Control dialog state
   const [type, setType] = useState<"individual" | "company" | null>(null);
   const [code, setCode] = useState("");
   const [scanning, setScanning] = useState(false);
@@ -38,7 +38,7 @@ const AddConnectionModal = () => {
 
       toast.success("Connection invited successfully!");
 
-      setOpen(false); // ✅ Close dialog on success
+      setOpen(false); // Close dialog on success
       setCode("");
       setType(null);
     } catch (err: any) {

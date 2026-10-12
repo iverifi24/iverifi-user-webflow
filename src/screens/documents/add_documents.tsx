@@ -42,7 +42,7 @@ const AddDocuments = () => {
         <div className={`${cardClass} p-6 text-center`}>
           <p className="text-[var(--iverifi-text-primary)] font-medium">All required documents are verified</p>
           <p className="text-sm text-[var(--iverifi-text-muted)] mt-1">
-            You can use them when sharing credentials with a property.
+            You can use them when sharing credentials with an organization.
           </p>
           <Button
             className="mt-4 rounded-xl bg-teal-600 hover:bg-teal-500 text-white"

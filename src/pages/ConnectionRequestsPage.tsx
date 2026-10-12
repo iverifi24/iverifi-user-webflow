@@ -225,7 +225,7 @@ export default function ConnectionRequestsPage() {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search business, hotel, employer..."
+                placeholder="Search by business or employer..."
                 className="w-full h-9 pl-8.5 pr-8 rounded-xl border border-[color:var(--iverifi-icon-border)] bg-[var(--iverifi-muted-surface)] text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-teal-500/30"
               />
               {searchQuery && (
@@ -329,11 +329,11 @@ export default function ConnectionRequestsPage() {
                 <div className="flex items-center gap-1.5 flex-wrap">
                   {[
                     { id: "all", label: "All Types" },
-                    { id: "hotel", label: "🏨 Hospitality" },
-                    { id: "corporate", label: "🏢 Corporate" },
-                    { id: "healthcare", label: "🏥 Healthcare" },
-                    { id: "coliving", label: "🏡 Co-Living" },
-                    { id: "other", label: "🏛️ Other" },
+                    { id: "hotel", label: "Hospitality" },
+                    { id: "corporate", label: "Corporate" },
+                    { id: "healthcare", label: "Healthcare" },
+                    { id: "coliving", label: "Co-Living" },
+                    { id: "other", label: "Other" },
                   ].map((cat) => (
                     <button
                       key={cat.id}
@@ -454,7 +454,7 @@ export default function ConnectionRequestsPage() {
               req.recipients?.firstName ||
               req.recipients?.hotel_name ||
               req.recipients?.businessName ||
-              "Property";
+              "Organization";
             const isCompany = req.type === "Company";
             const { label: statusLabel } = getStatus(req);
             const credCount = req.credentials?.length ?? 0;

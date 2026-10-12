@@ -111,7 +111,7 @@ export default function TermsPage() {
                 <li>iVerifi sends your verification request to Kwik ID</li>
                 <li>Kwik ID securely connects to government portals (DigiLocker, Parivahan, e-Filing)</li>
                 <li>Government portal authenticates your document</li>
-                <li>Kwik ID receives result (verified ✓ or not verified ✗)</li>
+                <li>Kwik ID receives the result (verified or not verified)</li>
                 <li>Kwik ID sends result back to iVerifi</li>
                 <li>iVerifi shares result with the requesting hotel/institution</li>
               </ol>

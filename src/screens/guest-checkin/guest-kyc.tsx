@@ -13,17 +13,19 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import type { ForeignPassportPhotos } from "@/components/foreign-passport-dialog";
-import type { FlowCredential } from "./guest-checkin-flow";
+import type { FlowCredential, FlowErrorKind } from "./guest-checkin-flow";
+import { StepPill } from "./checkin-steps";
 import { toast } from "sonner";
 import { startDigilockerFlow } from "@/utils/digilockerStart";
 import { useSearchParams, useNavigate, useLocation } from "react-router-dom";
 
-import { Globe2, CreditCard, Car, FileBadge, Plane, ShieldCheck, Sparkles } from "lucide-react";
+import { Globe2, CreditCard, Car, FileBadge, Plane, ShieldCheck, Sparkles, XCircle, Clock, Camera, X, Lock, Check } from "lucide-react";
 
 const IVERIFI_ORIGIN = import.meta.env.VITE_KWIK_ORIGIN || "https://iverifi.app.getkwikid.com";
 const KWIK_CLIENT_ID = import.meta.env.VITE_KWIK_CLIENT_ID || "iverifi";
 const POLL_INTERVAL_MS = 2000;
-const POLL_TIMEOUT_MS = 20000;
+// Verification results arrive by webhook; give slow providers a full minute before asking the visitor
+const POLL_TIMEOUT_MS = 60000;
 
 const DOC_TYPES = [
   { type: "AADHAAR_CARD",     label: "Aadhaar Card",    icon: <CreditCard className="w-5 h-5 text-[var(--iverifi-accent)]" />, productCode: "KYC", issuer: "UIDAI / Govt of India", recommended: true },
@@ -35,19 +37,23 @@ const DOC_TYPES = [
 interface Props {
   hotelName: string;
   hotelLogoUrl?: string | null;
+  /** Who to ask for help at this venue, e.g. "the front desk" */
+  staffTerm: string;
   existingCredentials: FlowCredential[];
   connectionId: string;
   startedAt: number;
   onSelected: (credential: FlowCredential) => void;
   onForeignCheckin: (result: "approved" | "pending", docType?: string) => void;
   onManualDetails: (docType: string) => void;
-  onError: (msg: string) => void;
-  onBack: () => void;
+  onError: (msg: string, kind?: FlowErrorKind) => void;
+  /** Omitted when there is no meaningful previous screen */
+  onBack?: () => void;
 }
 
 export default function GuestDocSelect({
   hotelName,
   hotelLogoUrl,
+  staffTerm,
   existingCredentials,
   connectionId,
   startedAt,
@@ -296,7 +302,8 @@ export default function GuestDocSelect({
         }
       }
     } catch {
-      // non-fatal
+      // Non-fatal: verification continues without the selfie, but tell the visitor
+      toast.warning("Your selfie could not be saved. Verification will continue without it.");
     } finally {
       setDlSelfieUploading(false);
       setDlSelfieOpen(false);
@@ -362,13 +369,16 @@ export default function GuestDocSelect({
     }
   };
 
-  // User manually closed the iframe without completing — show failed screen immediately.
+  // User closed the iframe without completing — that is a choice, not a failure.
+  // Return to the ID list so they can pick another document or try again.
   const closeIframe = () => {
     setIframeUrl(null);
     setPolling(false);
     setTimedOut(false);
+    setKycFailed(false);
+    setVerifyingType(null);
     if (pollStop.current) { clearTimeout(pollStop.current); pollStop.current = null; }
-    setKycFailed(true); // show "Verification unsuccessful" right away, no 20s wait
+    toast.info("Verification cancelled. Choose an ID to continue.");
   };
 
   // Entry point for the "Verify" button on each doc card (DL opens choice modal; others open iframe).
@@ -401,7 +411,7 @@ export default function GuestDocSelect({
     } catch (err: any) {
       const status = err?.status ?? err?.originalStatus;
       if (status === 403) {
-        onError("This property has reached its check-in limit. Please speak to the front desk.");
+        onError(`${hotelName} cannot accept new requests right now. Please speak to ${staffTerm}.`, "quota");
       } else {
         onError(err?.data?.message || err?.message || "Failed to submit foreign passport. Please try again.");
       }
@@ -426,10 +436,10 @@ export default function GuestDocSelect({
             onClick={closeIframe}
             className="text-muted-foreground"
           >
-            ✕ Close
+            <X className="h-4 w-4" /> Close
           </Button>
           <span className="text-sm font-medium text-foreground">Identity Verification</span>
-          <span className="ml-auto text-xs text-[var(--iverifi-accent)]">🔒 Secured by Kwik</span>
+          <span className="ml-auto inline-flex items-center gap-1 text-xs text-[var(--iverifi-accent)]"><Lock className="h-3.5 w-3.5" /> Secure session</span>
         </div>
         <iframe
           src={iframeUrl}
@@ -477,17 +487,22 @@ export default function GuestDocSelect({
       <>
         <div className="flex min-h-screen flex-col items-center justify-center gap-5 px-6 text-center max-w-sm mx-auto">
           <div
-            className="w-20 h-20 rounded-[24px] flex items-center justify-center text-4xl"
-            style={{ background: "rgba(255,77,109,0.10)", border: "1.5px solid rgba(255,77,109,0.3)" }}
+            className={`w-20 h-20 rounded-[24px] flex items-center justify-center border ${
+              kycFailed
+                ? "bg-rose-500/10 border-rose-500/30 text-rose-500"
+                : "bg-amber-500/10 border-amber-500/30 text-amber-500"
+            }`}
           >
-            ❌
+            {kycFailed ? <XCircle className="w-9 h-9" /> : <Clock className="w-9 h-9" />}
           </div>
           <div>
-            <p className="font-bold text-lg text-foreground mb-1">Verification unsuccessful</p>
+            <p className="font-bold text-lg text-foreground mb-1">
+              {kycFailed ? "Verification unsuccessful" : "Still processing"}
+            </p>
             <p className="text-sm text-muted-foreground leading-relaxed">
               {kycFailed
                 ? "Your identity verification was declined. This can happen due to a blurry document, liveness check failure, or an expired ID."
-                : "Verification is taking longer than expected. The document may be unclear, expired, or the session timed out."}
+                : "Your verification is taking longer than usual. It may still go through, so check again or choose another option below."}
             </p>
           </div>
 
@@ -496,7 +511,8 @@ export default function GuestDocSelect({
               const dt = DOC_TYPES.find((d) => d.type === verifyingType);
               return dt ? (
                 <Button
-                  className="w-full h-12 bg-gradient-to-r from-[#00e0ff] to-[#7B5CF5] text-slate-950 font-semibold hover:from-[#40e8ff] hover:to-[#9274ff]"
+                  variant="brand"
+                  className="w-full h-12"
                   onClick={() => { setTimedOut(false); setKycFailed(false); handleVerify(dt.type, dt.productCode); }}
                 >
                   Try again with {failedDocLabel}
@@ -506,7 +522,8 @@ export default function GuestDocSelect({
 
             {timedOut && !kycFailed && (
               <Button
-                className="w-full h-12 bg-gradient-to-r from-[#00e0ff] to-[#7B5CF5] text-slate-950 font-semibold hover:from-[#40e8ff] hover:to-[#9274ff]"
+                variant="brand"
+                className="w-full h-12"
                 onClick={async () => {
                   setTimedOut(false);
                   setPolling(true);
@@ -524,7 +541,7 @@ export default function GuestDocSelect({
               className="w-full h-12 border-[var(--iverifi-card-border)] text-foreground"
               onClick={() => setManualUploadOpen(true)}
             >
-              📷 Upload {failedDocLabel} manually
+              <Camera className="h-4 w-4" /> Upload {failedDocLabel} manually
             </Button>
 
             <Button
@@ -537,7 +554,7 @@ export default function GuestDocSelect({
           </div>
 
           <p className="text-xs text-muted-foreground">
-            Still having trouble? Please speak to the front desk.
+            Still having trouble? Please speak to {staffTerm}.
           </p>
         </div>
 
@@ -565,9 +582,7 @@ export default function GuestDocSelect({
 
         <div className="w-full rounded-3xl border border-border/80 bg-card/90 dark:bg-slate-900/90 backdrop-blur-xl p-5 sm:p-6 shadow-xl dark:shadow-[0_20px_50px_rgba(0,0,0,0.7)] flex flex-col gap-4">
           <div>
-            <div className="inline-flex items-center gap-1.5 rounded-full bg-cyan-500/10 border border-cyan-500/20 px-2.5 py-0.5 text-[11px] font-semibold text-[var(--iverifi-accent)] mb-2">
-              Step 2 of 3 • Select Identity Document
-            </div>
+            <StepPill />
             <h1 className="text-xl font-bold text-foreground">Choose Your ID</h1>
             <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
               Select an official document to share with <strong className="text-foreground">{hotelName}</strong>.
@@ -638,7 +653,7 @@ export default function GuestDocSelect({
                         )}
                         {verified && (
                           <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
-                            ✓ Verified
+                            <Check className="h-3 w-3" /> Verified
                           </span>
                         )}
                       </div>
@@ -690,21 +705,24 @@ export default function GuestDocSelect({
           </div>
 
           <Button
+            variant="brand"
             disabled={!selectedId}
             onClick={handleContinue}
-            className="w-full h-12 rounded-2xl bg-gradient-to-r from-[#00e0ff] to-[#7B5CF5] text-slate-950 font-bold dark:shadow-[0_0_24px_rgba(0,224,255,0.3)] hover:from-[#40e8ff] hover:to-[#9274ff] disabled:opacity-40 transition-all cursor-pointer"
+            className="w-full h-12 rounded-2xl font-bold cursor-pointer"
           >
             Continue →
           </Button>
         </div>
 
-        <Button
-          variant="ghost"
-          className="text-muted-foreground text-sm"
-          onClick={onBack}
-        >
-          ← Back
-        </Button>
+        {onBack && (
+          <Button
+            variant="ghost"
+            className="text-muted-foreground text-sm"
+            onClick={onBack}
+          >
+            ← Back
+          </Button>
+        )}
 
       </div>
     </div>
@@ -726,7 +744,8 @@ export default function GuestDocSelect({
             Do you have a DigiLocker account with your Driving License already on it?
           </p>
           <Button
-            className="w-full rounded-xl bg-gradient-to-r from-[#00e0ff] to-[#7B5CF5] text-slate-950 font-semibold"
+            variant="brand"
+            className="w-full rounded-xl"
             onClick={() => { setDlChoiceOpen(false); handleVerifyDLWithDigiLocker(); }}
           >
             Yes — Use DigiLocker
@@ -775,12 +794,13 @@ export default function GuestDocSelect({
                 autoPlay
                 playsInline
                 muted
-                className="w-full rounded-xl"
-                style={{ maxHeight: 260, background: "#000" }}
+                className="w-full rounded-xl bg-black"
+                style={{ maxHeight: 260 }}
               />
               <canvas ref={dlSelfieCanvasRef} className="hidden" />
               <Button
-                className="w-full rounded-xl bg-gradient-to-r from-[#00e0ff] to-[#7B5CF5] text-slate-950 font-semibold"
+                variant="brand"
+            className="w-full rounded-xl"
                 onClick={captureDLSelfie}
               >
                 Capture
@@ -798,7 +818,8 @@ export default function GuestDocSelect({
                   Retake
                 </Button>
                 <Button
-                  className="flex-1 rounded-xl bg-gradient-to-r from-[#00e0ff] to-[#7B5CF5] text-slate-950 font-semibold"
+                  variant="brand"
+                  className="flex-1 rounded-xl"
                   disabled={dlSelfieUploading}
                   onClick={handleDLSelfieSubmit}
                 >

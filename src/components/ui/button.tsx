@@ -20,6 +20,9 @@ const buttonVariants = cva(
         ghost:
           "hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50",
         link: "text-primary underline-offset-4 hover:underline",
+        // iVerifi primary call-to-action (replaces hand-copied gradient classes)
+        brand:
+          "bg-gradient-to-r from-[#00e0ff] to-[#7B5CF5] text-slate-950 font-semibold hover:from-[#40e8ff] hover:to-[#9274ff] dark:shadow-[0_0_24px_rgba(0,224,255,0.3)] disabled:opacity-40",
       },
       size: {
         default: "h-9 px-4 py-2 has-[>svg]:px-3",

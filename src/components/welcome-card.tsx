@@ -29,7 +29,7 @@ export function WelcomeCard({
         Your verified documents are stored securely.
       </p>
       <p className="mt-1.5 text-sm text-white/80 sm:text-base">
-        Scan a QR code at the property to share your documents.
+        Scan the QR code at the venue to share your documents.
       </p>
       <div className="mt-5 flex flex-wrap gap-3">
         {onScanQR && (

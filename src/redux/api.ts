@@ -384,7 +384,7 @@ export const api = createApi({
     }),
 
     getHotelPublicInfo: builder.query<
-      { hasError: boolean; data: { name: string; logo_url: string | null } | null; message: string },
+      { hasError: boolean; data: { name: string; logo_url: string | null; businessType?: string | null } | null; message: string },
       string
     >({
       query: (recipient_id) => ({

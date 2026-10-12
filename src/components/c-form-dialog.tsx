@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Camera, Lock } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { auth } from "@/firebase/firebase_setup";
 import { getIdToken } from "firebase/auth";
@@ -307,11 +308,11 @@ export function CFormDialog({ open, passportData, onSave, onClose, mode = "kwik"
                     alt="Passport"
                     style={{ maxHeight: 140, maxWidth: "90%", borderRadius: 10, objectFit: "cover", margin: "0 auto", display: "block" }}
                   />
-                  <div style={{ fontSize: 12, color: "var(--iverifi-success)", marginTop: 10, fontWeight: 600 }}>✓ Uploaded — tap to change</div>
+                  <div style={{ fontSize: 12, color: "var(--iverifi-success)", marginTop: 10, fontWeight: 600 }}>Uploaded, tap to change</div>
                 </div>
               ) : (
                 <div style={{ textAlign: "center" }}>
-                  <div style={{ fontSize: 36, marginBottom: 8 }}>📷</div>
+                  <div style={{ marginBottom: 8, display: "flex", justifyContent: "center", color: "var(--iverifi-accent)" }}><Camera size={32} /></div>
                   <div style={{ fontSize: 14, fontWeight: 600, color: "var(--iverifi-text-primary)" }}>Tap to take photo or choose file</div>
                   <div style={{ fontSize: 12, color: "var(--iverifi-label)", marginTop: 4 }}>JPG, PNG accepted</div>
                 </div>
@@ -582,10 +583,10 @@ export function CFormDialog({ open, passportData, onSave, onClose, mode = "kwik"
 
               {/* ADDRESS IN INDIA */}
               <div>
-                <span style={LABEL_STYLE}>ADDRESS IN INDIA (HOTEL)</span>
+                <span style={LABEL_STYLE}>ADDRESS IN INDIA (PLACE OF STAY)</span>
                 <Input
                   style={FIELD_STYLE}
-                  placeholder="Hotel name and full address"
+                  placeholder="Establishment name and full address"
                   value={manual.addressInIndia}
                   onChange={(e) => updateManual("addressInIndia", e.target.value)}
                 />
@@ -633,7 +634,7 @@ export function CFormDialog({ open, passportData, onSave, onClose, mode = "kwik"
                   color: "var(--iverifi-success)",
                 }}
               >
-                ✓ All fields complete
+                All fields complete
               </div>
               {referenceNumber && (
                 <div
@@ -719,7 +720,7 @@ export function CFormDialog({ open, passportData, onSave, onClose, mode = "kwik"
                 marginBottom: 16,
               }}
             >
-              🔒 Only share with registered hotels for FRRO compliance.
+              <span className="inline-flex items-start gap-1.5"><Lock className="h-3.5 w-3.5 mt-0.5 shrink-0" />Only share with registered establishments, as required for FRRO compliance.</span>
             </div>
 
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>

@@ -19,6 +19,7 @@ import {
   ShieldAlert,
   Check,
 } from "lucide-react";
+import { StepPill } from "./checkin-steps";
 import type { FlowCredential } from "./guest-checkin-flow";
 
 interface ChipDef {
@@ -97,8 +98,9 @@ export default function ReturningGuest({
         <HotelBadge name={hotelName} logoUrl={hotelLogoUrl} />
 
         <div className="text-center">
+          <StepPill />
           <div
-            className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold mb-3 shadow-sm"
+            className="flex w-fit mx-auto items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold mb-3 shadow-sm"
             style={{
               background: "var(--iverifi-accent-soft)",
               border: "1px solid var(--iverifi-accent-border)",
@@ -111,7 +113,7 @@ export default function ReturningGuest({
           <h1 className="text-2xl font-bold text-foreground mb-1">Your verified ID</h1>
           <p className="text-sm text-muted-foreground">
             Select the ID to share with{" "}
-            <strong className="text-foreground">{hotelName || "the organization"}</strong>
+            <strong className="text-foreground">{hotelName}</strong>
           </p>
         </div>
 
@@ -164,7 +166,7 @@ export default function ReturningGuest({
             <div className="flex flex-col gap-2">
               <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                 <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Shared with organization</span>
+                <span>Shared with {hotelName}</span>
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {sharedChips.map((chip) => {
@@ -214,12 +216,12 @@ export default function ReturningGuest({
         </Card>
 
         <Button
+          variant="brand"
           disabled={!selected}
           onClick={onContinue}
-          className="w-full h-12 bg-gradient-to-r from-teal-500 to-cyan-500 text-slate-950 font-bold shadow-md shadow-teal-500/25 hover:from-teal-600 hover:to-cyan-600 disabled:opacity-40 flex items-center justify-center gap-2 text-sm"
+          className="w-full h-12 font-bold text-sm"
         >
-          <Sparkles className="w-4 h-4" />
-          <span>Express Check-In ({LABELS[selected?.document_type ?? ""] ?? "ID"}) →</span>
+          <span>Continue with {LABELS[selected?.document_type ?? ""] ?? "this ID"} →</span>
         </Button>
 
         <Button

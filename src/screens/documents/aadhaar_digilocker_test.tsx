@@ -99,7 +99,7 @@ const AadhaarDigiLockerTest = () => {
                   className="justify-start gap-2 border-green-300 text-green-700"
                   onClick={() => openDoc(d.doc_token)}
                 >
-                  📄 View {d.contentType?.includes("pdf") ? "PDF" : "Document"} — {d.doc_uri}
+                  View {d.contentType?.includes("pdf") ? "PDF" : "Document"} — {d.doc_uri}
                 </Button>
               ))}
             </CardContent>

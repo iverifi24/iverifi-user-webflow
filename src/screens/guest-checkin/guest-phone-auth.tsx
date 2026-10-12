@@ -7,6 +7,8 @@ import { toast } from "sonner";
 import { loginWithGoogle } from "@/firebase_auth_service";
 import { syncApplicantProfileToBackend } from "@/utils/syncApplicantProfile";
 import { recordLoginSession } from "@/utils/pin";
+import { Lock } from "lucide-react";
+import { StepPill } from "./checkin-steps";
 
 interface Props {
   hotelName: string;
@@ -55,9 +57,7 @@ export default function GuestPhoneAuth({ onAuthSuccess, onBack, hotelName, hotel
 
         <div className="w-full rounded-3xl border border-border/80 bg-card/90 dark:bg-slate-900/90 backdrop-blur-xl p-6 shadow-xl dark:shadow-[0_20px_50px_rgba(0,0,0,0.7)] flex flex-col gap-4">
           <div>
-            <div className="inline-flex items-center gap-1.5 rounded-full bg-cyan-500/10 border border-cyan-500/20 px-2.5 py-0.5 text-[11px] font-semibold text-[var(--iverifi-accent)] mb-2">
-              Step 1 of 3 • Quick Login
-            </div>
+            <StepPill />
             <h2 className="text-xl font-bold text-foreground">
               Enter Mobile <span style={{ color: "var(--iverifi-accent)" }}>Number</span>
             </h2>
@@ -89,8 +89,8 @@ export default function GuestPhoneAuth({ onAuthSuccess, onBack, hotelName, hotel
               Continue with Google
             </Button>
 
-            <p className="text-[11px] text-muted-foreground text-center">
-              🔒 256-bit Encrypted • Protected under DPDP Act 2023
+            <p className="inline-flex items-center justify-center gap-1.5 text-[11px] text-muted-foreground text-center">
+              <Lock className="h-3.5 w-3.5 shrink-0" /> Encrypted connection · Handled under the DPDP Act 2023
             </p>
           </div>
         </div>
