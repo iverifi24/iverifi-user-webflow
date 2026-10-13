@@ -5,6 +5,15 @@ import { getIdToken } from "firebase/auth";
 // "server" stands in for the old hash in the auth context: non-null means "this account has a PIN".
 export const PIN_SET_MARKER = "server";
 
+// Proof that the PIN was entered on this device. Memory only: a page reload locks the app again. The backend wants it
+// as `x-pin-token` on the endpoints that list, share or delete documents (see base_query_with_reauth.ts).
+let pinUnlockToken: string | null = null;
+export const getPinUnlockToken = () => pinUnlockToken;
+export const clearPinUnlock = () => {
+  pinUnlockToken = null;
+};
+export const PIN_REQUIRED_EVENT = "iverifi:pin-required";
+
 const apiBase = ((import.meta.env?.VITE_BASE_URL as string | undefined) || "").replace(/\/$/, "");
 
 async function pinRequest(method: "GET" | "POST", path: string, body?: unknown) {
@@ -39,6 +48,7 @@ export async function fetchPinHash(): Promise<string | null> {
 export async function savePin(pin: string, currentPin?: string): Promise<string> {
   const { resp, json } = await pinRequest("POST", "set", { pin, currentPin });
   if (!resp.ok) throw new Error(json?.message || "Could not save PIN");
+  pinUnlockToken = json?.data?.pinToken ?? null;
   return PIN_SET_MARKER;
 }
 
@@ -51,7 +61,10 @@ export interface PinCheck {
 /** Check a PIN with the server. Wrong guesses are counted there; 5 in a row lock the account for 15 minutes. */
 export async function verifyPin(pin: string): Promise<PinCheck> {
   const { resp, json } = await pinRequest("POST", "verify", { pin });
-  if (resp.ok) return { ok: true, locked: false, remaining: null };
+  if (resp.ok) {
+    pinUnlockToken = json?.data?.pinToken ?? null;
+    return { ok: true, locked: false, remaining: null };
+  }
   if (resp.status === 401 || resp.status === 429) {
     return { ok: false, locked: resp.status === 429, remaining: json?.data?.remaining ?? null };
   }

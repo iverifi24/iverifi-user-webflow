@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useState } from "react";
 import { onAuthStateChanged, type User } from "firebase/auth";
 import { auth } from "@/firebase/firebase_setup";
 import { logoutUser } from "@/firebase_auth_service";
-import { isSessionExpired, clearSession, fetchPinHash } from "@/utils/pin";
+import { isSessionExpired, clearSession, fetchPinHash, clearPinUnlock, PIN_REQUIRED_EVENT } from "@/utils/pin";
 
 type AuthContextType = {
   user: User | null;
@@ -31,9 +31,21 @@ const AuthContext = createContext<AuthContextType>({
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [pinLocked, setPinLocked] = useState(false);
+  const [pinLocked, setPinLockedState] = useState(false);
+  // Locking also forgets the unlock token, so the data endpoints are closed again, not just the screen.
+  const setPinLocked = (v: boolean) => {
+    if (v) clearPinUnlock();
+    setPinLockedState(v);
+  };
   const [needsPinSetup, setNeedsPinSetup] = useState(false);
   const [pinHash, setPinHash] = useState<string | null>(null);
+
+  // The backend said the unlock expired (403 PIN_REQUIRED): show the PIN screen.
+  useEffect(() => {
+    const onRequired = () => setPinLocked(true);
+    window.addEventListener(PIN_REQUIRED_EVENT, onRequired);
+    return () => window.removeEventListener(PIN_REQUIRED_EVENT, onRequired);
+  }, []);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
@@ -57,6 +69,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setPinLocked(hash !== null); // require unlock on every fresh page load
         setUser(firebaseUser);
       } else {
+        clearPinUnlock();
         setUser(null);
         setPinHash(null);
         setPinLocked(false);
