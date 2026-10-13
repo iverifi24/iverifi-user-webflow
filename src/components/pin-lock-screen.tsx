@@ -108,7 +108,7 @@ function Keypad({
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export function PinLockScreen({ mode, onUnlocked }: Props) {
-  const { pinHash, setPinHash, setPinLocked, setNeedsPinSetup } = useAuth();
+  const { pinHash, setPinHash, setPinLocked, setNeedsPinSetup, pinCheckFailed, retryPinCheck } = useAuth();
 
   const [screen, setScreen] = useState<Screen>(mode);
   const [pin, setPin] = useState("");
@@ -222,6 +222,10 @@ export function PinLockScreen({ mode, onUnlocked }: Props) {
           setPin("");
         }, 500);
       }
+    } catch (err) {
+      console.error("PIN check failed:", err);
+      setError("Couldn't reach the server. Please try again.");
+      setPin("");
     } finally {
       setIsLoading(false);
     }
@@ -255,7 +259,7 @@ export function PinLockScreen({ mode, onUnlocked }: Props) {
       onUnlocked();
     } catch (err) {
       console.error("Failed to save PIN:", err);
-      setError("Failed to save PIN. Please try again.");
+      setError(err instanceof Error && err.message ? err.message : "Failed to save PIN. Please try again.");
       setPin("");
     } finally {
       setIsLoading(false);
@@ -431,6 +435,15 @@ export function PinLockScreen({ mode, onUnlocked }: Props) {
               <p className="text-[11px] text-rose-500 dark:text-rose-400 font-semibold text-center animate-in fade-in duration-200">
                 {error}
               </p>
+            )}
+
+            {pinCheckFailed && screen === "lock" && (
+              <div className="text-center text-[11px] text-amber-600 dark:text-amber-400 font-semibold">
+                Couldn't reach the server to check your PIN.{" "}
+                <button type="button" className="underline" onClick={() => void retryPinCheck()}>
+                  Try again
+                </button>
+              </div>
             )}
 
             <div className="w-full mt-1">

@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useState } from "react";
 import { onAuthStateChanged, type User } from "firebase/auth";
 import { auth } from "@/firebase/firebase_setup";
 import { logoutUser } from "@/firebase_auth_service";
-import { isSessionExpired, clearSession, fetchPinHash, clearPinUnlock, PIN_REQUIRED_EVENT } from "@/utils/pin";
+import { isSessionExpired, clearSession, fetchPinStatus, PIN_SET_MARKER, clearPinUnlock, PIN_REQUIRED_EVENT } from "@/utils/pin";
 
 type AuthContextType = {
   user: User | null;
@@ -15,6 +15,9 @@ type AuthContextType = {
   setNeedsPinSetup: (v: boolean) => void;
   /** Called after saving a new PIN so context updates without a re-fetch */
   setPinHash: (hash: string) => void;
+  /** The server could not be asked whether a PIN exists: stay locked and offer a retry (never "set a new PIN") */
+  pinCheckFailed: boolean;
+  retryPinCheck: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType>({
@@ -26,6 +29,8 @@ const AuthContext = createContext<AuthContextType>({
   setPinLocked: () => {},
   setNeedsPinSetup: () => {},
   setPinHash: () => {},
+  pinCheckFailed: false,
+  retryPinCheck: async () => {},
 });
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
@@ -39,6 +44,24 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
   const [needsPinSetup, setNeedsPinSetup] = useState(false);
   const [pinHash, setPinHash] = useState<string | null>(null);
+  const [pinCheckFailed, setPinCheckFailed] = useState(false);
+
+  const applyPinStatus = async () => {
+    const status = await fetchPinStatus();
+    if (status === "error") {
+      // Unknown: keep the app locked behind the PIN screen and let the user retry, instead of offering a new PIN.
+      setPinCheckFailed(true);
+      setPinHash(PIN_SET_MARKER);
+      setNeedsPinSetup(false);
+      setPinLocked(true);
+      return;
+    }
+    setPinCheckFailed(false);
+    const hash = status === "set" ? PIN_SET_MARKER : null;
+    setPinHash(hash);
+    setNeedsPinSetup(hash === null);
+    setPinLocked(hash !== null); // require unlock on every fresh page load
+  };
 
   // The backend said the unlock expired (403 PIN_REQUIRED): show the PIN screen.
   useEffect(() => {
@@ -62,11 +85,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           return;
         }
 
-        // Fetch PIN hash from Firestore (source of truth)
-        const hash = await fetchPinHash();
-        setPinHash(hash);
-        setNeedsPinSetup(hash === null);
-        setPinLocked(hash !== null); // require unlock on every fresh page load
+        // Ask the server whether this account has a PIN
+        await applyPinStatus();
         setUser(firebaseUser);
       } else {
         clearPinUnlock();
@@ -92,6 +112,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setPinLocked,
         setNeedsPinSetup,
         setPinHash,
+        pinCheckFailed,
+        retryPinCheck: applyPinStatus,
       }}
     >
       {children}

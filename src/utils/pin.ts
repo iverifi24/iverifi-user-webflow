@@ -29,16 +29,23 @@ async function pinRequest(method: "GET" | "POST", path: string, body?: unknown) 
   return { resp, json };
 }
 
-/** Does this account have a PIN? Returns the marker when it does, null when it does not (or the check failed). */
-export async function fetchPinHash(): Promise<string | null> {
-  try {
-    const { resp, json } = await pinRequest("GET", "status");
-    if (!resp.ok) return null;
-    return json?.data?.hasPin ? PIN_SET_MARKER : null;
-  } catch (err) {
-    console.error("fetchPinHash error:", err);
-    return null;
+export type PinStatus = "set" | "none" | "error";
+
+/**
+ * Does this account have a PIN? "error" means we could not find out (offline, server down): the caller must NOT treat
+ * that as "no PIN", or a network blip would send the user to the set-a-new-PIN screen.
+ */
+export async function fetchPinStatus(): Promise<PinStatus> {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const { resp, json } = await pinRequest("GET", "status");
+      if (resp.ok) return json?.data?.hasPin ? "set" : "none";
+    } catch (err) {
+      console.error("fetchPinStatus error:", err);
+    }
+    if (attempt === 0) await new Promise((r) => setTimeout(r, 800)); // a cold server often answers the second time
   }
+  return "error";
 }
 
 /**
