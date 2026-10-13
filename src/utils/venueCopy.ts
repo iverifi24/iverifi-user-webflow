@@ -51,3 +51,31 @@ export function getVenueCopy(businessType?: string | null): VenueCopy {
     allowsCompanions: !SOLO_VISIT_TYPES.has(key),
   };
 }
+
+/**
+ * What the "visit detail" a business records for a visit means to the person reading it. The value is stored in the
+ * `room_number` field for every business type, so only the wording changes: a room for a hotel, but the person being
+ * visited for an office. Venues with no business type keep the original "Room" wording (older hotel accounts).
+ * Mirrors the labels of the business app (utils/businessTypes.ts) so both sides describe the field the same way.
+ */
+export function getVisitFieldLabel(businessType?: string | null): string {
+  if (!businessType || !businessType.trim()) return "Room";
+  switch (getBusinessTypeMeta(businessType).key) {
+    case "hotel":
+      return "Room";
+    case "coliving":
+      return "Room / Bed";
+    case "company":
+      return "Visiting";
+    case "coworking":
+      return "Host member / Desk";
+    case "healthcare":
+      return "Department / Ward";
+    case "education":
+      return "Department / Purpose";
+    case "government":
+      return "Officer / Department";
+    default:
+      return "Visit note";
+  }
+}

@@ -15,6 +15,7 @@ import {
 import { useState } from "react";
 import { toast } from "sonner";
 import { getBusinessTypeMeta } from "@/utils/businessCategoryUtils";
+import { getVisitFieldLabel } from "@/utils/venueCopy";
 import {
   useGetRecipientCredentialsQuery,
   useUpdateCredentialsRequestMutation,
@@ -787,7 +788,11 @@ const ConnectionDetails = () => {
                         </div>
                         {(act.room_number || act.booking_ref || act.document) && (
                           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[var(--iverifi-label)] sm:col-span-2">
-                            {act.room_number && <span>Room: {act.room_number}</span>}
+                            {act.room_number && (
+                              <span>
+                                {getVisitFieldLabel(connection?.recipients?.businessType)}: {act.room_number}
+                              </span>
+                            )}
                             {act.booking_ref && <span>Ref: {act.booking_ref}</span>}
                             {act.document && <span>Doc: {formatDocType(act.document)}</span>}
                           </div>
