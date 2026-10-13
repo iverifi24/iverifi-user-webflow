@@ -9,7 +9,8 @@ import { Sun, Moon } from "lucide-react";
 import { useTheme } from "@/context/theme_context";
 import { useAuth } from "@/context/auth_context";
 import { PinLockScreen } from "@/components/pin-lock-screen";
-import { useEffect } from "react";
+import { useEffect, useLayoutEffect } from "react";
+import { setPinScreenOpen } from "@/utils/pin";
 
 // Routes where PIN lock should not block the user (onboarding)
 const PIN_EXCLUDED_PATHS = ["/accept-terms", "/complete-profile", "/aadhaar-test"];
@@ -37,6 +38,13 @@ const ProtectedLayout = () => {
   }, [user, pinHash, setPinLocked]);
 
   const showPinScreen = !isOnboardingPath && (pinLocked || needsPinSetup);
+
+  // Layout effect: it must run before the pages behind the PIN screen start their first requests.
+  const pinScreenUp = showPinScreen && !!user;
+  useLayoutEffect(() => {
+    setPinScreenOpen(pinScreenUp);
+    return () => setPinScreenOpen(false);
+  }, [pinScreenUp]);
 
   return (
     <SidebarProvider>

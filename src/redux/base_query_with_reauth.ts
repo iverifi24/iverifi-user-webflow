@@ -2,7 +2,7 @@ import { fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 import type { BaseQueryFn } from "@reduxjs/toolkit/query";
 import { auth } from "@/firebase/firebase_setup";
 import { getIdToken } from "firebase/auth";
-import { clearPinUnlock, getPinUnlockToken, PIN_REQUIRED_EVENT } from "@/utils/pin";
+import { clearPinUnlock, getPinUnlockToken, PIN_REQUIRED_EVENT, waitForPinUnlock } from "@/utils/pin";
 
 const rawBaseQuery = fetchBaseQuery({
   baseUrl: import.meta.env.VITE_BASE_URL, // or use process.env.REACT_APP_BASE_URL
@@ -21,6 +21,7 @@ const rawBaseQuery = fetchBaseQuery({
 });
 
 export const baseQueryWithReauth: BaseQueryFn<any, unknown, unknown> = async (args, api, extraOptions) => {
+  await waitForPinUnlock(); // nothing is sent while the PIN screen is showing
   let result = await rawBaseQuery(args, api, extraOptions);
 
   if (result?.error && result.error.status === 401) {

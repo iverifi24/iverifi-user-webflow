@@ -14,6 +14,23 @@ export const clearPinUnlock = () => {
 };
 export const PIN_REQUIRED_EVENT = "iverifi:pin-required";
 
+// While the PIN screen is up the pages behind it are already mounted and start loading data. The backend refuses
+// those requests (no unlock yet), the pages cache the failure and then show "nothing here" after the PIN is entered.
+// So requests simply wait here until the PIN screen closes, then go out with the unlock token.
+let pinScreenOpen = false;
+let pinWaiters: Array<() => void> = [];
+export function setPinScreenOpen(open: boolean): void {
+  pinScreenOpen = open;
+  if (!open) {
+    const waiting = pinWaiters;
+    pinWaiters = [];
+    waiting.forEach((release) => release());
+  }
+}
+export function waitForPinUnlock(): Promise<void> {
+  return pinScreenOpen ? new Promise<void>((resolve) => pinWaiters.push(resolve)) : Promise.resolve();
+}
+
 const apiBase = ((import.meta.env?.VITE_BASE_URL as string | undefined) || "").replace(/\/$/, "");
 
 async function pinRequest(method: "GET" | "POST", path: string, body?: unknown) {

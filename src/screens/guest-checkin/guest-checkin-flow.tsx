@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useLayoutEffect, useCallback, useRef } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { guestCheckin } from "@/utils/connectionFlow";
 import { useAddConnectionMutation, useGetCredentialsQuery, useGetRecipientCredentialsQuery, useGetHotelPublicInfoQuery } from "@/redux/api";
@@ -16,6 +16,7 @@ import GuestFamilySelect from "./guest-family-select";
 import type { FamilyCredential } from "./guest-family-select";
 import { SupportWidget } from "@/components/support-widget";
 import { PinLockScreen } from "@/components/pin-lock-screen";
+import { setPinScreenOpen } from "@/utils/pin";
 import { Button } from "@/components/ui/button";
 import { AlertTriangle, Building2, Home, LogOut } from "lucide-react";
 import { getVenueCopy } from "@/utils/venueCopy";
@@ -111,6 +112,13 @@ export default function GuestCheckinFlow() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { user, loading: authLoading, pinLocked, needsPinSetup, pinHash, setPinLocked, setNeedsPinSetup } = useAuth();
+
+  // Requests wait while the PIN screen is up (see utils/pin.ts); layout effect so it is set before the steps load data.
+  const pinScreenUp = !!user && (pinLocked || needsPinSetup);
+  useLayoutEffect(() => {
+    setPinScreenOpen(pinScreenUp);
+    return () => setPinScreenOpen(false);
+  }, [pinScreenUp]);
 
   const [state, setState] = useState<GuestFlowState>(() => {
     const urlCode = searchParams.get("code") ?? "";
