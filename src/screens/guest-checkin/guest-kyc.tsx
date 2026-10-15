@@ -6,6 +6,7 @@ import { IverifiLogo } from "@/components/iverifi-logo";
 import { HotelBadge } from "@/components/hotel-badge";
 import { ForeignPassportDialog } from "@/components/foreign-passport-dialog";
 import { ManualIdUploadDialog } from "@/components/manual-id-upload-dialog";
+import { PanVerifyDialog } from "@/components/pan-verify-dialog";
 import {
   Dialog,
   DialogContent,
@@ -73,6 +74,7 @@ export default function GuestDocSelect({
   const [timedOut, setTimedOut] = useState(false);
   const [kycFailed, setKycFailed] = useState(false);
   const [manualUploadOpen, setManualUploadOpen] = useState(false);
+  const [panOpen, setPanOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(
     existingCredentials[0]?.id ?? null
   );
@@ -387,7 +389,26 @@ export default function GuestDocSelect({
       setDlChoiceOpen(true);
       return;
     }
+    if (docType === "PAN_CARD") {
+      // PAN is checked against the government record by the server (no Kwik session)
+      setPanOpen(true);
+      return;
+    }
     openKwikIframe(docType, productCode);
+  };
+
+  // The PAN credential is saved by the time the server answers: select it straight away.
+  const afterPanVerified = async (documentId: string) => {
+    setPanOpen(false);
+    setKycFailed(false);
+    setTimedOut(false);
+    setVerifyingType(null);
+    const result = await refetchCreds();
+    const body = result.data as { data?: { credential?: FlowCredential[] } } | undefined;
+    const all = body?.data?.credential ?? [];
+    const cred = all.find((c) => c.id === documentId) ?? all.find((c) => c.document_type === "PAN_CARD");
+    if (cred) onSelected(cred);
+    else toast.info("PAN verified. Pick it from your documents to continue.");
   };
 
   const handleForeignPassportSave = async (data: ForeignPassportPhotos) => {
@@ -564,6 +585,7 @@ export default function GuestDocSelect({
           onSave={handleManualUploadSave}
           onClose={() => setManualUploadOpen(false)}
         />
+        <PanVerifyDialog open={panOpen} onClose={() => setPanOpen(false)} onVerified={afterPanVerified} />
       </>
     );
   }
@@ -727,6 +749,7 @@ export default function GuestDocSelect({
       </div>
     </div>
 
+    <PanVerifyDialog open={panOpen} onClose={() => setPanOpen(false)} onVerified={afterPanVerified} />
     <ForeignPassportDialog
       open={foreignPassportOpen}
       onSave={handleForeignPassportSave}

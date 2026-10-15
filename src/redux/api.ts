@@ -393,6 +393,17 @@ export const api = createApi({
         params: { recipient_id },
       }),
     }),
+    verifyPan: builder.mutation<
+      { status: number; data: { document_id: string; masked_id: string }; hasError: boolean; message: string },
+      { pan: string; name: string; dob: string; consent: true }
+    >({
+      query: (body) => ({
+        url: "/users/pan/verify",
+        method: "POST",
+        body,
+      }),
+      invalidatesTags: ["credentials", "activity"],
+    }),
     markKycStarted: builder.mutation<
       { hasError: boolean; message: string },
       { credential_request_id: string; session_id: string; document_type: string }
@@ -407,6 +418,7 @@ export const api = createApi({
 });
 export const {
   useGetCredentialsQuery,
+  useVerifyPanMutation,
   useCreateCredentialMutation,
   usePatchCredentialTypeMutation,
   useDeleteCredentialMutation,

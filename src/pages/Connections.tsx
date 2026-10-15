@@ -19,6 +19,7 @@ import {
 // import { CFormDialog } from "@/components/c-form-dialog";
 // import type { CFormData, CFormPassportData } from "@/components/c-form-dialog";
 import { ForeignPassportDialog } from "@/components/foreign-passport-dialog";
+import { PanVerifyDialog } from "@/components/pan-verify-dialog";
 import type { ForeignPassportPhotos } from "@/components/foreign-passport-dialog";
 import { determineConnectionType, isValidQRCode } from "@/utils/qr-code-utils";
 import { addDays, format } from "date-fns";
@@ -339,6 +340,7 @@ const Connections = () => {
 
   // iframe overlay
   const [iframeUrl, setIframeUrl] = useState<string | null>(null);
+  const [panDialogOpen, setPanDialogOpen] = useState(false);
   // const [verifyingDocType, setVerifyingDocType] = useState<DocumentType | null>(
   //   null
   // );
@@ -1504,6 +1506,12 @@ const Connections = () => {
   ) => {
     if (documentType === "DRIVING_LICENSE") {
       setDlDigilockerModalOpen(true);
+      return;
+    }
+    if (documentType === "PAN_CARD") {
+      // PAN is checked against the government record by the server, not through a Kwik session
+      if (code) saveRecipientIdForLater(code);
+      setPanDialogOpen(true);
       return;
     }
     return handleVerifyDocumentKwik(documentType);
@@ -3192,6 +3200,15 @@ const Connections = () => {
       </Dialog>
 
       {/* Iframe Overlay */}
+      <PanVerifyDialog
+        open={panDialogOpen}
+        onClose={() => setPanDialogOpen(false)}
+        onVerified={() => {
+          setPanDialogOpen(false);
+          toast.success("PAN verified");
+          refetchCredentials();
+        }}
+      />
       {iframeUrl && (
         <div
           className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-2"

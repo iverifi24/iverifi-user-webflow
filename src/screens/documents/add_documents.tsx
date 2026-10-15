@@ -1,7 +1,10 @@
 import { LoadingScreen } from "@/components/loading-screen";
 import { Button } from "@/components/ui/button";
 import { useGetCredentialsQuery } from "@/redux/api";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
+import { PanVerifyDialog } from "@/components/pan-verify-dialog";
 import { ExternalLink, FileText } from "lucide-react";
 
 const formatDocType = (type: string): string => {
@@ -18,6 +21,8 @@ const cardClass =
 
 const AddDocuments = () => {
   const navigate = useNavigate();
+  const [panOpen, setPanOpen] = useState(false);
+  const openVerify = (docType: string) => (docType === "PAN_CARD" ? setPanOpen(true) : navigate(`/upload?docType=${docType}`));
   const { data: credData, isLoading: isLoadingCreds } = useGetCredentialsQuery();
 
   const verifiedDocs = credData?.data?.credential || [];
@@ -58,7 +63,7 @@ const AddDocuments = () => {
             <div
               key={docType}
               className={`${cardClass} p-4 transition-all duration-200 hover:bg-[var(--iverifi-card-hover)] cursor-pointer`}
-              onClick={() => navigate(`/upload?docType=${docType}`)}
+              onClick={() => openVerify(docType)}
             >
               <p className="text-base font-semibold text-[var(--iverifi-text-primary)] mb-3">
                 {formatDocType(docType)}
@@ -69,7 +74,7 @@ const AddDocuments = () => {
                 className="w-full rounded-xl border border-[color:var(--iverifi-card-border)] bg-[var(--iverifi-muted-surface)] text-[var(--iverifi-text-primary)] hover:bg-[var(--iverifi-card-hover)] font-medium justify-start"
                 onClick={(e) => {
                   e.stopPropagation();
-                  navigate(`/upload?docType=${docType}`);
+                  openVerify(docType);
                 }}
               >
                 <ExternalLink className="h-4 w-4 mr-2 shrink-0" />
@@ -79,6 +84,15 @@ const AddDocuments = () => {
           ))}
         </div>
       )}
+      <PanVerifyDialog
+        open={panOpen}
+        onClose={() => setPanOpen(false)}
+        onVerified={() => {
+          setPanOpen(false);
+          toast.success("PAN verified");
+          navigate("/documents");
+        }}
+      />
     </div>
   );
 };
