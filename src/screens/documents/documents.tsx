@@ -97,7 +97,7 @@ const Documents = () => {
                     <span className="text-base font-semibold text-[var(--iverifi-text-primary)] min-w-0 truncate">
                       {doc.document_type ? formatDocType(doc.document_type) : "Document"}
                     </span>
-                    <VerifierBadge documentType={doc.document_type || "Document"} className="shrink-0" />
+                    <VerifierBadge verifiedVia={doc.verified_via} className="shrink-0" />
                   </div>
                   <div className="flex items-center gap-2">
                     <Button

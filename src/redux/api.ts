@@ -393,6 +393,12 @@ export const api = createApi({
         params: { recipient_id },
       }),
     }),
+    getVerificationRoutes: builder.query<
+      { status: number; data: { routes: Record<string, ("digilocker" | "kwik")[]> }; hasError: boolean; message: string },
+      void
+    >({
+      query: () => ({ url: "/users/verification/routes", method: "GET" }),
+    }),
     markKycStarted: builder.mutation<
       { hasError: boolean; message: string },
       { credential_request_id: string; session_id: string; document_type: string }
@@ -407,6 +413,7 @@ export const api = createApi({
 });
 export const {
   useGetCredentialsQuery,
+  useGetVerificationRoutesQuery,
   useCreateCredentialMutation,
   usePatchCredentialTypeMutation,
   useDeleteCredentialMutation,

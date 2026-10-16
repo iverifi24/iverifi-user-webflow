@@ -1,6 +1,9 @@
 import { useState, useEffect, useRef } from "react";
 import { auth } from "@/firebase/firebase_setup";
-import { useGetCredentialsQuery, useSaveForeignPassportMutation, useUpdateCheckInStatusMutation, useMarkKycStartedMutation } from "@/redux/api";
+import { useGetCredentialsQuery, useGetVerificationRoutesQuery, useSaveForeignPassportMutation, useUpdateCheckInStatusMutation, useMarkKycStartedMutation } from "@/redux/api";
+import { methodsFor, providerLabel, METHOD_LABEL } from "@/utils/verificationSource";
+import type { VerifyMethod } from "@/utils/verificationSource";
+import { digilockerErrorMessage, alsoSavedMessage } from "@/utils/digilockerErrors";
 import { Button } from "@/components/ui/button";
 import { IverifiLogo } from "@/components/iverifi-logo";
 import { HotelBadge } from "@/components/hotel-badge";
@@ -28,8 +31,8 @@ const POLL_INTERVAL_MS = 2000;
 const POLL_TIMEOUT_MS = 60000;
 
 const DOC_TYPES = [
-  { type: "AADHAAR_CARD",     label: "Aadhaar Card",    icon: <CreditCard className="w-5 h-5 text-[var(--iverifi-accent)]" />, productCode: "KYC", issuer: "UIDAI / Govt of India", recommended: true },
-  { type: "DRIVING_LICENSE",  label: "Driving Licence", icon: <Car className="w-5 h-5 text-[var(--iverifi-accent)]" />, productCode: "DL",  issuer: "Ministry of Road Transport" },
+  { type: "AADHAAR_CARD",     label: "Aadhaar Card",    icon: <CreditCard className="w-5 h-5 text-[var(--iverifi-accent)]" />, productCode: "KYC", issuer: "UIDAI", recommended: true },
+  { type: "DRIVING_LICENSE",  label: "Driving Licence", icon: <Car className="w-5 h-5 text-[var(--iverifi-accent)]" />, productCode: "DL",  issuer: "State Transport (MoRTH)" },
   { type: "PAN_CARD",         label: "PAN Card",        icon: <FileBadge className="w-5 h-5 text-[var(--iverifi-accent)]" />, productCode: "PC",  issuer: "Income Tax Department" },
   { type: "PASSPORT",         label: "Passport",        icon: <Plane className="w-5 h-5 text-[var(--iverifi-accent)]" />, productCode: "PP",  issuer: "Ministry of External Affairs" },
 ];
@@ -93,6 +96,9 @@ export default function GuestDocSelect({
   // selfie is submitted, so we store the URL here and attach it once polling finds the credential.
   const dlSelfieS3UrlRef = useRef<string | null>(null);
 
+  const { data: routesData } = useGetVerificationRoutesQuery();
+  const routes = routesData?.data?.routes;
+
   const [saveForeignPassport] = useSaveForeignPassportMutation();
   const [updateCheckInStatus] = useUpdateCheckInStatusMutation();
   const [markKycStarted] = useMarkKycStartedMutation();
@@ -125,7 +131,10 @@ export default function GuestDocSelect({
     if (dlError) {
       setVerifyingType("DRIVING_LICENSE");
       setKycFailed(true);
+      toast.error(digilockerErrorMessage(dlError, "Driving licence"));
     }
+    const alsoMsg = alsoSavedMessage(searchParams.get("also"));
+    if (alsoMsg) toast.success(alsoMsg);
     navigate(location.pathname, { replace: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -382,13 +391,59 @@ export default function GuestDocSelect({
   };
 
   // Entry point for the "Verify" button on each doc card (DL opens choice modal; others open iframe).
+  // DigiLocker for Aadhaar, PAN and driving licence: the backend sends the user to DigiLocker and reads the result itself
+  const startDigilocker = async (docType: string) => {
+    const ticketDoc = docType === "AADHAAR_CARD" ? "AADHAAR_APP" : docType === "PAN_CARD" ? "PAN_APP" : docType === "DRIVING_LICENSE" ? "DL" : null;
+    if (!ticketDoc) { toast.error("DigiLocker is not available for this document."); return; }
+    try {
+      await startDigilockerFlow({ docType: ticketDoc, returnUrl: `${window.location.origin}/checkin` });
+    } catch (e: any) {
+      toast.error(e?.message || "Could not start DigiLocker verification");
+    }
+  };
+
+  const verifyWith = (method: VerifyMethod, docType: string, productCode: string) => {
+    if (method === "digilocker") return startDigilocker(docType);
+    openKwikIframe(docType, productCode);
+  };
+
+  // Which way a document is verified is decided by the server (DigiLocker first where it works, Kwik as the fallback)
   const handleVerify = (docType: string, productCode: string) => {
-    if (docType === "DRIVING_LICENSE") {
+    const methods = methodsFor(routes, docType);
+    if (!methods.length) { toast.error("This document cannot be verified right now. Please try again later."); return; }
+    if (docType === "DRIVING_LICENSE" && methods.includes("digilocker") && methods.includes("kwik")) {
       setDlChoiceOpen(true);
       return;
     }
-    openKwikIframe(docType, productCode);
+    verifyWith(methods[0], docType, productCode);
   };
+
+  // Back from DigiLocker for Aadhaar or PAN: pick the saved credential, or explain what went wrong and offer another way
+  useEffect(() => {
+    for (const [kind, label, docType, code] of [["aadhaar", "Aadhaar", "AADHAAR_CARD", "KYC"], ["pan", "PAN", "PAN_CARD", "PC"]] as const) {
+      const ok = searchParams.get(`${kind}_verified`);
+      const err = searchParams.get(`${kind}_error`);
+      if (!ok && !err) continue;
+      const alsoMsg = alsoSavedMessage(searchParams.get("also"));
+      if (alsoMsg) toast.success(alsoMsg);
+      navigate(location.pathname, { replace: true });
+      if (ok === "1") {
+        (async () => {
+          const result = await refetchCreds();
+          const all = (result.data as { data?: { credential?: FlowCredential[] } } | undefined)?.data?.credential ?? [];
+          const cred = all.find((c) => c.document_type === docType && (c.verification_status === "auto_approved" || c.state === "auto_approved"));
+          if (cred) onSelected(cred);
+        })();
+      } else if (err) {
+        const other = methodsFor(routes, docType).find((m) => m !== "digilocker");
+        toast.error(digilockerErrorMessage(err, label), other
+          ? { action: { label: `Use ${METHOD_LABEL[other]}`, onClick: () => verifyWith(other, docType, code) } }
+          : undefined);
+      }
+      break;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleForeignPassportSave = async (data: ForeignPassportPhotos) => {
     if (!connectionId) { onError("No connection found. Please restart."); return; }
@@ -657,7 +712,10 @@ export default function GuestDocSelect({
                           </span>
                         )}
                       </div>
-                      <p className="text-[11px] text-muted-foreground truncate">{issuer}</p>
+                      <p className="text-[11px] text-muted-foreground truncate">
+                        Issued by {issuer}
+                        {!verified && (providerLabel(methodsFor(routes, type)) ? ` · verified via ${providerLabel(methodsFor(routes, type))}` : " · not available now")}
+                      </p>
                     </div>
 
                     <div className="shrink-0">
@@ -755,7 +813,7 @@ export default function GuestDocSelect({
             className="w-full rounded-xl"
             onClick={() => { setDlChoiceOpen(false); handleVerifyDLKwik(); }}
           >
-            No — Use Camera Scan
+            No — Scan with camera (Kwik)
           </Button>
         </div>
       </DialogContent>

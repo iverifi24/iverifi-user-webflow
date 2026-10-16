@@ -1,7 +1,10 @@
 import { LoadingScreen } from "@/components/loading-screen";
 import { Button } from "@/components/ui/button";
-import { useGetCredentialsQuery } from "@/redux/api";
+import { useGetCredentialsQuery, useGetVerificationRoutesQuery } from "@/redux/api";
+import { startDigilockerFlow } from "@/utils/digilockerStart";
+import { methodsFor, providerLabel } from "@/utils/verificationSource";
 import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 import { ExternalLink, FileText } from "lucide-react";
 
 const formatDocType = (type: string): string => {
@@ -19,6 +22,28 @@ const cardClass =
 const AddDocuments = () => {
   const navigate = useNavigate();
   const { data: credData, isLoading: isLoadingCreds } = useGetCredentialsQuery();
+  const { data: routesData } = useGetVerificationRoutesQuery();
+  const routes = routesData?.data?.routes;
+
+  // the server decides how each document is verified; this screen follows it
+  const openVerify = async (docType: string) => {
+    const methods = methodsFor(routes, docType);
+    if (!methods.length) return toast.error("This document cannot be verified right now. Please try again later.");
+    if (methods[0] === "digilocker") {
+      const ticketDoc = docType === "AADHAAR_CARD" ? "AADHAAR_APP" : docType === "PAN_CARD" ? "PAN_APP" : docType === "DRIVING_LICENSE" ? "DL" : null;
+      if (ticketDoc) {
+        try {
+          await startDigilockerFlow({ docType: ticketDoc });
+        } catch (e) {
+          toast.error((e as Error)?.message || "Could not start DigiLocker verification");
+        }
+        return;
+      }
+    }
+    // camera scan (Kwik) lives on the home screen, where the document cards are
+    toast.info("Open this document from your vault to verify it with the camera scan.");
+    navigate("/");
+  };
 
   const verifiedDocs = credData?.data?.credential || [];
   const verifiedTypes = verifiedDocs.map((doc: any) => doc.document_type);
@@ -58,7 +83,7 @@ const AddDocuments = () => {
             <div
               key={docType}
               className={`${cardClass} p-4 transition-all duration-200 hover:bg-[var(--iverifi-card-hover)] cursor-pointer`}
-              onClick={() => navigate(`/upload?docType=${docType}`)}
+              onClick={() => openVerify(docType)}
             >
               <p className="text-base font-semibold text-[var(--iverifi-text-primary)] mb-3">
                 {formatDocType(docType)}
@@ -69,11 +94,11 @@ const AddDocuments = () => {
                 className="w-full rounded-xl border border-[color:var(--iverifi-card-border)] bg-[var(--iverifi-muted-surface)] text-[var(--iverifi-text-primary)] hover:bg-[var(--iverifi-card-hover)] font-medium justify-start"
                 onClick={(e) => {
                   e.stopPropagation();
-                  navigate(`/upload?docType=${docType}`);
+                  openVerify(docType);
                 }}
               >
                 <ExternalLink className="h-4 w-4 mr-2 shrink-0" />
-                Verify {formatDocType(docType)}
+                Verify {formatDocType(docType)}{providerLabel(methodsFor(routes, docType)) ? ` via ${providerLabel(methodsFor(routes, docType))}` : ""}
               </Button>
             </div>
           ))}

@@ -125,8 +125,8 @@ export default function PrivacyPage() {
                 (Yes/No)
               </li>
               <li>
-                <strong>Verification Source:</strong> Which government portal verified the document
-                (e.g., "DigiLocker", "e-Filing Portal")
+                <strong>Verification Source:</strong> Which service verified the document
+                (DigiLocker or our verification partner Kwik)
               </li>
               <li>
                 <strong>Verification ID:</strong> Unique reference number for the verification
@@ -219,7 +219,7 @@ export default function PrivacyPage() {
               </p>
               <ul className="list-disc list-inside text-xs sm:text-sm text-purple-800 dark:text-purple-200 space-y-1 ml-2">
                 <li>Processes verification requests on our behalf</li>
-                <li>Connects securely to government databases (DigiLocker, Parivahan, e-Filing)</li>
+                <li>Runs the camera-scan document check that you start in the app</li>
                 <li>Performs document authentication checks</li>
                 <li>Returns verification result (verified/not verified) to iVerifi</li>
               </ul>
@@ -747,7 +747,7 @@ export default function PrivacyPage() {
               14. Third-Party Links
             </h2>
             <p className="text-sm sm:text-base text-muted-foreground mb-3 sm:mb-4">
-              Our Service links to government portals (DigiLocker, Parivahan, etc.). We are not
+              Our Service links to government services (DigiLocker). We are not
               responsible for the privacy practices of these external sites. Please review their
               privacy policies independently.
             </p>
