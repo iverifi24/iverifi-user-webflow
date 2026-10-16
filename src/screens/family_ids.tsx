@@ -14,6 +14,7 @@ import {
   useGetFamilyCredentialsQuery,
   useDeleteFamilyCredentialMutation,
   useCreateCredentialMutation,
+  useGetVerificationRoutesQuery,
 } from "@/redux/api";
 // import { useAuth } from "@/context/auth_context";
 import { LoadingScreen } from "@/components/loading-screen";
@@ -21,6 +22,9 @@ import { VerifierBadge } from "@/components/verifier-badge";
 import { UserPlus, Trash2, Loader2, Eye, Users, X } from "lucide-react";
 import { toast } from "sonner";
 import { auth } from "@/firebase/firebase_setup";
+import { startDigilockerFlow } from "@/utils/digilockerStart";
+import { methodsFor } from "@/utils/verificationSource";
+import { digilockerErrorMessage } from "@/utils/digilockerErrors";
 
 const IVERIFI_ORIGIN = import.meta.env.VITE_KWIK_ORIGIN || "https://iverifi.app.getkwikid.com";
 const KWIK_CLIENT_ID = import.meta.env.VITE_KWIK_CLIENT_ID || "iverifi";
@@ -58,6 +62,23 @@ const FamilyIds = () => {
     refetch: refetchFamily,
   } = useGetFamilyCredentialsQuery();
   const [deleteFamilyCredential, { isLoading: isDeleting }] = useDeleteFamilyCredentialMutation();
+  const { data: routesData } = useGetVerificationRoutesQuery();
+  const aadhaarMethods = methodsFor(routesData?.data?.routes, "AADHAAR_CARD");
+
+  // back from DigiLocker (?aadhaar_verified=1&family=1 or ?aadhaar_error=...)
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search);
+    const ok = q.get("aadhaar_verified");
+    const err = q.get("aadhaar_error");
+    if (!ok && !err) return;
+    if (ok === "1") {
+      toast.success("Aadhaar verified through DigiLocker.");
+      refetchFamily();
+    }
+    if (err) toast.error(digilockerErrorMessage(err, "Aadhaar"));
+    window.history.replaceState({}, "", window.location.pathname);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [createCredential] = useCreateCredentialMutation();
 
   // Add family member dialog
@@ -102,6 +123,7 @@ const FamilyIds = () => {
     state?: string;
     verification_status?: string;
     face_url?: string;
+  verified_via?: string | null;
     images?: any[];
     session_data_array?: any;
     aadhaar_xml_data?: any;
@@ -122,6 +144,27 @@ const FamilyIds = () => {
     const currentUser = auth.currentUser;
     if (!currentUser) {
       toast.error("You must be logged in.");
+      return;
+    }
+
+    if (!aadhaarMethods.length) {
+      setNicknameError("Aadhaar cannot be verified right now. Please try again later.");
+      return;
+    }
+    // DigiLocker first where the server offers it; the family member's Aadhaar is saved under this nickname
+    if (aadhaarMethods[0] === "digilocker") {
+      setAddDialogOpen(false);
+      setNickname("");
+      try {
+        await startDigilockerFlow({
+          docType: "AADHAAR_APP",
+          isFamilyMember: true,
+          memberNickname: trimmed,
+          returnUrl: `${window.location.origin}/family-ids`,
+        });
+      } catch (e: any) {
+        toast.error(e?.message || "Could not start DigiLocker verification");
+      }
       return;
     }
 
@@ -208,7 +251,7 @@ const FamilyIds = () => {
                     <span className="text-base font-semibold text-[var(--iverifi-text-primary)]">
                       Aadhaar Card
                     </span>
-                    <VerifierBadge documentType="AADHAAR_CARD" className="shrink-0" />
+                    <VerifierBadge verifiedVia={myAadhaar?.verified_via} className="shrink-0" />
                   </div>
                   {getPreviewImageUrl(myAadhaar) && (
                     <Button
@@ -274,7 +317,7 @@ const FamilyIds = () => {
                           {isPending ? (
                             <span className="text-xs text-amber-500 font-medium shrink-0">Pending</span>
                           ) : (
-                            <VerifierBadge documentType="AADHAAR_CARD" className="shrink-0" />
+                            <VerifierBadge verifiedVia={member.verified_via} className="shrink-0" />
                           )}
                         </div>
                         <p className="text-xs text-[var(--iverifi-text-muted)] mb-3">Aadhaar Card</p>

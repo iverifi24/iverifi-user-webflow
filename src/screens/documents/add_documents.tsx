@@ -1,10 +1,10 @@
 import { LoadingScreen } from "@/components/loading-screen";
 import { Button } from "@/components/ui/button";
-import { useGetCredentialsQuery } from "@/redux/api";
-import { useState } from "react";
+import { useGetCredentialsQuery, useGetVerificationRoutesQuery } from "@/redux/api";
+import { startDigilockerFlow } from "@/utils/digilockerStart";
+import { methodsFor, providerLabel } from "@/utils/verificationSource";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { PanVerifyDialog } from "@/components/pan-verify-dialog";
 import { ExternalLink, FileText } from "lucide-react";
 
 const formatDocType = (type: string): string => {
@@ -21,9 +21,29 @@ const cardClass =
 
 const AddDocuments = () => {
   const navigate = useNavigate();
-  const [panOpen, setPanOpen] = useState(false);
-  const openVerify = (docType: string) => (docType === "PAN_CARD" ? setPanOpen(true) : navigate(`/upload?docType=${docType}`));
   const { data: credData, isLoading: isLoadingCreds } = useGetCredentialsQuery();
+  const { data: routesData } = useGetVerificationRoutesQuery();
+  const routes = routesData?.data?.routes;
+
+  // the server decides how each document is verified; this screen follows it
+  const openVerify = async (docType: string) => {
+    const methods = methodsFor(routes, docType);
+    if (!methods.length) return toast.error("This document cannot be verified right now. Please try again later.");
+    if (methods[0] === "digilocker") {
+      const ticketDoc = docType === "AADHAAR_CARD" ? "AADHAAR_APP" : docType === "PAN_CARD" ? "PAN_APP" : docType === "DRIVING_LICENSE" ? "DL" : null;
+      if (ticketDoc) {
+        try {
+          await startDigilockerFlow({ docType: ticketDoc });
+        } catch (e) {
+          toast.error((e as Error)?.message || "Could not start DigiLocker verification");
+        }
+        return;
+      }
+    }
+    // camera scan (Kwik) lives on the home screen, where the document cards are
+    toast.info("Open this document from your vault to verify it with the camera scan.");
+    navigate("/");
+  };
 
   const verifiedDocs = credData?.data?.credential || [];
   const verifiedTypes = verifiedDocs.map((doc: any) => doc.document_type);
@@ -78,21 +98,12 @@ const AddDocuments = () => {
                 }}
               >
                 <ExternalLink className="h-4 w-4 mr-2 shrink-0" />
-                Verify {formatDocType(docType)}
+                Verify {formatDocType(docType)}{providerLabel(methodsFor(routes, docType)) ? ` via ${providerLabel(methodsFor(routes, docType))}` : ""}
               </Button>
             </div>
           ))}
         </div>
       )}
-      <PanVerifyDialog
-        open={panOpen}
-        onClose={() => setPanOpen(false)}
-        onVerified={() => {
-          setPanOpen(false);
-          toast.success("PAN verified");
-          navigate("/documents");
-        }}
-      />
     </div>
   );
 };

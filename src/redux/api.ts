@@ -393,16 +393,11 @@ export const api = createApi({
         params: { recipient_id },
       }),
     }),
-    verifyPan: builder.mutation<
-      { status: number; data: { document_id: string; masked_id: string }; hasError: boolean; message: string },
-      { pan: string; name: string; dob: string; consent: true }
+    getVerificationRoutes: builder.query<
+      { status: number; data: { routes: Record<string, ("digilocker" | "kwik")[]> }; hasError: boolean; message: string },
+      void
     >({
-      query: (body) => ({
-        url: "/users/pan/verify",
-        method: "POST",
-        body,
-      }),
-      invalidatesTags: ["credentials", "activity"],
+      query: () => ({ url: "/users/verification/routes", method: "GET" }),
     }),
     markKycStarted: builder.mutation<
       { hasError: boolean; message: string },
@@ -418,7 +413,7 @@ export const api = createApi({
 });
 export const {
   useGetCredentialsQuery,
-  useVerifyPanMutation,
+  useGetVerificationRoutesQuery,
   useCreateCredentialMutation,
   usePatchCredentialTypeMutation,
   useDeleteCredentialMutation,

@@ -1,49 +1,65 @@
 /**
- * Maps document_type to the government/source verifier name for display.
- * Aligns with backend getVerificationSource (hotelAdminControllers).
- * Used to show the correct verifier per ID (DigiLocker, Parivahan, e-Filing, etc.).
+ * Honest labels for how a document is verified.
+ *
+ *  - ISSUER is a fact about the document: which authority issues a driving licence, PAN card and so on.
+ *    It is always shown as "Issued by …" and never as the thing that verified it.
+ *  - The VERIFIER is whatever actually did the check. For a verified document that is `credential.verified_via`
+ *    (set by the server from what really verified it). For one not yet verified it is the first method the server
+ *    currently offers for that document (`GET /users/verification/routes`), so the screen names what the tap will use.
+ *
+ * Never name a government system (Parivahan, e-Filing, Passport Seva…) as the verifier unless it is the one in use.
  */
-const SOURCE_MAP: Record<string, string> = {
-  aadhaar_card: "DigiLocker",
-  AADHAAR_CARD: "DigiLocker",
-  "Child 1 Aadhaar": "DigiLocker",
-  "Child 2 Aadhaar": "DigiLocker",
-  "Child 3 Aadhaar": "DigiLocker",
-  pan_card: "e-Filing",
-  PAN_CARD: "e-Filing",
-  passport: "Passport Seva",
-  PASSPORT: "Passport Seva",
-  driving_license: "Parivahan",
-  DRIVING_LICENSE: "Parivahan",
-  voter_id: "Election Commission",
-  VOTER_ID: "Election Commission",
-  "C-Form (Foreign Guest)": "Passport Upload",
+
+export type VerifyMethod = "digilocker" | "kwik";
+
+export const METHOD_LABEL: Record<VerifyMethod, string> = {
+  digilocker: "DigiLocker",
+  kwik: "Kwik",
 };
 
-export type VerifierKey =
-  | "DigiLocker"
-  | "e-Filing"
-  | "Parivahan"
-  | "Passport Seva"
-  | "Passport Upload"
-  | "Election Commission"
-  | "Manual";
+const ISSUER: Record<string, string> = {
+  AADHAAR_CARD: "UIDAI",
+  DRIVING_LICENSE: "State Transport Department (MoRTH)",
+  PAN_CARD: "Income Tax Department",
+  PASSPORT: "Ministry of External Affairs",
+  FAMILY_AADHAAR: "UIDAI",
+  FAMILY_DL: "State Transport Department (MoRTH)",
+  FAMILY_PAN: "Income Tax Department",
+  FAMILY_PASSPORT: "Ministry of External Affairs",
+};
 
-/**
- * Returns the display verifier name for a document type.
- * Credential may have verifiers_name from API (e.g. Kwik); we map by document_type to govt source.
- */
-export function getVerificationSource(documentType: string | undefined): string {
-  if (!documentType) return "Manual Verification";
-  return SOURCE_MAP[documentType] ?? "Manual Verification";
+/** the authority that issues this kind of document, or null when unknown */
+export function getIssuer(documentType: string | undefined): string | null {
+  return (documentType && ISSUER[documentType.toUpperCase()]) || null;
 }
 
-/** Whether we have a logo for this verifier. */
-export function verifierHasLogo(verifierName: string): boolean {
-  return (
-    verifierName === "DigiLocker" ||
-    verifierName === "Parivahan" ||
-    verifierName === "e-Filing" ||
-    verifierName === "Passport Seva"
-  );
+/** server answer of GET /users/verification/routes: { AADHAAR_CARD: ["digilocker","kwik"], ... } */
+export type VerificationRoutes = Record<string, VerifyMethod[]> | undefined;
+
+/** family documents follow the route of the same document */
+const ROUTE_KEY: Record<string, string> = {
+  FAMILY_AADHAAR: "AADHAAR_CARD",
+  FAMILY_DL: "DRIVING_LICENSE",
+  FAMILY_PAN: "PAN_CARD",
+  FAMILY_PASSPORT: "PASSPORT",
+};
+
+/**
+ * Ways this document can be verified right now, preferred first. While the routes have not loaded (or the call failed) the
+ * app falls back to Kwik, which always works, so nobody is stuck.
+ */
+export function methodsFor(routes: VerificationRoutes, documentType: string): VerifyMethod[] {
+  const key = ROUTE_KEY[documentType] ?? documentType;
+  const list = routes?.[key];
+  return Array.isArray(list) ? list : routes ? [] : ["kwik"];
+}
+
+/** "DigiLocker" / "Kwik" for the method a tap will use, or null when none is available */
+export function providerLabel(methods: VerifyMethod[]): string | null {
+  return methods.length ? METHOD_LABEL[methods[0]] : null;
+}
+
+/** `verified_via` from the credential, as shown to people; null when the server does not know */
+export function verifiedViaLabel(verifiedVia: string | null | undefined): string | null {
+  return verifiedVia && ["DigiLocker", "Kwik", "iVerifi"].includes(verifiedVia) ? verifiedVia : null;
 }

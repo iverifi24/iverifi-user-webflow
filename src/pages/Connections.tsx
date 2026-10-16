@@ -15,11 +15,14 @@ import {
   useGetFamilyCredentialsQuery,
   useDeleteFamilyCredentialMutation,
   useUpdateCredentialHotelMutation,
+  useGetVerificationRoutesQuery,
 } from "@/redux/api";
 // import { CFormDialog } from "@/components/c-form-dialog";
 // import type { CFormData, CFormPassportData } from "@/components/c-form-dialog";
 import { ForeignPassportDialog } from "@/components/foreign-passport-dialog";
-import { PanVerifyDialog } from "@/components/pan-verify-dialog";
+import { methodsFor, providerLabel, verifiedViaLabel, METHOD_LABEL } from "@/utils/verificationSource";
+import type { VerifyMethod } from "@/utils/verificationSource";
+import { digilockerErrorMessage } from "@/utils/digilockerErrors";
 import type { ForeignPassportPhotos } from "@/components/foreign-passport-dialog";
 import { determineConnectionType, isValidQRCode } from "@/utils/qr-code-utils";
 import { addDays, format } from "date-fns";
@@ -111,10 +114,10 @@ const getProductCode = (docType: DocumentType): string =>
   (PRODUCT_CODE_MAP as Record<string, string>)[docType] ?? "KYC";
 
 const FAMILY_DOC_OPTIONS = [
-  { type: "FAMILY_AADHAAR",   label: "Aadhaar",         subtitle: "UIDAI Verified",          productCode: "KYC", iconType: "AADHAAR_CARD"      },
-  { type: "FAMILY_PASSPORT",  label: "Passport",        subtitle: "Passport Seva",            productCode: "PP",  iconType: "PASSPORT"          },
-  { type: "FAMILY_DL",        label: "Driving License", subtitle: "State RTO Verified",       productCode: "DL",  iconType: "DRIVING_LICENSE"   },
-  { type: "FAMILY_PAN",       label: "PAN Card",        subtitle: "Income Tax Department",    productCode: "PC",  iconType: "PAN_CARD"          },
+  { type: "FAMILY_AADHAAR",   label: "Aadhaar",         subtitle: "Issued by UIDAI",          productCode: "KYC", iconType: "AADHAAR_CARD"      },
+  { type: "FAMILY_PASSPORT",  label: "Passport",        subtitle: "Issued by MEA",             productCode: "PP",  iconType: "PASSPORT"          },
+  { type: "FAMILY_DL",        label: "Driving License", subtitle: "Issued by State RTO",       productCode: "DL",  iconType: "DRIVING_LICENSE"   },
+  { type: "FAMILY_PAN",       label: "PAN Card",        subtitle: "Issued by Income Tax Dept",    productCode: "PC",  iconType: "PAN_CARD"          },
 ] as const;
 const FAMILY_DOC_UNKNOWN = { type: "UNKNOWN", label: "ID Document", subtitle: "Verified", productCode: "KYC", iconType: "AADHAAR_CARD" } as const;
 type FamilyDocType = (typeof FAMILY_DOC_OPTIONS)[number]["type"];
@@ -127,33 +130,23 @@ const SMART_CARD_META: Record<
   string,
   {
     issuer: string;
-    unverifiedTime: string;
-    unverifiedProvider: string;
     gradient: string;
   }
 > = {
   AADHAAR_CARD: {
     issuer: "UIDAI · Govt of India",
-    unverifiedTime: "30s",
-    unverifiedProvider: "DigiLocker",
     gradient: "from-slate-900/90 via-slate-800 to-indigo-950/70",
   },
   DRIVING_LICENSE: {
     issuer: "MoRTH · State Transport",
-    unverifiedTime: "45s",
-    unverifiedProvider: "Parivahan",
     gradient: "from-slate-900/90 via-slate-800 to-teal-950/70",
   },
   PAN_CARD: {
     issuer: "Income Tax Dept · Govt of India",
-    unverifiedTime: "30s",
-    unverifiedProvider: "NSDL / DigiLocker",
     gradient: "from-slate-900/90 via-slate-800 to-sky-950/70",
   },
   PASSPORT: {
     issuer: "Ministry of External Affairs",
-    unverifiedTime: "60s",
-    unverifiedProvider: "Passport Seva",
     gradient: "from-slate-900/90 via-slate-800 to-amber-950/60",
   },
 };
@@ -340,7 +333,6 @@ const Connections = () => {
 
   // iframe overlay
   const [iframeUrl, setIframeUrl] = useState<string | null>(null);
-  const [panDialogOpen, setPanDialogOpen] = useState(false);
   // const [verifyingDocType, setVerifyingDocType] = useState<DocumentType | null>(
   //   null
   // );
@@ -405,6 +397,10 @@ const Connections = () => {
 
   const { data: familyData, refetch: refetchFamily } =
     useGetFamilyCredentialsQuery();
+
+  // which ways each document can be verified right now (DigiLocker / Kwik), asked from the server
+  const { data: routesData } = useGetVerificationRoutesQuery();
+  const routes = routesData?.data?.routes;
 
   const pendingFamilyVerify = useRef(false);
   const pendingFamilyCredentialId = useRef<string | null>(null);
@@ -499,6 +495,30 @@ const Connections = () => {
       toast.error("DigiLocker verification was cancelled. You can use camera scan instead.");
     }
     navigate(location.pathname, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Back from DigiLocker for Aadhaar or PAN (?aadhaar_verified=1 / ?pan_error=... , plus &family=1 for a family member)
+  useEffect(() => {
+    let handled = false;
+    for (const [kind, label, docType] of [["aadhaar", "Aadhaar", "AADHAAR_CARD"], ["pan", "PAN", "PAN_CARD"]] as const) {
+      const ok = searchParams.get(`${kind}_verified`);
+      const err = searchParams.get(`${kind}_error`);
+      if (ok === "1") {
+        toast.success(`${label} verified through DigiLocker.`);
+        refetchCredentials();
+        refetchFamily();
+        handled = true;
+      }
+      if (err) {
+        const other = methodsFor(routes, docType).find((m) => m !== "digilocker");
+        toast.error(digilockerErrorMessage(err, label), other
+          ? { action: { label: `Use ${METHOD_LABEL[other]}`, onClick: () => verifyWith(other, docType as DocumentType) } }
+          : undefined);
+        handled = true;
+      }
+    }
+    if (handled) navigate(location.pathname, { replace: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -1500,21 +1520,35 @@ const Connections = () => {
     setIframeUrl(verificationUrl);
   };
 
-  // Slim wrapper: DL → show choice modal; all other doc types → straight to Kwik
-  const handleVerifyDocument = async (
-    documentType: DocumentType,
-  ) => {
-    if (documentType === "DRIVING_LICENSE") {
+  // DigiLocker for Aadhaar, PAN and driving licence: the backend sends the user to DigiLocker and reads the result itself
+  const startDigilocker = async (docType: string, opts: { family?: boolean; nickname?: string } = {}) => {
+    const kind = docType.replace(/^FAMILY_/, "");
+    const ticketDoc = kind === "AADHAAR_CARD" ? "AADHAAR_APP" : kind === "PAN_CARD" ? "PAN_APP" : kind === "DRIVING_LICENSE" ? "DL" : null;
+    if (!ticketDoc) return toast.error("DigiLocker is not available for this document.");
+    if (code) saveRecipientIdForLater(code);
+    try {
+      await startDigilockerFlow({ docType: ticketDoc, isFamilyMember: opts.family, memberNickname: opts.nickname });
+    } catch (e: any) {
+      toast.error(e?.message || "Could not start DigiLocker verification");
+    }
+  };
+
+  // run one specific method (used for the first choice and for "try another way")
+  const verifyWith = (method: VerifyMethod, documentType: DocumentType) => {
+    if (method === "digilocker") return startDigilocker(documentType as string);
+    return handleVerifyDocumentKwik(documentType);
+  };
+
+  // Which way a document is verified is decided by the server (DigiLocker first where it works, Kwik as the fallback)
+  const handleVerifyDocument = async (documentType: DocumentType) => {
+    const methods = methodsFor(routes, documentType as string);
+    if (!methods.length) return toast.error("This document cannot be verified right now. Please try again later.");
+    // a driving licence offered both ways: let the user say which they have
+    if (documentType === "DRIVING_LICENSE" && methods.includes("digilocker") && methods.includes("kwik")) {
       setDlDigilockerModalOpen(true);
       return;
     }
-    if (documentType === "PAN_CARD") {
-      // PAN is checked against the government record by the server, not through a Kwik session
-      if (code) saveRecipientIdForLater(code);
-      setPanDialogOpen(true);
-      return;
-    }
-    return handleVerifyDocumentKwik(documentType);
+    return verifyWith(methods[0], documentType);
   };
 
   const handleVerifyDLWithDigiLocker = async () => {
@@ -1632,6 +1666,17 @@ const Connections = () => {
     }
     const currentUser = auth.currentUser;
     if (!currentUser) return;
+    const familyMethods = methodsFor(routes, familyDocType);
+    if (!familyMethods.length) {
+      setFamilyNicknameError("This document cannot be verified right now. Please try again later.");
+      return;
+    }
+    if (familyMethods[0] === "digilocker") {
+      setFamilyDialogOpen(false);
+      setFamilyNickname("");
+      await startDigilocker(familyDocType, { family: true, nickname: trimmed });
+      return;
+    }
     const selectedDoc = FAMILY_DOC_OPTIONS.find((o) => o.type === familyDocType) ?? FAMILY_DOC_OPTIONS[0];
     setIsStartingFamilyVerify(true);
     try {
@@ -1822,8 +1867,6 @@ const Connections = () => {
                 const isVerified = !!verifiedCredentialsMap[docType];
                 const meta = SMART_CARD_META[docType] || {
                   issuer: "Govt of India",
-                  unverifiedTime: "30s",
-                  unverifiedProvider: "DigiLocker",
                   gradient: "from-slate-900/90 via-slate-800 to-slate-900/80",
                 };
                 const title = docType
@@ -1842,7 +1885,7 @@ const Connections = () => {
                     {/* Top Smart-Card Header */}
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-[10px] font-mono uppercase tracking-widest text-slate-300 font-semibold truncate">
-                        {meta.issuer}
+                        Issued by {meta.issuer}
                       </span>
                       {/* Micro-Holographic Gold Chip */}
                       <div className="flex h-5 w-7 shrink-0 items-center justify-center rounded-sm border border-amber-300/40 bg-gradient-to-tr from-amber-400/30 via-amber-200/50 to-amber-500/20 shadow-xs">
@@ -1873,7 +1916,9 @@ const Connections = () => {
                     <div className="flex items-center justify-between pt-2.5 border-t border-white/15 text-xs">
                       <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/20 border border-emerald-400/30 px-2 py-0.5 text-[10px] font-bold text-emerald-300">
                         <CheckCircle className="h-3 w-3" />
-                        DigiLocker Verified
+                        {verifiedViaLabel(verifiedCredentialsMap[docType]?.verified_via)
+                          ? `Verified via ${verifiedViaLabel(verifiedCredentialsMap[docType]?.verified_via)}`
+                          : "Verified"}
                       </span>
                       <span className="inline-flex items-center text-[11px] font-semibold text-teal-300 group-hover:translate-x-1 transition-transform">
                         Inspect Card <ChevronRight className="h-3.5 w-3.5 ml-0.5" />
@@ -1890,10 +1935,11 @@ const Connections = () => {
                   >
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground truncate">
-                        {meta.issuer}
+                        Issued by {meta.issuer}
                       </span>
                       <span className="inline-flex items-center gap-1 rounded-full bg-teal-500/10 border border-teal-500/20 px-2 py-0.5 text-[9px] font-bold text-teal-700 dark:text-cyan-400">
-                        <Zap className="h-2.5 w-2.5" /> {meta.unverifiedProvider} (~{meta.unverifiedTime})
+                        <Zap className="h-2.5 w-2.5" />{" "}
+                        {providerLabel(methodsFor(routes, docType)) ? `via ${providerLabel(methodsFor(routes, docType))}` : "Not available now"}
                       </span>
                     </div>
 
@@ -2173,7 +2219,7 @@ const Connections = () => {
                   {selectedDocTitle}
                 </div>
                 <div style={{ marginTop: 5 }}>
-                  <VerifierBadge documentType={selectedDocType} />
+                  <VerifierBadge verifiedVia={verifiedCredentialsMap[selectedDocType]?.verified_via} />
                 </div>
               </div>
             </div>
@@ -2606,7 +2652,7 @@ const Connections = () => {
                       {nickname}
                     </div>
                     <div style={{ marginTop: 5 }}>
-                      <VerifierBadge documentType={memberDoc.iconType} />
+                      <VerifierBadge verifiedVia={selectedFamilyMember?.verified_via} />
                     </div>
                   </div>
                 </div>
@@ -2967,7 +3013,7 @@ const Connections = () => {
               className="w-full rounded-xl"
               onClick={() => { setDlDigilockerModalOpen(false); handleVerifyDocumentKwik("DRIVING_LICENSE"); }}
             >
-              No — Use Camera Scan
+              No — Scan with camera (Kwik)
             </Button>
           </div>
         </DialogContent>
@@ -3200,15 +3246,6 @@ const Connections = () => {
       </Dialog>
 
       {/* Iframe Overlay */}
-      <PanVerifyDialog
-        open={panDialogOpen}
-        onClose={() => setPanDialogOpen(false)}
-        onVerified={() => {
-          setPanDialogOpen(false);
-          toast.success("PAN verified");
-          refetchCredentials();
-        }}
-      />
       {iframeUrl && (
         <div
           className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-2"
