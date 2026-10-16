@@ -3,7 +3,7 @@ import { auth } from "@/firebase/firebase_setup";
 import { useGetCredentialsQuery, useGetVerificationRoutesQuery, useSaveForeignPassportMutation, useUpdateCheckInStatusMutation, useMarkKycStartedMutation } from "@/redux/api";
 import { methodsFor, providerLabel, METHOD_LABEL } from "@/utils/verificationSource";
 import type { VerifyMethod } from "@/utils/verificationSource";
-import { digilockerErrorMessage } from "@/utils/digilockerErrors";
+import { digilockerErrorMessage, alsoSavedMessage } from "@/utils/digilockerErrors";
 import { Button } from "@/components/ui/button";
 import { IverifiLogo } from "@/components/iverifi-logo";
 import { HotelBadge } from "@/components/hotel-badge";
@@ -131,7 +131,10 @@ export default function GuestDocSelect({
     if (dlError) {
       setVerifyingType("DRIVING_LICENSE");
       setKycFailed(true);
+      toast.error(digilockerErrorMessage(dlError, "Driving licence"));
     }
+    const alsoMsg = alsoSavedMessage(searchParams.get("also"));
+    if (alsoMsg) toast.success(alsoMsg);
     navigate(location.pathname, { replace: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -421,6 +424,8 @@ export default function GuestDocSelect({
       const ok = searchParams.get(`${kind}_verified`);
       const err = searchParams.get(`${kind}_error`);
       if (!ok && !err) continue;
+      const alsoMsg = alsoSavedMessage(searchParams.get("also"));
+      if (alsoMsg) toast.success(alsoMsg);
       navigate(location.pathname, { replace: true });
       if (ok === "1") {
         (async () => {

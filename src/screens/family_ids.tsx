@@ -24,7 +24,7 @@ import { toast } from "sonner";
 import { auth } from "@/firebase/firebase_setup";
 import { startDigilockerFlow } from "@/utils/digilockerStart";
 import { methodsFor } from "@/utils/verificationSource";
-import { digilockerErrorMessage } from "@/utils/digilockerErrors";
+import { digilockerErrorMessage, alsoSavedMessage } from "@/utils/digilockerErrors";
 
 const IVERIFI_ORIGIN = import.meta.env.VITE_KWIK_ORIGIN || "https://iverifi.app.getkwikid.com";
 const KWIK_CLIENT_ID = import.meta.env.VITE_KWIK_CLIENT_ID || "iverifi";
@@ -76,6 +76,8 @@ const FamilyIds = () => {
       refetchFamily();
     }
     if (err) toast.error(digilockerErrorMessage(err, "Aadhaar"));
+    const alsoMsg = alsoSavedMessage(q.get("also"));
+    if (alsoMsg) toast.success(alsoMsg);
     window.history.replaceState({}, "", window.location.pathname);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

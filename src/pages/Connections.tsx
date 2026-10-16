@@ -22,7 +22,7 @@ import {
 import { ForeignPassportDialog } from "@/components/foreign-passport-dialog";
 import { methodsFor, providerLabel, verifiedViaLabel, METHOD_LABEL } from "@/utils/verificationSource";
 import type { VerifyMethod } from "@/utils/verificationSource";
-import { digilockerErrorMessage } from "@/utils/digilockerErrors";
+import { digilockerErrorMessage, alsoSavedMessage } from "@/utils/digilockerErrors";
 import type { ForeignPassportPhotos } from "@/components/foreign-passport-dialog";
 import { determineConnectionType, isValidQRCode } from "@/utils/qr-code-utils";
 import { addDays, format } from "date-fns";
@@ -492,8 +492,10 @@ const Connections = () => {
       setDlSelfieModalOpen(true); // selfie first; polling starts after selfie submit
     }
     if (dlError) {
-      toast.error("DigiLocker verification was cancelled. You can use camera scan instead.");
+      toast.error(digilockerErrorMessage(dlError, "Driving licence"));
     }
+    const alsoMsg = alsoSavedMessage(searchParams.get("also"));
+    if (alsoMsg) toast.success(alsoMsg);
     navigate(location.pathname, { replace: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -518,6 +520,8 @@ const Connections = () => {
         handled = true;
       }
     }
+    const alsoMsg = alsoSavedMessage(searchParams.get("also"));
+    if (handled && alsoMsg) toast.success(alsoMsg);
     if (handled) navigate(location.pathname, { replace: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
