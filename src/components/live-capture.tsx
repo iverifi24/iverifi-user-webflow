@@ -58,7 +58,7 @@ function loadLandmarker(): Promise<FaceLandmarker> {
   return landmarkerPromise;
 }
 
-class CameraProblem extends Error {}
+class CameraProblem extends Error { }
 
 function friendlyError(e: unknown): string {
   if (e instanceof CameraProblem) return e.message;
@@ -89,7 +89,6 @@ export function LiveCapture({ onDone, onLater }: Props) {
   const [hint, setHint] = useState("");
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState("");
-  const [cameraBlocked, setCameraBlocked] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -284,7 +283,6 @@ export function LiveCapture({ onDone, onLater }: Props) {
     if (!consentInfo) return;
     consentVersionRef.current = consentInfo.version;
     setError("");
-    setCameraBlocked(false);
     setPhase("loading");
     try {
       const [landmarker] = await Promise.all([loadLandmarker(), ensureCamera()]);
@@ -301,8 +299,6 @@ export function LiveCapture({ onDone, onLater }: Props) {
       setPhase("running");
     } catch (e) {
       stopCamera();
-      const name = (e as { name?: string })?.name;
-      setCameraBlocked(e instanceof CameraProblem || ["NotAllowedError", "NotFoundError", "NotReadableError", "SecurityError", "OverconstrainedError"].includes(name ?? ""));
       setError(friendlyError(e));
       setPhase("error");
     }
@@ -378,9 +374,8 @@ export function LiveCapture({ onDone, onLater }: Props) {
             {steps.map((a, i) => (
               <li
                 key={`${a}-${i}`}
-                className={`flex items-center gap-1 rounded-full border px-2.5 py-1 ${
-                  i < stepIndex ? "border-emerald-500/40 text-emerald-600" : i === stepIndex ? "border-[var(--iverifi-accent)] text-foreground" : "border-border text-muted-foreground"
-                }`}
+                className={`flex items-center gap-1 rounded-full border px-2.5 py-1 ${i < stepIndex ? "border-emerald-500/40 text-emerald-600" : i === stepIndex ? "border-[var(--iverifi-accent)] text-foreground" : "border-border text-muted-foreground"
+                  }`}
               >
                 {i < stepIndex && <Check className="h-3 w-3" />}
                 {STEP_LABEL[a]}
@@ -398,12 +393,18 @@ export function LiveCapture({ onDone, onLater }: Props) {
           <Button variant="brand" className="h-11 w-full" onClick={() => void begin()}>
             <RotateCcw className="h-4 w-4" /> Try again
           </Button>
-          {cameraBlocked && onLater && (
+          {onLater && (
             <Button variant="outline" className="h-11 w-full" onClick={onLater}>
-              Do this later
+              Not now
             </Button>
           )}
         </div>
+      )}
+
+      {phase === "loading" && onLater && (
+        <Button variant="ghost" className="h-9 w-full text-muted-foreground" onClick={onLater}>
+          Not now
+        </Button>
       )}
 
       {phase === "done" && (
