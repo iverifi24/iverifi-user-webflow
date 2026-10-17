@@ -4,12 +4,16 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "predev": "node scripts/copy-mediapipe.mjs",
     "dev": "vite --port 5174",
+    "prebuild": "node scripts/copy-mediapipe.mjs",
     "build": "tsc -b && vite build",
+    "test:liveness": "node --test tests/liveness.test.ts",
     "lint": "eslint .",
     "preview": "vite preview"
   },
   "dependencies": {
+    "@mediapipe/tasks-vision": "^1.1.1",
     "@radix-ui/react-avatar": "1.1.10",
     "@radix-ui/react-checkbox": "1.3.3",
     "@radix-ui/react-dialog": "1.1.15",

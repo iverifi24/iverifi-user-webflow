@@ -1,0 +1,389 @@
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Camera, Check, Loader2, RotateCcw, ShieldCheck } from "lucide-react";
+import type { FaceLandmarker } from "@mediapipe/tasks-vision";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { useCreateLivePhotoChallengeMutation, useSubmitLivePhotoMutation } from "@/redux/api";
+import { LivenessRunner, PROMPTS, metricsFromLandmarks } from "@/lib/liveness";
+import type { Action, Metrics, RunnerState } from "@/lib/liveness";
+import { cropJpeg, grabJpeg } from "@/lib/capture-frames";
+
+interface Props {
+  /** called once the live photo is saved */
+  onDone: () => void;
+  /** when given, a "Do this later" button is shown if the camera cannot be used */
+  onLater?: () => void;
+}
+
+type Phase = "consent" | "loading" | "running" | "submitting" | "done" | "error";
+
+const STEP_LABEL: Record<Action, string> = {
+  straight: "Look at the camera",
+  blink: "Blink",
+  turn_left: "Turn left",
+  turn_right: "Turn right",
+};
+
+const SMALL = { maxSide: 640, quality: 0.7 }; // step frames: big enough for the engine's own face-size check, small enough to send quickly
+const PHOTO = { maxSide: 1280, quality: 0.92 }; // the full-quality frames the face template is made from
+const CROP = { scale: 1.4, maxSide: 640, quality: 0.8 }; // the only picture that is kept: the face, compressed
+
+// The face-landmark model is loaded once and reused (loading it is the slow part).
+let landmarkerPromise: Promise<FaceLandmarker> | null = null;
+function loadLandmarker(): Promise<FaceLandmarker> {
+  if (!landmarkerPromise) {
+    landmarkerPromise = (async () => {
+      const { FaceLandmarker: FL, FilesetResolver } = await import("@mediapipe/tasks-vision");
+      const fileset = await FilesetResolver.forVisionTasks("/mediapipe/wasm");
+      const make = (delegate: "GPU" | "CPU") =>
+        FL.createFromOptions(fileset, {
+          baseOptions: { modelAssetPath: "/mediapipe/face_landmarker.task", delegate },
+          runningMode: "VIDEO",
+          numFaces: 2, // two faces in the picture is refused
+        });
+      try {
+        return await make("GPU");
+      } catch {
+        return await make("CPU");
+      }
+    })().catch((e) => {
+      landmarkerPromise = null;
+      throw e;
+    });
+  }
+  return landmarkerPromise;
+}
+
+class CameraProblem extends Error {}
+
+function friendlyError(e: unknown): string {
+  if (e instanceof CameraProblem) return e.message;
+  const name = (e as { name?: string })?.name;
+  if (name === "NotAllowedError" || name === "SecurityError") return "Camera access is blocked. Allow the camera for this site in your browser settings, then try again.";
+  if (name === "NotFoundError" || name === "OverconstrainedError") return "No camera was found on this device.";
+  if (name === "NotReadableError") return "The camera is being used by another app. Close it and try again.";
+  const message = (e as { data?: { message?: string } })?.data?.message;
+  if (message) return message;
+  return "Something went wrong. Please try again.";
+}
+
+interface Collected {
+  frames: Partial<Record<Action, string[]>>;
+  photoFrames: string[];
+  crop: string;
+  keys: Set<string>;
+  turnCandidates: { score: number; b64: string }[];
+  lastTurnAt: number;
+}
+const freshCollected = (): Collected => ({ frames: {}, photoFrames: [], crop: "", keys: new Set(), turnCandidates: [], lastTurnAt: 0 });
+
+export function LiveCapture({ onDone, onLater }: Props) {
+  const [phase, setPhase] = useState<Phase>("consent");
+  const [consent, setConsent] = useState(false);
+  const [steps, setSteps] = useState<Action[]>([]);
+  const [stepIndex, setStepIndex] = useState(0);
+  const [hint, setHint] = useState("");
+  const [progress, setProgress] = useState(0);
+  const [error, setError] = useState("");
+  const [cameraBlocked, setCameraBlocked] = useState(false);
+
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const landmarkerRef = useRef<FaceLandmarker | null>(null);
+  const runnerRef = useRef<LivenessRunner | null>(null);
+  const challengeIdRef = useRef("");
+  const collectedRef = useRef<Collected>(freshCollected());
+
+  const [createChallenge] = useCreateLivePhotoChallengeMutation();
+  const [submit] = useSubmitLivePhotoMutation();
+
+  const stopCamera = useCallback(() => {
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
+    if (videoRef.current) videoRef.current.srcObject = null;
+  }, []);
+
+  useEffect(() => stopCamera, [stopCamera]);
+
+  const ensureCamera = useCallback(async () => {
+    if (streamRef.current) return;
+    if (!navigator.mediaDevices?.getUserMedia) throw new CameraProblem("This browser cannot open the camera.");
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 960 } },
+      audio: false,
+    });
+    streamRef.current = stream;
+    const video = videoRef.current;
+    if (!video) throw new CameraProblem("The camera view is not ready.");
+    video.srcObject = stream;
+    video.muted = true;
+    video.playsInline = true;
+    await video.play();
+    for (let i = 0; i < 60 && !video.videoWidth; i += 1) await new Promise((r) => setTimeout(r, 50));
+    if (!video.videoWidth) throw new CameraProblem("The camera did not start. Please try again.");
+  }, []);
+
+  const finish = useCallback(async () => {
+    setPhase("submitting");
+    stopCamera();
+    const runner = runnerRef.current;
+    const c = collectedRef.current;
+    if (!runner || !c.photoFrames.length || !c.crop) {
+      setError("We could not capture a clear photo. Please try again.");
+      setPhase("error");
+      return;
+    }
+    try {
+      await submit({
+        challenge_id: challengeIdRef.current,
+        consent: true,
+        steps: runner.steps.map((action) => ({ action, passed: true, frames: c.frames[action] ?? [] })),
+        photo_frames: c.photoFrames,
+        crop: c.crop,
+      }).unwrap();
+      setPhase("done");
+      onDone();
+    } catch (e) {
+      setError(friendlyError(e));
+      setPhase("error");
+    }
+  }, [onDone, stopCamera, submit]);
+
+  // the camera loop: detect a face about 14 times a second and feed the liveness logic
+  useEffect(() => {
+    if (phase !== "running") return;
+    let raf = 0;
+    let last = 0;
+    let stopped = false;
+    let shownHint = "";
+    let shownProgress = -1;
+
+    const handle = (m: Metrics | null, video: HTMLVideoElement) => {
+      const runner = runnerRef.current;
+      if (!runner) return;
+      const action = runner.action;
+      const s = runner.push(m);
+      collect(action, s, m, video);
+      if (s.event === "failed") resetStep(action);
+      const nextHint = s.event === "step_done" || s.event === "all_done" ? PROMPTS[runner.action] : s.hint || PROMPTS[runner.action];
+      const nextProgress = Math.round(s.progress * 20) / 20;
+      if (nextHint !== shownHint) {
+        shownHint = nextHint;
+        setHint(nextHint);
+      }
+      if (nextProgress !== shownProgress) {
+        shownProgress = nextProgress;
+        setProgress(nextProgress);
+      }
+      if (s.event === "step_done") setStepIndex(runner.index);
+      if (s.event === "all_done") {
+        stopped = true;
+        setStepIndex(runner.steps.length);
+        void finish();
+      }
+    };
+
+    const collect = (action: Action, s: RunnerState, m: Metrics | null, video: HTMLVideoElement) => {
+      if (!m) return;
+      const c = collectedRef.current;
+      const once = (key: string) => {
+        if (c.keys.has(key)) return false;
+        c.keys.add(key);
+        return true;
+      };
+      const addSmall = () => {
+        (c.frames[action] ??= []).push(grabJpeg(video, SMALL));
+      };
+      const addPhoto = () => {
+        c.photoFrames.push(grabJpeg(video, PHOTO));
+        c.crop = cropJpeg(video, m.box, CROP); // the latest, most settled face is the one kept
+      };
+      const done = s.event === "step_done" || s.event === "all_done";
+      if (action === "straight") {
+        if (s.progress >= 0.4 && once("s1")) addSmall();
+        if (s.progress >= 0.55 && once("p1")) addPhoto();
+        if (s.progress >= 0.7 && once("s2")) addSmall();
+        if (s.progress >= 0.85 && once("p2")) addPhoto();
+        if (done) {
+          if (once("s3")) addSmall();
+          if (once("p3")) addPhoto();
+        }
+      } else if (action === "blink") {
+        if (s.progress >= 0.5 && once("b1")) addSmall();
+        if (done && once("b2")) addSmall();
+      } else {
+        // a head turn: keep the three frames where the head was turned the most
+        const score = Math.abs(m.yaw);
+        if ((score > 0.15 && m.t - c.lastTurnAt > 150) || done) {
+          c.lastTurnAt = m.t;
+          c.turnCandidates.push({ score, b64: grabJpeg(video, SMALL) });
+          c.turnCandidates.sort((a, b) => b.score - a.score);
+          c.turnCandidates.length = Math.min(c.turnCandidates.length, 3);
+        }
+        if (done) c.frames[action] = c.turnCandidates.map((x) => x.b64);
+      }
+    };
+
+    const resetStep = (action: Action) => {
+      const c = collectedRef.current;
+      const prefix = action === "straight" ? ["s", "p"] : action === "blink" ? ["b"] : ["t"];
+      [...c.keys].forEach((k) => {
+        if (prefix.some((p) => k.startsWith(p))) c.keys.delete(k);
+      });
+      delete c.frames[action];
+      if (action === "straight") {
+        c.photoFrames = [];
+        c.crop = "";
+      }
+      if (action !== "straight" && action !== "blink") c.turnCandidates = [];
+    };
+
+    const tick = () => {
+      if (stopped) return;
+      const video = videoRef.current;
+      const landmarker = landmarkerRef.current;
+      const now = performance.now();
+      if (video && landmarker && video.readyState >= 2 && video.videoWidth && now - last >= 70) {
+        last = now;
+        let m: Metrics | null = null;
+        try {
+          const res = landmarker.detectForVideo(video, now);
+          m = metricsFromLandmarks(res.faceLandmarks, now, video.videoHeight / video.videoWidth);
+        } catch {
+          m = null;
+        }
+        handle(m, video);
+      }
+      if (!stopped) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => {
+      stopped = true;
+      cancelAnimationFrame(raf);
+    };
+  }, [phase, finish]);
+
+  const begin = useCallback(async () => {
+    setError("");
+    setCameraBlocked(false);
+    setPhase("loading");
+    try {
+      const [landmarker] = await Promise.all([loadLandmarker(), ensureCamera()]);
+      landmarkerRef.current = landmarker;
+      // the challenge is asked for last, so its two minutes start when the person is ready
+      const challenge = await createChallenge().unwrap();
+      challengeIdRef.current = challenge.data.challenge_id;
+      runnerRef.current = new LivenessRunner(challenge.data.steps);
+      collectedRef.current = freshCollected();
+      setSteps(challenge.data.steps);
+      setStepIndex(0);
+      setProgress(0);
+      setHint(PROMPTS.straight);
+      setPhase("running");
+    } catch (e) {
+      stopCamera();
+      const name = (e as { name?: string })?.name;
+      setCameraBlocked(e instanceof CameraProblem || ["NotAllowedError", "NotFoundError", "NotReadableError", "SecurityError", "OverconstrainedError"].includes(name ?? ""));
+      setError(friendlyError(e));
+      setPhase("error");
+    }
+  }, [createChallenge, ensureCamera, stopCamera]);
+
+  const showCamera = phase === "loading" || phase === "running" || phase === "submitting";
+
+  return (
+    <div className="space-y-4">
+      {phase === "consent" && (
+        <div className="space-y-4">
+          <div className="flex items-start gap-3 rounded-2xl border border-border bg-muted/40 p-4">
+            <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-[var(--iverifi-accent)]" />
+            <div className="space-y-2 text-sm text-muted-foreground">
+              <p className="font-medium text-foreground">Take a quick live photo</p>
+              <p>
+                Government documents show an old photo. A current photo lets you prove it is really you. You will be asked to look at the camera, blink once and
+                turn your head.
+              </p>
+              <p>
+                We keep a small private copy of your face and a secure face template, only so it can be used to verify you in future. They are never shared
+                publicly, and you can delete them at any time.
+              </p>
+            </div>
+          </div>
+          <label className="flex items-start gap-2 text-sm text-muted-foreground">
+            <Checkbox checked={consent} onCheckedChange={(v) => setConsent(v === true)} className="mt-0.5" />
+            <span>I agree to iVerifi keeping a small photo of my face and a face template to verify me.</span>
+          </label>
+          <Button variant="brand" className="h-11 w-full" disabled={!consent} onClick={() => void begin()}>
+            <Camera className="h-4 w-4" /> Start
+          </Button>
+        </div>
+      )}
+
+      <div className={showCamera ? "relative mx-auto aspect-[3/4] w-full max-w-xs overflow-hidden rounded-3xl bg-black" : "hidden"}>
+        <video ref={videoRef} playsInline muted className="h-full w-full object-cover" style={{ transform: "scaleX(-1)" }} />
+        {/* the oval guide: everything outside it is dimmed */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute left-1/2 top-1/2 h-[74%] w-[62%] -translate-x-1/2 -translate-y-1/2 rounded-[50%] border-4 transition-colors"
+          style={{ boxShadow: "0 0 0 9999px rgba(0,0,0,0.55)", borderColor: progress >= 1 ? "#10b981" : "rgba(255,255,255,0.85)" }}
+        />
+        {phase === "loading" && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/60 text-sm text-white">
+            <Loader2 className="h-6 w-6 animate-spin" /> Getting ready…
+          </div>
+        )}
+        {phase === "submitting" && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/60 text-sm text-white">
+            <Loader2 className="h-6 w-6 animate-spin" /> Checking your photo…
+          </div>
+        )}
+      </div>
+
+      {phase === "running" && (
+        <div className="space-y-3 text-center">
+          <p aria-live="polite" className="min-h-[2.5rem] text-base font-semibold text-foreground">
+            {hint}
+          </p>
+          <div className="mx-auto h-1.5 w-full max-w-xs overflow-hidden rounded-full bg-muted">
+            <div className="h-full rounded-full bg-[var(--iverifi-accent)] transition-all" style={{ width: `${Math.round(progress * 100)}%` }} />
+          </div>
+          <ol className="flex items-center justify-center gap-2 text-xs">
+            {steps.map((a, i) => (
+              <li
+                key={`${a}-${i}`}
+                className={`flex items-center gap-1 rounded-full border px-2.5 py-1 ${
+                  i < stepIndex ? "border-emerald-500/40 text-emerald-600" : i === stepIndex ? "border-[var(--iverifi-accent)] text-foreground" : "border-border text-muted-foreground"
+                }`}
+              >
+                {i < stepIndex && <Check className="h-3 w-3" />}
+                {STEP_LABEL[a]}
+              </li>
+            ))}
+          </ol>
+        </div>
+      )}
+
+      {phase === "error" && (
+        <div className="space-y-3">
+          <p role="alert" className="rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-500">
+            {error}
+          </p>
+          <Button variant="brand" className="h-11 w-full" onClick={() => void begin()}>
+            <RotateCcw className="h-4 w-4" /> Try again
+          </Button>
+          {cameraBlocked && onLater && (
+            <Button variant="outline" className="h-11 w-full" onClick={onLater}>
+              Do this later
+            </Button>
+          )}
+        </div>
+      )}
+
+      {phase === "done" && (
+        <p className="flex items-center justify-center gap-2 text-sm font-medium text-emerald-600">
+          <Check className="h-4 w-4" /> Live photo saved
+        </p>
+      )}
+    </div>
+  );
+}

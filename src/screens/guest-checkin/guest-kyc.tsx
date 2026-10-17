@@ -9,6 +9,7 @@ import { IverifiLogo } from "@/components/iverifi-logo";
 import { HotelBadge } from "@/components/hotel-badge";
 import { ForeignPassportDialog } from "@/components/foreign-passport-dialog";
 import { ManualIdUploadDialog } from "@/components/manual-id-upload-dialog";
+import { LivePhotoGate } from "@/components/live-photo-gate";
 import {
   Dialog,
   DialogContent,
@@ -785,6 +786,7 @@ export default function GuestDocSelect({
       </div>
     </div>
 
+    <LivePhotoGate />
     <ForeignPassportDialog
       open={foreignPassportOpen}
       onSave={handleForeignPassportSave}

@@ -136,6 +136,13 @@ export default function PrivacyPage() {
                 <strong>Requester Information:</strong> Name and identifier of hotel/institution
                 where verification was initiated
               </li>
+              <li>
+                <strong>Live Photo:</strong> After a document is verified we ask you to take a live
+                photo (you look at the camera, blink and turn your head). We keep a small private
+                copy of your face and a secure face template made from it, so you can be verified
+                in future. They are never public, are shown only to you, and you can delete them at
+                any time from the home screen. They are also deleted when you delete your account.
+              </li>
             </ul>
 
             <h3 className="text-lg sm:text-xl font-bold text-foreground mt-4 sm:mt-6 mb-2 sm:mb-3">

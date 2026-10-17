@@ -20,6 +20,7 @@ import {
 // import { CFormDialog } from "@/components/c-form-dialog";
 // import type { CFormData, CFormPassportData } from "@/components/c-form-dialog";
 import { ForeignPassportDialog } from "@/components/foreign-passport-dialog";
+import { LivePhotoCard } from "@/components/live-photo-card";
 import { methodsFor, providerLabel, verifiedViaLabel, METHOD_LABEL } from "@/utils/verificationSource";
 import type { VerifyMethod } from "@/utils/verificationSource";
 import { digilockerErrorMessage, alsoSavedMessage } from "@/utils/digilockerErrors";
@@ -1865,6 +1866,8 @@ const Connections = () => {
                 Add Document
               </Button>
             </div>
+
+            <LivePhotoCard />
 
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               {HOME_DOCUMENT_TYPES.map((docType) => {
