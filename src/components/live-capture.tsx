@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Camera, Check, Loader2, RotateCcw, ShieldCheck } from "lucide-react";
+import { ArrowLeft, ArrowRight, Camera, Check, Eye, Loader2, RotateCcw, ScanFace, ShieldCheck, Smartphone, Sun } from "lucide-react";
 import type { FaceLandmarker } from "@mediapipe/tasks-vision";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -59,6 +59,17 @@ function loadLandmarker(): Promise<FaceLandmarker> {
 }
 
 class CameraProblem extends Error {}
+
+// The oval guide as a path from the top, clockwise, in a 100 x 133.33 box: 62% wide, 74% tall, centred (the same oval that is cut out of the dimming).
+const RING = "M50 17.3 A31 49.3 0 0 1 50 115.9 A31 49.3 0 0 1 50 17.3";
+
+function ActionIcon({ action }: { action?: Action }) {
+  const cls = "h-5 w-5";
+  if (action === "blink") return <Eye className={cls} />;
+  if (action === "turn_left") return <ArrowLeft className={cls} />; // the picture is mirrored, so "your left" is the left of the screen
+  if (action === "turn_right") return <ArrowRight className={cls} />;
+  return <ScanFace className={cls} />;
+}
 
 function friendlyError(e: unknown): string {
   if (e instanceof CameraProblem) return e.message;
@@ -191,7 +202,14 @@ export function LiveCapture({ onDone, onLater }: Props) {
         shownProgress = nextProgress;
         setProgress(nextProgress);
       }
-      if (s.event === "step_done") setStepIndex(runner.index);
+      if (s.event === "step_done") {
+        setStepIndex(runner.index);
+        try {
+          navigator.vibrate?.(30); // a small tap on phones that support it
+        } catch {
+          /* not supported */
+        }
+      }
       if (s.event === "all_done") {
         stopped = true;
         setStepIndex(runner.steps.length);
@@ -304,6 +322,9 @@ export function LiveCapture({ onDone, onLater }: Props) {
     }
   }, [consentInfo, createChallenge, ensureCamera, stopCamera]);
 
+  // one ring for the whole check: finished steps plus how far the current step is
+  const overall = steps.length ? Math.min(1, (stepIndex + (stepIndex >= steps.length ? 0 : progress)) / steps.length) : 0;
+
   const showCamera = phase === "loading" || phase === "running" || phase === "submitting";
 
   return (
@@ -321,6 +342,20 @@ export function LiveCapture({ onDone, onLater }: Props) {
             </div>
           ) : (
             <>
+              <ul className="grid grid-cols-3 gap-2 text-center text-[11px] leading-tight text-muted-foreground">
+                <li className="rounded-xl border border-border bg-muted/40 p-2">
+                  <Sun className="mx-auto mb-1 h-4 w-4 text-amber-500" />
+                  Good, even light on your face
+                </li>
+                <li className="rounded-xl border border-border bg-muted/40 p-2">
+                  <ScanFace className="mx-auto mb-1 h-4 w-4 text-[var(--iverifi-accent)]" />
+                  No mask, cap or dark glasses
+                </li>
+                <li className="rounded-xl border border-border bg-muted/40 p-2">
+                  <Smartphone className="mx-auto mb-1 h-4 w-4 text-sky-500" />
+                  Hold the phone at eye level
+                </li>
+              </ul>
               <div className="flex items-start gap-3 rounded-2xl border border-border bg-muted/40 p-4">
                 <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-[var(--iverifi-accent)]" />
                 <div className="space-y-2 text-sm text-muted-foreground">
@@ -342,40 +377,65 @@ export function LiveCapture({ onDone, onLater }: Props) {
         </div>
       )}
 
-      <div className={showCamera ? "relative mx-auto aspect-[3/4] w-full max-w-xs overflow-hidden rounded-3xl bg-black" : "hidden"}>
+      <div className={showCamera ? "relative mx-auto aspect-[3/4] w-full max-w-xs overflow-hidden rounded-3xl bg-black shadow-lg ring-1 ring-black/10" : "hidden"}>
         <video ref={videoRef} playsInline muted className="h-full w-full object-cover" style={{ transform: "scaleX(-1)" }} />
-        {/* the oval guide: everything outside it is dimmed */}
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute left-1/2 top-1/2 h-[74%] w-[62%] -translate-x-1/2 -translate-y-1/2 rounded-[50%] border-4 transition-colors"
-          style={{ boxShadow: "0 0 0 9999px rgba(0,0,0,0.55)", borderColor: progress >= 1 ? "#10b981" : "rgba(255,255,255,0.85)" }}
-        />
+        {/* everything outside the oval is dimmed */}
+        <div aria-hidden="true" className="pointer-events-none absolute left-1/2 top-1/2 h-[74%] w-[62%] -translate-x-1/2 -translate-y-1/2 rounded-[50%]" style={{ boxShadow: "0 0 0 9999px rgba(0,0,0,0.55)" }} />
+        {/* the oval doubles as the progress ring for the whole check; it turns green when everything is captured */}
+        <svg aria-hidden="true" viewBox="0 0 100 133.33" className="pointer-events-none absolute inset-0 h-full w-full">
+          <path d={RING} fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="1.6" />
+          <path
+            d={RING}
+            fill="none"
+            pathLength={100}
+            stroke={overall >= 1 ? "#10b981" : "#2dd4bf"}
+            strokeWidth="2.4"
+            strokeLinecap="round"
+            strokeDasharray="100"
+            strokeDashoffset={100 - Math.round(overall * 100)}
+            style={{ transition: "stroke-dashoffset 250ms linear, stroke 300ms" }}
+          />
+        </svg>
+
         {phase === "loading" && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/60 text-sm text-white">
-            <Loader2 className="h-6 w-6 animate-spin" /> Getting ready…
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/70 px-6 text-center text-sm text-white">
+            <Loader2 className="h-7 w-7 animate-spin" />
+            <p className="font-medium">Starting the camera…</p>
+            <p className="text-xs text-white/70">The first time can take a few seconds.</p>
           </div>
         )}
+
+        {phase === "running" && (
+          <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/55 to-transparent px-4 pb-4 pt-12 text-center text-white">
+            <div className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-white/15 backdrop-blur motion-safe:animate-pulse">
+              <ActionIcon action={steps[stepIndex]} />
+            </div>
+            <p aria-live="polite" className="text-base font-semibold leading-snug drop-shadow">
+              {hint}
+            </p>
+          </div>
+        )}
+
         {phase === "submitting" && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/60 text-sm text-white">
-            <Loader2 className="h-6 w-6 animate-spin" /> Checking your photo…
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/75 px-6 text-center text-sm text-white">
+            <Loader2 className="h-7 w-7 animate-spin" />
+            <p className="font-medium">Checking your photo…</p>
+            <p className="text-xs text-white/70">Please hold still, this takes a moment.</p>
           </div>
         )}
       </div>
 
       {phase === "running" && (
-        <div className="space-y-3 text-center">
-          <p aria-live="polite" className="min-h-[2.5rem] text-base font-semibold text-foreground">
-            {hint}
+        <div className="space-y-2 text-center">
+          <p className="text-xs font-medium text-muted-foreground">
+            Step {Math.min(stepIndex + 1, steps.length)} of {steps.length}
           </p>
-          <div className="mx-auto h-1.5 w-full max-w-xs overflow-hidden rounded-full bg-muted">
-            <div className="h-full rounded-full bg-[var(--iverifi-accent)] transition-all" style={{ width: `${Math.round(progress * 100)}%` }} />
-          </div>
           <ol className="flex items-center justify-center gap-2 text-xs">
             {steps.map((a, i) => (
               <li
                 key={`${a}-${i}`}
-                className={`flex items-center gap-1 rounded-full border px-2.5 py-1 ${
-                  i < stepIndex ? "border-emerald-500/40 text-emerald-600" : i === stepIndex ? "border-[var(--iverifi-accent)] text-foreground" : "border-border text-muted-foreground"
+                className={`flex items-center gap-1 rounded-full border px-2.5 py-1 transition-colors ${
+                  i < stepIndex ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-600" : i === stepIndex ? "border-[var(--iverifi-accent)] bg-[var(--iverifi-accent)]/10 text-foreground" : "border-border text-muted-foreground"
                 }`}
               >
                 {i < stepIndex && <Check className="h-3 w-3" />}
@@ -409,9 +469,13 @@ export function LiveCapture({ onDone, onLater }: Props) {
       )}
 
       {phase === "done" && (
-        <p className="flex items-center justify-center gap-2 text-sm font-medium text-emerald-600">
-          <Check className="h-4 w-4" /> Live photo saved
-        </p>
+        <div className="flex flex-col items-center gap-2 py-6 text-center">
+          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500/15">
+            <Check className="h-9 w-9 text-emerald-500" />
+          </div>
+          <p className="text-base font-semibold text-foreground">Live photo saved</p>
+          <p className="text-xs text-muted-foreground">It is now your profile picture.</p>
+        </div>
       )}
     </div>
   );

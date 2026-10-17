@@ -15,6 +15,7 @@ interface Profile {
   email: string;
   phone: string;
   dob: string;
+  dobSource: string;
 }
 
 interface CredentialRow {
@@ -40,13 +41,14 @@ const initialsOf = (name: string) => {
   return (parts.length >= 2 ? `${parts[0][0]}${parts[parts.length - 1][0]}` : parts[0].slice(0, 2)).toUpperCase();
 };
 
-function Detail({ icon: Icon, label, value }: { icon: typeof Mail; label: string; value: string }) {
+function Detail({ icon: Icon, label, value, hint }: { icon: typeof Mail; label: string; value: string; hint?: string }) {
   return (
     <div className="flex items-center gap-3 rounded-2xl border border-border/60 bg-muted/40 p-3.5">
       <Icon className="h-4 w-4 shrink-0 text-teal-600" />
       <div className="min-w-0">
         <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{label}</span>
         <div className="truncate text-sm font-semibold text-foreground">{value || "Not added"}</div>
+        {value && hint && <div className="text-[10px] text-muted-foreground">{hint}</div>}
       </div>
     </div>
   );
@@ -68,10 +70,10 @@ export default function ProfilePage() {
       .then((p) => {
         if (cancelled) return;
         const name = [text(p.firstName), text(p.lastName)].filter(Boolean).join(" ") || text(p.name) || user?.displayName || "";
-        setProfile({ name, email: text(p.email) || user?.email || "", phone: text(p.phone) || text(p.phoneNumber) || user?.phoneNumber || "", dob: asDdMmYyyy(text(p.dob)) });
+        setProfile({ name, email: text(p.email) || user?.email || "", phone: text(p.phone) || text(p.phoneNumber) || user?.phoneNumber || "", dob: asDdMmYyyy(text(p.dob)), dobSource: text(p.dob_source) });
       })
       .catch(() => {
-        if (!cancelled) setProfile({ name: user?.displayName || "", email: user?.email || "", phone: user?.phoneNumber || "", dob: "" });
+        if (!cancelled) setProfile({ name: user?.displayName || "", email: user?.email || "", phone: user?.phoneNumber || "", dob: "", dobSource: "" });
       });
     return () => {
       cancelled = true;
@@ -102,7 +104,7 @@ export default function ProfilePage() {
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Detail icon={Mail} label="Email" value={profile?.email ?? ""} />
           <Detail icon={Phone} label="Mobile" value={profile?.phone ?? ""} />
-          <Detail icon={CalendarDays} label="Date of birth" value={profile?.dob ?? ""} />
+          <Detail icon={CalendarDays} label="Date of birth" value={profile?.dob ?? ""} hint={profile?.dobSource ? `From your verified ${profile.dobSource}` : undefined} />
         </div>
       </section>
 
