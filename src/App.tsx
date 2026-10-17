@@ -10,6 +10,7 @@ import MyActivity from "./screens/my_activity";
 import Login from "./screens/login_screen";
 import Signup from "./screens/signup_screen";
 import UserData from "./screens/user_data";
+import Profile from "./screens/profile";
 import ProfileCompletion from "./screens/profile_completion";
 import AgeCheckScreen from "./screens/age_check_screen";
 import TermsAcceptance from "./screens/terms_acceptance";
@@ -46,6 +47,7 @@ const App = () => {
           >
             <Route path="/" element={<Connections />} />
             <Route path="/home" element={<Connections />} />
+            <Route path="/profile" element={<Profile />} />
             <Route path="/user-data" element={<UserData />} />
             <Route
               path="/age-check"

@@ -17,6 +17,7 @@ export const api = createApi({
     "credentials",
     "activity",
     "familyCredentials",
+    "livePhoto",
   ],
   endpoints: (builder) => ({
     getCredentials: builder.query<any, void>({
@@ -399,6 +400,64 @@ export const api = createApi({
     >({
       query: () => ({ url: "/users/verification/routes", method: "GET" }),
     }),
+    // ---- live photo (a current picture of the person, taken after a document is verified) ----
+    getLivePhotoStatus: builder.query<
+      {
+        status: number;
+        data: {
+          has_live_photo: boolean;
+          expired: boolean;
+          required: boolean;
+          captured_at: number | null;
+          expires_at: number | null;
+          valid_days: number;
+          /** how many of the person's documents have not been checked against the current live photo yet */
+          documents_to_check: number;
+          /** the exact consent wording to show (written on the server, so what is recorded is what the person saw) */
+          consent: { version: string; title: string; paragraphs: string[]; checkbox: string };
+        };
+      },
+      void
+    >({
+      query: () => ({ url: "/users/live-photo/status", method: "GET" }),
+      providesTags: ["livePhoto"],
+    }),
+    createLivePhotoChallenge: builder.mutation<
+      { status: number; data: { challenge_id: string; steps: ("straight" | "blink" | "turn_left" | "turn_right")[]; expires_in_s: number } },
+      void
+    >({
+      query: () => ({ url: "/users/live-photo/challenge", method: "POST" }),
+    }),
+    submitLivePhoto: builder.mutation<
+      { status: number; data: { photo_id: string; captured_at: number; expires_at: number } },
+      {
+        challenge_id: string;
+        consent: true;
+        consent_version: string;
+        steps: { action: "straight" | "blink" | "turn_left" | "turn_right"; passed: boolean; frames: string[] }[];
+        photo_frames: string[];
+        crop: string;
+      }
+    >({
+      query: (body) => ({ url: "/users/live-photo/submit", method: "POST", body }),
+      invalidatesTags: ["livePhoto"],
+    }),
+    bindLivePhotoDocuments: builder.mutation<{ status: number; data: { checked: number; results: { credential_id: string; document_type: string | null; decision: string }[] } }, void>({
+      query: () => ({ url: "/users/live-photo/bind", method: "POST" }),
+      invalidatesTags: ["credentials", "livePhoto"],
+    }),
+    confirmDocumentPhoto: builder.mutation<{ status: number; data: { credential_id: string; is_me: boolean; date: string } }, { credential_id: string; is_me: boolean }>({
+      query: (body) => ({ url: "/users/live-photo/confirm-document", method: "POST", body }),
+      invalidatesTags: ["credentials"],
+    }),
+    getLivePhotoImage: builder.query<{ status: number; data: { image: string } }, void>({
+      query: () => ({ url: "/users/live-photo/image", method: "GET" }),
+      providesTags: ["livePhoto"],
+    }),
+    deleteLivePhoto: builder.mutation<{ status: number; message: string }, void>({
+      query: () => ({ url: "/users/live-photo", method: "DELETE" }),
+      invalidatesTags: ["livePhoto"],
+    }),
     markKycStarted: builder.mutation<
       { hasError: boolean; message: string },
       { credential_request_id: string; session_id: string; document_type: string }
@@ -414,6 +473,13 @@ export const api = createApi({
 export const {
   useGetCredentialsQuery,
   useGetVerificationRoutesQuery,
+  useGetLivePhotoStatusQuery,
+  useCreateLivePhotoChallengeMutation,
+  useSubmitLivePhotoMutation,
+  useBindLivePhotoDocumentsMutation,
+  useConfirmDocumentPhotoMutation,
+  useGetLivePhotoImageQuery,
+  useDeleteLivePhotoMutation,
   useCreateCredentialMutation,
   usePatchCredentialTypeMutation,
   useDeleteCredentialMutation,

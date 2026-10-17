@@ -9,6 +9,7 @@ import { Sun, Moon } from "lucide-react";
 import { useTheme } from "@/context/theme_context";
 import { useAuth } from "@/context/auth_context";
 import { PinLockScreen } from "@/components/pin-lock-screen";
+import { LivePhotoGate } from "@/components/live-photo-gate";
 import { useEffect, useLayoutEffect } from "react";
 import { setPinScreenOpen } from "@/utils/pin";
 
@@ -84,6 +85,9 @@ const ProtectedLayout = () => {
 
       {showBottomNav && <BottomNav />}
       {showBottomNav && <SupportWidget />}
+
+      {/* the live photo is required once a document is verified (not while the PIN screen is up or during onboarding) */}
+      {!showPinScreen && !isOnboardingPath && user && <LivePhotoGate />}
 
       {/* PIN lock / setup overlay */}
       {showPinScreen && user && (

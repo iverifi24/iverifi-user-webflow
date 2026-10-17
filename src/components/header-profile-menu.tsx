@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { signOut, linkWithPopup } from "firebase/auth";
-import { ChevronsUpDown, FileText, History, Home, LogOut, Trash2, Users } from "lucide-react";
+import { ChevronsUpDown, FileText, History, Home, LogOut, Trash2, UserRound, Users } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -26,6 +26,7 @@ import { auth, googleProvider } from "@/firebase/firebase_setup";
 import { getApplicantProfileFromBackend } from "@/utils/syncApplicantProfile";
 import { useDeleteProfileMutation } from "@/redux/api";
 import { toast } from "sonner";
+import { useLivePhotoAvatar } from "@/hooks/use-live-photo-avatar";
 
 export function HeaderProfileMenu() {
   const navigate = useNavigate();
@@ -34,6 +35,7 @@ export function HeaderProfileMenu() {
   const [userEmail, setUserEmail] = useState<string>("no-email");
   const [userPhone, setUserPhone] = useState<string>("");
   const [userAvatar, setUserAvatar] = useState<string>("");
+  const livePhoto = useLivePhotoAvatar(); // the live photo is the avatar once there is one; the Google photo or initials until then
   const [hasGoogleLinked, setHasGoogleLinked] = useState<boolean>(false);
   const [deleteProfileOpen, setDeleteProfileOpen] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
@@ -174,7 +176,7 @@ export function HeaderProfileMenu() {
           className="relative h-10 gap-2 px-2 text-foreground hover:bg-accent hover:text-accent-foreground data-[state=open]:bg-accent data-[state=open]:text-accent-foreground"
         >
           <Avatar className="h-8 w-8 rounded-lg border border-border">
-            <AvatarImage src={userAvatar} alt={userName} />
+            <AvatarImage src={livePhoto || userAvatar} alt={userName} />
             <AvatarFallback className="rounded-lg bg-sky-500/20 text-foreground">
               {getInitials(userName)}
             </AvatarFallback>
@@ -196,7 +198,7 @@ export function HeaderProfileMenu() {
         <DropdownMenuLabel className="p-0 font-normal">
           <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
             <Avatar className="h-8 w-8 rounded-lg border border-border">
-              <AvatarImage src={userAvatar} alt={userName} />
+              <AvatarImage src={livePhoto || userAvatar} alt={userName} />
               <AvatarFallback className="rounded-lg bg-sky-500/20 text-foreground">
                 {getInitials(userName)}
               </AvatarFallback>
@@ -215,6 +217,10 @@ export function HeaderProfileMenu() {
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
+        <DropdownMenuItem className="focus:bg-accent focus:text-accent-foreground" onClick={() => navigate("/profile")}>
+          <UserRound className="size-4" />
+          Profile
+        </DropdownMenuItem>
         <DropdownMenuItem className="focus:bg-accent focus:text-accent-foreground" onClick={() => navigate("/connections")}>
           <Home className="size-4" />
           Connections
