@@ -404,7 +404,18 @@ export const api = createApi({
     getLivePhotoStatus: builder.query<
       {
         status: number;
-        data: { has_live_photo: boolean; expired: boolean; required: boolean; captured_at: number | null; expires_at: number | null; valid_days: number };
+        data: {
+          has_live_photo: boolean;
+          expired: boolean;
+          required: boolean;
+          captured_at: number | null;
+          expires_at: number | null;
+          valid_days: number;
+          /** how many of the person's documents have not been checked against the current live photo yet */
+          documents_to_check: number;
+          /** the exact consent wording to show (written on the server, so what is recorded is what the person saw) */
+          consent: { version: string; title: string; paragraphs: string[]; checkbox: string };
+        };
       },
       void
     >({
@@ -422,6 +433,7 @@ export const api = createApi({
       {
         challenge_id: string;
         consent: true;
+        consent_version: string;
         steps: { action: "straight" | "blink" | "turn_left" | "turn_right"; passed: boolean; frames: string[] }[];
         photo_frames: string[];
         crop: string;
@@ -429,6 +441,10 @@ export const api = createApi({
     >({
       query: (body) => ({ url: "/users/live-photo/submit", method: "POST", body }),
       invalidatesTags: ["livePhoto"],
+    }),
+    bindLivePhotoDocuments: builder.mutation<{ status: number; data: { checked: number; results: { credential_id: string; document_type: string | null; decision: string }[] } }, void>({
+      query: () => ({ url: "/users/live-photo/bind", method: "POST" }),
+      invalidatesTags: ["credentials", "livePhoto"],
     }),
     getLivePhotoImage: builder.query<{ status: number; data: { image: string } }, void>({
       query: () => ({ url: "/users/live-photo/image", method: "GET" }),
@@ -456,6 +472,7 @@ export const {
   useGetLivePhotoStatusQuery,
   useCreateLivePhotoChallengeMutation,
   useSubmitLivePhotoMutation,
+  useBindLivePhotoDocumentsMutation,
   useGetLivePhotoImageQuery,
   useDeleteLivePhotoMutation,
   useCreateCredentialMutation,

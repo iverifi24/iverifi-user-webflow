@@ -26,6 +26,10 @@ export function LivePhotoCard() {
   const [capturing, setCapturing] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
+  const checks = ((creds?.data?.credential ?? []) as { photo_check?: string | null }[]).map((x) => x.photo_check);
+  const noMatch = checks.filter((x) => x === "no_match").length;
+  const needsReview = checks.filter((x) => x === "second_check").length;
+
   if (!info || (!hasVerified && !has)) return null;
 
   const onDelete = async () => {
@@ -52,6 +56,14 @@ export function LivePhotoCard() {
             </p>
           ) : (
             <p className="text-xs text-muted-foreground">Needed to finish verifying your documents.</p>
+          )}
+          {has && noMatch > 0 && (
+            <p className="mt-1 text-xs text-red-500">
+              {noMatch === 1 ? "The photo on one of your documents does not look like your live photo." : `The photos on ${noMatch} of your documents do not look like your live photo.`} If it is you, retake your live photo in good light.
+            </p>
+          )}
+          {has && noMatch === 0 && needsReview > 0 && (
+            <p className="mt-1 text-xs text-amber-500">A document photo looks different from your live photo (often because it is old). A staff member may compare it in person.</p>
           )}
         </div>
         <div className="flex shrink-0 items-center gap-1.5">

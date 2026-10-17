@@ -21,6 +21,7 @@ import {
 // import type { CFormData, CFormPassportData } from "@/components/c-form-dialog";
 import { ForeignPassportDialog } from "@/components/foreign-passport-dialog";
 import { LivePhotoCard } from "@/components/live-photo-card";
+import { PhotoCheckChip } from "@/components/photo-check-chip";
 import { methodsFor, providerLabel, verifiedViaLabel, METHOD_LABEL } from "@/utils/verificationSource";
 import type { VerifyMethod } from "@/utils/verificationSource";
 import { digilockerErrorMessage, alsoSavedMessage } from "@/utils/digilockerErrors";
@@ -1921,12 +1922,15 @@ const Connections = () => {
 
                     {/* Card Footer: Status & Action */}
                     <div className="flex items-center justify-between pt-2.5 border-t border-white/15 text-xs">
-                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/20 border border-emerald-400/30 px-2 py-0.5 text-[10px] font-bold text-emerald-300">
-                        <CheckCircle className="h-3 w-3" />
-                        {verifiedViaLabel(verifiedCredentialsMap[docType]?.verified_via)
-                          ? `Verified via ${verifiedViaLabel(verifiedCredentialsMap[docType]?.verified_via)}`
-                          : "Verified"}
-                      </span>
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/20 border border-emerald-400/30 px-2 py-0.5 text-[10px] font-bold text-emerald-300">
+                          <CheckCircle className="h-3 w-3" />
+                          {verifiedViaLabel(verifiedCredentialsMap[docType]?.verified_via)
+                            ? `Verified via ${verifiedViaLabel(verifiedCredentialsMap[docType]?.verified_via)}`
+                            : "Verified"}
+                        </span>
+                        <PhotoCheckChip decision={verifiedCredentialsMap[docType]?.photo_check} />
+                      </div>
                       <span className="inline-flex items-center text-[11px] font-semibold text-teal-300 group-hover:translate-x-1 transition-transform">
                         Inspect Card <ChevronRight className="h-3.5 w-3.5 ml-0.5" />
                       </span>

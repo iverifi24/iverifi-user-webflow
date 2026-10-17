@@ -3,7 +3,7 @@ import { Camera, Check, Loader2, RotateCcw, ShieldCheck } from "lucide-react";
 import type { FaceLandmarker } from "@mediapipe/tasks-vision";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useCreateLivePhotoChallengeMutation, useSubmitLivePhotoMutation } from "@/redux/api";
+import { useCreateLivePhotoChallengeMutation, useGetLivePhotoStatusQuery, useSubmitLivePhotoMutation } from "@/redux/api";
 import { LivenessRunner, PROMPTS, metricsFromLandmarks } from "@/lib/liveness";
 import type { Action, Metrics, RunnerState } from "@/lib/liveness";
 import { cropJpeg, grabJpeg } from "@/lib/capture-frames";
@@ -28,16 +28,20 @@ const SMALL = { maxSide: 640, quality: 0.7 }; // step frames: big enough for the
 const PHOTO = { maxSide: 1280, quality: 0.92 }; // the full-quality frames the face template is made from
 const CROP = { scale: 1.4, maxSide: 640, quality: 0.8 }; // the only picture that is kept: the face, compressed
 
+// Versioned folder: what is in it never changes, so the browser can keep it for a year. When the library or model is upgraded the
+// folder (and this number) changes. scripts/copy-mediapipe.mjs refuses to run if the installed library has a different version.
+export const MEDIAPIPE_BASE = "/mediapipe/1.1.1";
+
 // The face-landmark model is loaded once and reused (loading it is the slow part).
 let landmarkerPromise: Promise<FaceLandmarker> | null = null;
 function loadLandmarker(): Promise<FaceLandmarker> {
   if (!landmarkerPromise) {
     landmarkerPromise = (async () => {
       const { FaceLandmarker: FL, FilesetResolver } = await import("@mediapipe/tasks-vision");
-      const fileset = await FilesetResolver.forVisionTasks("/mediapipe/wasm");
+      const fileset = await FilesetResolver.forVisionTasks(`${MEDIAPIPE_BASE}/wasm`);
       const make = (delegate: "GPU" | "CPU") =>
         FL.createFromOptions(fileset, {
-          baseOptions: { modelAssetPath: "/mediapipe/face_landmarker.task", delegate },
+          baseOptions: { modelAssetPath: `${MEDIAPIPE_BASE}/face_landmarker.task`, delegate },
           runningMode: "VIDEO",
           numFaces: 2, // two faces in the picture is refused
         });
@@ -96,6 +100,10 @@ export function LiveCapture({ onDone, onLater }: Props) {
 
   const [createChallenge] = useCreateLivePhotoChallengeMutation();
   const [submit] = useSubmitLivePhotoMutation();
+  // the consent wording comes from the server: what is shown is exactly what is recorded
+  const { data: statusData, refetch: refetchStatus } = useGetLivePhotoStatusQuery();
+  const consentInfo = statusData?.data?.consent;
+  const consentVersionRef = useRef("");
 
   const stopCamera = useCallback(() => {
     streamRef.current?.getTracks().forEach((t) => t.stop());
@@ -137,6 +145,7 @@ export function LiveCapture({ onDone, onLater }: Props) {
       await submit({
         challenge_id: challengeIdRef.current,
         consent: true,
+        consent_version: consentVersionRef.current,
         steps: runner.steps.map((action) => ({ action, passed: true, frames: c.frames[action] ?? [] })),
         photo_frames: c.photoFrames,
         crop: c.crop,
@@ -144,10 +153,18 @@ export function LiveCapture({ onDone, onLater }: Props) {
       setPhase("done");
       onDone();
     } catch (e) {
+      if ((e as { data?: { code?: string } })?.data?.code === "CONSENT_OUTDATED") {
+        // the wording changed while the person was on this screen: show the new text and ask again
+        setConsent(false);
+        void refetchStatus();
+        setError(friendlyError(e));
+        setPhase("consent");
+        return;
+      }
       setError(friendlyError(e));
       setPhase("error");
     }
-  }, [onDone, stopCamera, submit]);
+  }, [onDone, refetchStatus, stopCamera, submit]);
 
   // the camera loop: detect a face about 14 times a second and feed the liveness logic
   useEffect(() => {
@@ -264,6 +281,8 @@ export function LiveCapture({ onDone, onLater }: Props) {
   }, [phase, finish]);
 
   const begin = useCallback(async () => {
+    if (!consentInfo) return;
+    consentVersionRef.current = consentInfo.version;
     setError("");
     setCameraBlocked(false);
     setPhase("loading");
@@ -287,7 +306,7 @@ export function LiveCapture({ onDone, onLater }: Props) {
       setError(friendlyError(e));
       setPhase("error");
     }
-  }, [createChallenge, ensureCamera, stopCamera]);
+  }, [consentInfo, createChallenge, ensureCamera, stopCamera]);
 
   const showCamera = phase === "loading" || phase === "running" || phase === "submitting";
 
@@ -295,27 +314,35 @@ export function LiveCapture({ onDone, onLater }: Props) {
     <div className="space-y-4">
       {phase === "consent" && (
         <div className="space-y-4">
-          <div className="flex items-start gap-3 rounded-2xl border border-border bg-muted/40 p-4">
-            <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-[var(--iverifi-accent)]" />
-            <div className="space-y-2 text-sm text-muted-foreground">
-              <p className="font-medium text-foreground">Take a quick live photo</p>
-              <p>
-                Government documents show an old photo. A current photo lets you prove it is really you. You will be asked to look at the camera, blink once and
-                turn your head.
-              </p>
-              <p>
-                We keep a small private copy of your face and a secure face template, only so it can be used to verify you in future. They are never shared
-                publicly, and you can delete them at any time.
-              </p>
+          {error && (
+            <p role="alert" className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-600">
+              {error}
+            </p>
+          )}
+          {!consentInfo ? (
+            <div className="flex justify-center py-6">
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
             </div>
-          </div>
-          <label className="flex items-start gap-2 text-sm text-muted-foreground">
-            <Checkbox checked={consent} onCheckedChange={(v) => setConsent(v === true)} className="mt-0.5" />
-            <span>I agree to iVerifi keeping a small photo of my face and a face template to verify me.</span>
-          </label>
-          <Button variant="brand" className="h-11 w-full" disabled={!consent} onClick={() => void begin()}>
-            <Camera className="h-4 w-4" /> Start
-          </Button>
+          ) : (
+            <>
+              <div className="flex items-start gap-3 rounded-2xl border border-border bg-muted/40 p-4">
+                <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-[var(--iverifi-accent)]" />
+                <div className="space-y-2 text-sm text-muted-foreground">
+                  <p className="font-medium text-foreground">{consentInfo.title}</p>
+                  {consentInfo.paragraphs.map((p, i) => (
+                    <p key={i}>{p}</p>
+                  ))}
+                </div>
+              </div>
+              <label className="flex items-start gap-2 text-sm text-muted-foreground">
+                <Checkbox checked={consent} onCheckedChange={(v) => setConsent(v === true)} className="mt-0.5" />
+                <span>{consentInfo.checkbox}</span>
+              </label>
+              <Button variant="brand" className="h-11 w-full" disabled={!consent} onClick={() => void begin()}>
+                <Camera className="h-4 w-4" /> Start
+              </Button>
+            </>
+          )}
         </div>
       )}
 

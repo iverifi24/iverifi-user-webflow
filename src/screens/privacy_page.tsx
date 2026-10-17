@@ -139,8 +139,8 @@ export default function PrivacyPage() {
               <li>
                 <strong>Live Photo:</strong> After a document is verified we ask you to take a live
                 photo (you look at the camera, blink and turn your head). We keep a small private
-                copy of your face and a secure face template made from it, so you can be verified
-                in future. They are never public, are shown only to you, and you can delete them at
+                copy of your face and a secure face template made from it, to check that the photo on
+                your documents is you and so you can be verified in future. They are never public, are shown only to you, and you can delete them at
                 any time from the home screen. They are also deleted when you delete your account.
               </li>
             </ul>

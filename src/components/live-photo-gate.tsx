@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { LiveCapture } from "@/components/live-capture";
-import { useGetCredentialsQuery, useGetLivePhotoStatusQuery } from "@/redux/api";
+import { useBindLivePhotoDocumentsMutation, useGetCredentialsQuery, useGetLivePhotoStatusQuery } from "@/redux/api";
 
 interface CredentialLike {
   verification_status?: string;
@@ -19,6 +19,22 @@ export function LivePhotoGate() {
   const hasVerified = ((creds?.data?.credential ?? []) as CredentialLike[]).some((c) => c.verification_status === "auto_approved" || c.state === "auto_approved");
   const { data: status } = useGetLivePhotoStatusQuery(undefined, { skip: !hasVerified });
   const [later, setLater] = useState(false);
+
+  // A document verified AFTER the live photo was taken is checked against it, quietly, as soon as this page sees it.
+  const [bind] = useBindLivePhotoDocumentsMutation();
+  const binding = useRef(false);
+  const toCheck = status?.data?.documents_to_check ?? 0;
+  const canBind = hasVerified && !!status?.data?.has_live_photo && !status.data.expired;
+  useEffect(() => {
+    if (!canBind || toCheck < 1 || binding.current) return;
+    binding.current = true;
+    bind()
+      .unwrap()
+      .catch(() => undefined) // not fatal: it is tried again the next time this page loads
+      .finally(() => {
+        binding.current = false;
+      });
+  }, [canBind, toCheck, bind]);
 
   const open = hasVerified && !!status?.data?.required && !later;
 
