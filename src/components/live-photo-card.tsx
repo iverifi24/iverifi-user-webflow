@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { LiveCapture } from "@/components/live-capture";
+import { DocumentPhotoQuestion, unansweredDocuments, type QuestionCredential } from "@/components/document-photo-question";
 import { useDeleteLivePhotoMutation, useGetCredentialsQuery, useGetLivePhotoImageQuery, useGetLivePhotoStatusQuery } from "@/redux/api";
 
 const day = (ms: number | null | undefined) => (ms ? format(new Date(ms), "dd-MM-yyyy") : "—");
@@ -26,7 +27,9 @@ export function LivePhotoCard() {
   const [capturing, setCapturing] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
-  const checks = ((creds?.data?.credential ?? []) as { photo_check?: string | null }[]).map((x) => x.photo_check);
+  const credList = (creds?.data?.credential ?? []) as QuestionCredential[];
+  const toAsk = has && !info?.expired ? unansweredDocuments(credList) : [];
+  const checks = credList.filter((x) => x.photo_user_answer == null).map((x) => x.photo_check);
   const noMatch = checks.filter((x) => x === "no_match").length;
   const needsReview = checks.filter((x) => x === "second_check").length;
 
@@ -58,8 +61,9 @@ export function LivePhotoCard() {
             <p className="text-xs text-muted-foreground">Needed to finish verifying your documents.</p>
           )}
           {has && noMatch > 0 && (
-            <p className="mt-1 text-xs text-red-500">
-              {noMatch === 1 ? "The photo on one of your documents does not look like your live photo." : `The photos on ${noMatch} of your documents do not look like your live photo.`} If it is you, retake your live photo in good light.
+            <p className="mt-1 text-xs text-orange-500">
+              {noMatch === 1 ? "We could not confirm the photo on one of your documents." : `We could not confirm the photos on ${noMatch} of your documents.`} This is common with older photos, and nothing is
+              blocked. Retaking your live photo in good light can help.
             </p>
           )}
           {has && noMatch === 0 && needsReview > 0 && (
@@ -77,6 +81,8 @@ export function LivePhotoCard() {
           )}
         </div>
       </div>
+
+      <DocumentPhotoQuestion docs={toAsk} liveImage={image?.data?.image} />
 
       <Dialog open={capturing} onOpenChange={(o) => !o && setCapturing(false)}>
         <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-md">

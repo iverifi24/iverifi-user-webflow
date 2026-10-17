@@ -446,6 +446,10 @@ export const api = createApi({
       query: () => ({ url: "/users/live-photo/bind", method: "POST" }),
       invalidatesTags: ["credentials", "livePhoto"],
     }),
+    confirmDocumentPhoto: builder.mutation<{ status: number; data: { credential_id: string; is_me: boolean; date: string } }, { credential_id: string; is_me: boolean }>({
+      query: (body) => ({ url: "/users/live-photo/confirm-document", method: "POST", body }),
+      invalidatesTags: ["credentials"],
+    }),
     getLivePhotoImage: builder.query<{ status: number; data: { image: string } }, void>({
       query: () => ({ url: "/users/live-photo/image", method: "GET" }),
       providesTags: ["livePhoto"],
@@ -473,6 +477,7 @@ export const {
   useCreateLivePhotoChallengeMutation,
   useSubmitLivePhotoMutation,
   useBindLivePhotoDocumentsMutation,
+  useConfirmDocumentPhotoMutation,
   useGetLivePhotoImageQuery,
   useDeleteLivePhotoMutation,
   useCreateCredentialMutation,
