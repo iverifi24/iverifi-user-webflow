@@ -20,6 +20,8 @@ import {
 // import { CFormDialog } from "@/components/c-form-dialog";
 // import type { CFormData, CFormPassportData } from "@/components/c-form-dialog";
 import { ForeignPassportDialog } from "@/components/foreign-passport-dialog";
+import { LivePhotoCard } from "@/components/live-photo-card";
+import { PhotoCheckChip } from "@/components/photo-check-chip";
 import { methodsFor, providerLabel, verifiedViaLabel, METHOD_LABEL } from "@/utils/verificationSource";
 import type { VerifyMethod } from "@/utils/verificationSource";
 import { digilockerErrorMessage, alsoSavedMessage } from "@/utils/digilockerErrors";
@@ -450,14 +452,8 @@ const Connections = () => {
     null,
   );
 
-  // DL choice modal + selfie
+  // DL choice modal
   const [dlDigilockerModalOpen, setDlDigilockerModalOpen] = useState(false);
-  const [dlSelfieModalOpen, setDlSelfieModalOpen] = useState(false);
-  const dlSelfieStreamRef = useRef<MediaStream | null>(null);
-  const dlSelfieVideoRef = useRef<HTMLVideoElement | null>(null);
-  const dlSelfieCanvasRef = useRef<HTMLCanvasElement | null>(null);
-  const [dlSelfieCaptured, setDlSelfieCaptured] = useState<string | null>(null);
-  const [dlSelfieUploading, setDlSelfieUploading] = useState(false);
 
   // helper to robustly pick connection id from addConnection response
   const pickConnectionId = (res: any): string | null => {
@@ -472,24 +468,15 @@ const Connections = () => {
     );
   };
 
-  // Start/stop camera when selfie modal opens/closes
-  useEffect(() => {
-    if (dlSelfieModalOpen) {
-      startDLSelfieCamera();
-    } else {
-      stopDLSelfieCamera();
-      setDlSelfieCaptured(null);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dlSelfieModalOpen]);
-
   // Detect DigiLocker DL redirect on mount (?dl_verified=1 or ?dl_error=...)
   useEffect(() => {
     const dlVerified = searchParams.get("dl_verified");
     const dlError = searchParams.get("dl_error");
     if (!dlVerified && !dlError) return;
     if (dlVerified === "1") {
-      setDlSelfieModalOpen(true); // selfie first; polling starts after selfie submit
+      // the licence is already saved: look for it straight away (the live photo is asked for separately, by the gate)
+      toast.success("Driving licence verified.");
+      void startDLPolling();
     }
     if (dlError) {
       toast.error(digilockerErrorMessage(dlError, "Driving licence"));
@@ -1084,17 +1071,12 @@ const Connections = () => {
         data.type === "iverifi" &&
         data.status === "completed"
       ) {
-        // Check if this was a DL Kwik verification before clearing iframeUrl
-        const wasDLKwik = (iframeUrl || "").includes("productCode=DL");
         toast.success("Verification completed.");
         setIframeUrl(null);
         if (pendingFamilyVerify.current) {
           pendingFamilyVerify.current = false;
           pendingFamilyCredentialId.current = null;
           await refetchFamily();
-        } else if (wasDLKwik) {
-          // DL Kwik path: open selfie modal; polling starts after selfie submit
-          setDlSelfieModalOpen(true);
         } else {
           // Snapshot credential IDs + count before polling so we can find the new doc.
           // Use latestCredentialsRef (not closure value) so a delete-then-reverify scenario
@@ -1566,33 +1548,6 @@ const Connections = () => {
     }
   };
 
-  const startDLSelfieCamera = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
-      dlSelfieStreamRef.current = stream;
-      if (dlSelfieVideoRef.current) dlSelfieVideoRef.current.srcObject = stream;
-      setDlSelfieCaptured(null);
-    } catch {
-      toast.error("Could not access camera. Please allow camera permission.");
-    }
-  };
-
-  const stopDLSelfieCamera = () => {
-    dlSelfieStreamRef.current?.getTracks().forEach((t) => t.stop());
-    dlSelfieStreamRef.current = null;
-  };
-
-  const captureDLSelfie = () => {
-    const video = dlSelfieVideoRef.current;
-    const canvas = dlSelfieCanvasRef.current;
-    if (!video || !canvas) return;
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    canvas.getContext("2d")?.drawImage(video, 0, 0);
-    setDlSelfieCaptured(canvas.toDataURL("image/jpeg", 0.85));
-    stopDLSelfieCamera();
-  };
-
   const startDLPolling = async () => {
     const currentCreds: any[] = latestCredentialsRef.current?.data?.credential ?? [];
     credCountBeforeVerifyRef.current = currentCreds.length;
@@ -1609,48 +1564,6 @@ const Connections = () => {
       autoShareSheetOpenedForCodeRef.current = null;
       processedCodeRef.current = null;
       navigate(`/?code=${savedCode}`, { replace: true });
-    }
-  };
-
-  const handleDLSelfieSubmit = async () => {
-    setDlSelfieUploading(true);
-    try {
-      const currentUser = auth.currentUser;
-      if (dlSelfieCaptured && currentUser) {
-        const res = await fetch(dlSelfieCaptured);
-        const blob = await res.blob();
-        const file = new File([blob], "dl_selfie.jpg", { type: "image/jpeg" });
-        const apiBase = ((import.meta as any).env.VITE_BASE_URL as string || "").replace(/\/$/, "");
-        const form = new FormData();
-        form.append("file", file);
-        form.append("fileType", "dl_selfie");
-        const uploadRes = await fetch(`${apiBase}/users/uploadImage`, {
-          method: "POST",
-          headers: { Authorization: `Bearer ${await currentUser.getIdToken()}` },
-          body: form,
-        });
-        const uploadJson = await uploadRes.json();
-        const s3url: string = uploadJson?.data?.s3url;
-        if (s3url) {
-          await fetch(`${apiBase}/users/updateDLSelfie`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${await currentUser.getIdToken()}`,
-            },
-            body: JSON.stringify({ face_url: s3url }),
-          });
-        }
-      }
-      toast.success("Driving License verified.");
-    } catch {
-      toast.error("Could not save selfie. Continuing anyway.");
-    } finally {
-      setDlSelfieUploading(false);
-      setDlSelfieModalOpen(false);
-      setDlSelfieCaptured(null);
-      stopDLSelfieCamera();
-      await startDLPolling();
     }
   };
 
@@ -1866,6 +1779,8 @@ const Connections = () => {
               </Button>
             </div>
 
+            <LivePhotoCard />
+
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               {HOME_DOCUMENT_TYPES.map((docType) => {
                 const isVerified = !!verifiedCredentialsMap[docType];
@@ -1918,12 +1833,15 @@ const Connections = () => {
 
                     {/* Card Footer: Status & Action */}
                     <div className="flex items-center justify-between pt-2.5 border-t border-white/15 text-xs">
-                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/20 border border-emerald-400/30 px-2 py-0.5 text-[10px] font-bold text-emerald-300">
-                        <CheckCircle className="h-3 w-3" />
-                        {verifiedViaLabel(verifiedCredentialsMap[docType]?.verified_via)
-                          ? `Verified via ${verifiedViaLabel(verifiedCredentialsMap[docType]?.verified_via)}`
-                          : "Verified"}
-                      </span>
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/20 border border-emerald-400/30 px-2 py-0.5 text-[10px] font-bold text-emerald-300">
+                          <CheckCircle className="h-3 w-3" />
+                          {verifiedViaLabel(verifiedCredentialsMap[docType]?.verified_via)
+                            ? `Verified via ${verifiedViaLabel(verifiedCredentialsMap[docType]?.verified_via)}`
+                            : "Verified"}
+                        </span>
+                        <PhotoCheckChip decision={verifiedCredentialsMap[docType]?.photo_check} userAnswer={verifiedCredentialsMap[docType]?.photo_user_answer} />
+                      </div>
                       <span className="inline-flex items-center text-[11px] font-semibold text-teal-300 group-hover:translate-x-1 transition-transform">
                         Inspect Card <ChevronRight className="h-3.5 w-3.5 ml-0.5" />
                       </span>
@@ -3018,85 +2936,6 @@ const Connections = () => {
               onClick={() => { setDlDigilockerModalOpen(false); handleVerifyDocumentKwik("DRIVING_LICENSE"); }}
             >
               No — Scan with camera (Kwik)
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* DL: Selfie capture modal (shown after both DigiLocker and Kwik DL paths) */}
-      <Dialog
-        open={dlSelfieModalOpen}
-        onOpenChange={(open) => {
-          if (!open) {
-            stopDLSelfieCamera();
-            setDlSelfieCaptured(null);
-            // If user dismisses via X without submitting, still start polling
-            if (dlSelfieModalOpen) startDLPolling();
-          }
-          setDlSelfieModalOpen(open);
-        }}
-      >
-        <DialogContent className="max-w-sm rounded-2xl">
-          <DialogHeader>
-            <DialogTitle className="text-base font-bold">Take a Selfie</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3 pt-1 text-center">
-            <p className="text-sm" style={{ color: "var(--iverifi-text-muted)" }}>
-              Please take a quick selfie to complete your DL verification.
-            </p>
-            {!dlSelfieCaptured ? (
-              <>
-                <video
-                  ref={dlSelfieVideoRef}
-                  autoPlay
-                  playsInline
-                  muted
-                  className="w-full rounded-xl"
-                  style={{ maxHeight: 260, background: "#000" }}
-                />
-                <canvas ref={dlSelfieCanvasRef} className="hidden" />
-                <Button
-                  className="w-full rounded-xl"
-                  style={{ background: "var(--iverifi-accent)", color: "var(--iverifi-nav-bg)" }}
-                  onClick={captureDLSelfie}
-                >
-                  Capture
-                </Button>
-              </>
-            ) : (
-              <>
-                <img src={dlSelfieCaptured} alt="selfie preview" className="w-full rounded-xl" />
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    className="flex-1 rounded-xl"
-                    onClick={() => { setDlSelfieCaptured(null); startDLSelfieCamera(); }}
-                  >
-                    Retake
-                  </Button>
-                  <Button
-                    className="flex-1 rounded-xl"
-                    style={{ background: "var(--iverifi-accent)", color: "var(--iverifi-nav-bg)" }}
-                    disabled={dlSelfieUploading}
-                    onClick={handleDLSelfieSubmit}
-                  >
-                    {dlSelfieUploading ? "Saving..." : "Submit"}
-                  </Button>
-                </div>
-              </>
-            )}
-            <Button
-              variant="ghost"
-              className="w-full text-sm"
-              disabled={dlSelfieUploading}
-              onClick={() => {
-                stopDLSelfieCamera();
-                setDlSelfieModalOpen(false);
-                setDlSelfieCaptured(null);
-                startDLPolling();
-              }}
-            >
-              Skip
             </Button>
           </div>
         </DialogContent>
