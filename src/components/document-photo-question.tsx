@@ -1,22 +1,10 @@
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { useConfirmDocumentPhotoMutation } from "@/redux/api";
-
-export interface QuestionCredential {
-  id: string;
-  document_type?: string | null;
-  face_url?: string | null;
-  photo_check?: string | null;
-  photo_user_answer?: boolean | null;
-  is_family_member?: boolean;
-}
+import { unansweredDocuments, type QuestionCredential } from "@/lib/document-photo";
+import { useConfirmDocumentPhotoMutation, useGetCredentialsQuery, useGetLivePhotoImageQuery, useGetLivePhotoStatusQuery } from "@/redux/api";
 
 const label = (t?: string | null) => (t ? t.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase()) : "document");
-
-/** documents whose photo we could not confirm and that the person has not answered about yet */
-export const unansweredDocuments = (creds: QuestionCredential[]) =>
-  creds.filter((c) => !c.is_family_member && c.face_url && (c.photo_check === "second_check" || c.photo_check === "no_match") && c.photo_user_answer == null);
 
 /**
  * "Is this you in the document photo?" - asked when the photo on a document could not be confirmed against the live photo
@@ -68,4 +56,14 @@ export function DocumentPhotoQuestion({ docs, liveImage }: { docs: QuestionCrede
       })}
     </div>
   );
+}
+
+/** the questions for the signed-in person's own documents (used on the home page) */
+export function DocumentPhotoQuestions() {
+  const { data: creds } = useGetCredentialsQuery();
+  const { data: status } = useGetLivePhotoStatusQuery();
+  const has = !!status?.data?.has_live_photo && !status.data.expired;
+  const { data: image } = useGetLivePhotoImageQuery(undefined, { skip: !has });
+  const docs = has ? unansweredDocuments((creds?.data?.credential ?? []) as QuestionCredential[]) : [];
+  return <DocumentPhotoQuestion docs={docs} liveImage={image?.data?.image} />;
 }

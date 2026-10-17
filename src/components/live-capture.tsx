@@ -58,7 +58,7 @@ function loadLandmarker(): Promise<FaceLandmarker> {
   return landmarkerPromise;
 }
 
-class CameraProblem extends Error { }
+class CameraProblem extends Error {}
 
 function friendlyError(e: unknown): string {
   if (e instanceof CameraProblem) return e.message;
@@ -374,8 +374,9 @@ export function LiveCapture({ onDone, onLater }: Props) {
             {steps.map((a, i) => (
               <li
                 key={`${a}-${i}`}
-                className={`flex items-center gap-1 rounded-full border px-2.5 py-1 ${i < stepIndex ? "border-emerald-500/40 text-emerald-600" : i === stepIndex ? "border-[var(--iverifi-accent)] text-foreground" : "border-border text-muted-foreground"
-                  }`}
+                className={`flex items-center gap-1 rounded-full border px-2.5 py-1 ${
+                  i < stepIndex ? "border-emerald-500/40 text-emerald-600" : i === stepIndex ? "border-[var(--iverifi-accent)] text-foreground" : "border-border text-muted-foreground"
+                }`}
               >
                 {i < stepIndex && <Check className="h-3 w-3" />}
                 {STEP_LABEL[a]}
