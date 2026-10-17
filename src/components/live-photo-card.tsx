@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { LiveCapture } from "@/components/live-capture";
-import { DocumentPhotoQuestion, unansweredDocuments, type QuestionCredential } from "@/components/document-photo-question";
+import type { QuestionCredential } from "@/lib/document-photo";
 import { useDeleteLivePhotoMutation, useGetCredentialsQuery, useGetLivePhotoImageQuery, useGetLivePhotoStatusQuery } from "@/redux/api";
 
 const day = (ms: number | null | undefined) => (ms ? format(new Date(ms), "dd-MM-yyyy") : "—");
@@ -28,7 +28,6 @@ export function LivePhotoCard() {
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   const credList = (creds?.data?.credential ?? []) as QuestionCredential[];
-  const toAsk = has && !info?.expired ? unansweredDocuments(credList) : [];
   const checks = credList.filter((x) => x.photo_user_answer == null).map((x) => x.photo_check);
   const noMatch = checks.filter((x) => x === "no_match").length;
   const needsReview = checks.filter((x) => x === "second_check").length;
@@ -81,8 +80,6 @@ export function LivePhotoCard() {
           )}
         </div>
       </div>
-
-      <DocumentPhotoQuestion docs={toAsk} liveImage={image?.data?.image} />
 
       <Dialog open={capturing} onOpenChange={(o) => !o && setCapturing(false)}>
         <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-md">
