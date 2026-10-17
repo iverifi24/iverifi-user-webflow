@@ -1,7 +1,7 @@
 import { useState, useEffect, useLayoutEffect, useCallback, useRef } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { guestCheckin } from "@/utils/connectionFlow";
-import { useAddConnectionMutation, useGetCredentialsQuery, useGetRecipientCredentialsQuery, useGetHotelPublicInfoQuery } from "@/redux/api";
+import { useAddConnectionMutation, useGetCredentialsQuery, useGetHotelPublicInfoQuery } from "@/redux/api";
 import { useAuth } from "@/context/auth_context";
 import { setTermsAccepted } from "@/utils/terms";
 import { logoutUser } from "@/firebase_auth_service";
@@ -535,26 +535,29 @@ interface CheckingProps {
 function GuestChecking({ hotelCode, hotelName, startedAt: _startedAt, staffTerm, actionNoun, onResult, onError }: CheckingProps) {
   const [addConnection] = useAddConnectionMutation();
   const { data: credsData, isLoading: credsLoading } = useGetCredentialsQuery();
-  const { isLoading: recipientLoading } = useGetRecipientCredentialsQuery(hotelCode, { skip: !hotelCode });
   const ranRef = useRef(false);
+  const connectionRef = useRef<Promise<string> | null>(null);
+
+  // The connection request does not depend on the person's documents, so it starts straight away, alongside the documents call,
+  // instead of after it. (This screen used to wait for the documents AND an unused recipient lookup before the first request.)
+  useEffect(() => {
+    if (connectionRef.current || !hotelCode) return;
+    const started = addConnection({ document_id: hotelCode, type: "Company" })
+      .unwrap()
+      .then((r: any) => (r?.data?.credential_request_id ?? r?.credential_request_id ?? "") as string);
+    started.catch(() => undefined); // the failure is reported below, where it is awaited
+    connectionRef.current = started;
+  }, [hotelCode, addConnection]);
 
   useEffect(() => {
-    // Wait for both queries to finish before proceeding
-    if (credsLoading || recipientLoading) return;
-    if (ranRef.current) return;
+    if (credsLoading) return;
+    if (ranRef.current || !connectionRef.current) return;
     ranRef.current = true;
 
     (async () => {
       try {
-        // 1. Create / touch credential_request
-        const connResult = await addConnection({
-          document_id: hotelCode,
-          type: "Company",
-        }).unwrap();
-        const connectionId: string =
-          connResult?.data?.credential_request_id ??
-          connResult?.credential_request_id ??
-          "";
+        // 1. the connection request (already running)
+        const connectionId: string = await connectionRef.current!;
 
         if (connectionId) guestCheckin.setConnectionId(connectionId);
 
@@ -580,7 +583,7 @@ function GuestChecking({ hotelCode, hotelName, startedAt: _startedAt, staffTerm,
         }
       }
     })();
-  }, [credsLoading, recipientLoading]);
+  }, [credsLoading]);
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center gap-5 px-6">
