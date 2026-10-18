@@ -44,6 +44,8 @@ export interface HotelInfo {
   name: string;
   logo_url: string | null;
   businessType?: string | null;
+  /** how many days what the person shares stays readable by this business (the server decides: a venue 1, an HR business longer) */
+  share_valid_days?: number;
 }
 
 /** "quota" = the venue cannot accept more requests; retrying will not help */
@@ -328,6 +330,7 @@ export default function GuestCheckinFlow() {
             familyCredentials={state.selectedFamilyCredentials}
             connectionId={state.connectionId}
             startedAt={state.startedAt}
+            shareValidDays={state.hotelInfo?.share_valid_days}
             onSuccess={(result) =>
               advance({ step: "confirm", checkInResult: result })
             }
@@ -343,6 +346,7 @@ export default function GuestCheckinFlow() {
             hotelLogoUrl={state.hotelInfo?.logo_url ?? null}
             credentials={state.credentials}
             selectedCredential={state.selectedCredential}
+            shareValidDays={state.hotelInfo?.share_valid_days}
             onContinue={() => advance({ step: stepAfterId })}
             onCredentialChange={(c) => advance({ selectedCredential: c })}
             onVerifyNew={() => advance({ step: "kyc" })}

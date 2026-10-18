@@ -75,6 +75,8 @@ interface Props {
   onContinue: () => void;
   onCredentialChange: (c: FlowCredential) => void;
   onVerifyNew: () => void;
+  /** days the shared documents stay readable by the business (from the server); 1 when not given */
+  shareValidDays?: number;
 }
 
 export default function ReturningGuest({
@@ -85,6 +87,7 @@ export default function ReturningGuest({
   onContinue,
   onCredentialChange,
   onVerifyNew,
+  shareValidDays,
 }: Props) {
   const selected = selectedCredential ?? credentials[0] ?? null;
   const sharedChips = SHARED_CHIPS[selected?.document_type ?? "AADHAAR_CARD"] ?? SHARED_CHIPS["AADHAAR_CARD"];
@@ -209,7 +212,7 @@ export default function ReturningGuest({
             <div className="flex items-center gap-2 pt-2 border-t border-[var(--iverifi-card-border)] text-xs text-muted-foreground">
               <Clock className="w-3.5 h-3.5 text-amber-500 shrink-0" />
               <span>
-                <strong>Auto-Revocation:</strong> Access terminates automatically in 24 hours under DPDP Act 2023.
+                <strong>Auto-Revocation:</strong> Access terminates automatically in {shareValidDays && shareValidDays > 1 ? `${shareValidDays} days` : "24 hours"} under DPDP Act 2023.
               </span>
             </div>
           </CardContent>

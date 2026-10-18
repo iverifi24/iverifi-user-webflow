@@ -62,6 +62,8 @@ interface Props {
   onSuccess: (result: "approved" | "pending") => void;
   onError: (msg: string, kind?: FlowErrorKind) => void;
   onCredentialChange: (c: FlowCredential) => void;
+  /** days the shared documents stay readable by the business (from the server); 1 when not given */
+  shareValidDays?: number;
 }
 
 export default function GuestDetails({
@@ -74,6 +76,7 @@ export default function GuestDetails({
   familyCredentials,
   connectionId,
   startedAt,
+  shareValidDays,
   onSuccess,
   onError,
 }: Props) {
@@ -139,7 +142,7 @@ export default function GuestDetails({
         profile_completion_level: 2,
       });
 
-      const expiryDate = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+      const expiryDate = new Date(Date.now() + Math.max(1, shareValidDays ?? 1) * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
       if (!isManualUpload) {
         // Share primary + family credentials with hotel
         await updateCredentialsRequest({
@@ -188,7 +191,7 @@ export default function GuestDetails({
     } finally {
       setSubmitting(false);
     }
-  }, [firstName, lastName, email, phoneInput, selected, familyCredentials, connectionId, startedAt, hotelName, staffTerm, updateCredentialsRequest, updateCheckInStatus, onSuccess, onError]);
+  }, [firstName, lastName, email, phoneInput, selected, familyCredentials, connectionId, startedAt, shareValidDays, hotelName, staffTerm, updateCredentialsRequest, updateCheckInStatus, onSuccess, onError]);
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center px-4 py-8">
