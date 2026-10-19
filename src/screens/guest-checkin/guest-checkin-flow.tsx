@@ -1,4 +1,5 @@
 import { useState, useEffect, useLayoutEffect, useCallback, useRef } from "react";
+import { useInactivityLock } from "@/hooks/use-inactivity-lock";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { guestCheckin } from "@/utils/connectionFlow";
 import { useAddConnectionMutation, useGetCredentialsQuery, useGetHotelPublicInfoQuery } from "@/redux/api";
@@ -117,6 +118,8 @@ export default function GuestCheckinFlow() {
 
   // Requests wait while the PIN screen is up (see utils/pin.ts); layout effect so it is set before the steps load data.
   const pinScreenUp = !!user && (pinLocked || needsPinSetup);
+  // Same idle lock as the rest of the app: the PIN screen after 5 minutes without a touch
+  useInactivityLock(!!user && pinHash !== null && !pinScreenUp, () => setPinLocked(true));
   useLayoutEffect(() => {
     setPinScreenOpen(pinScreenUp);
     return () => setPinScreenOpen(false);

@@ -12,6 +12,7 @@ import { PinLockScreen } from "@/components/pin-lock-screen";
 import { LivePhotoGate } from "@/components/live-photo-gate";
 import { useEffect, useLayoutEffect } from "react";
 import { setPinScreenOpen } from "@/utils/pin";
+import { useInactivityLock } from "@/hooks/use-inactivity-lock";
 
 // Routes where PIN lock should not block the user (onboarding)
 const PIN_EXCLUDED_PATHS = ["/accept-terms", "/complete-profile", "/aadhaar-test"];
@@ -39,6 +40,9 @@ const ProtectedLayout = () => {
   }, [user, pinHash, setPinLocked]);
 
   const showPinScreen = !isOnboardingPath && (pinLocked || needsPinSetup);
+
+  // Ask for the PIN again after 5 minutes without a touch, tap or key press (only for people who have a PIN, and not on the PIN screen)
+  useInactivityLock(!!user && pinHash !== null && !isOnboardingPath && !showPinScreen, () => setPinLocked(true));
 
   // Layout effect: it must run before the pages behind the PIN screen start their first requests.
   const pinScreenUp = showPinScreen && !!user;

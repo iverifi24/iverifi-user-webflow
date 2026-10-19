@@ -9,6 +9,7 @@
     "prebuild": "node scripts/copy-mediapipe.mjs",
     "build": "tsc -b && vite build",
     "test:liveness": "node --test tests/liveness.test.ts",
+    "test:idle": "node --test tests/idle-lock.test.ts",
     "lint": "eslint .",
     "preview": "vite preview"
   },
