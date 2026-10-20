@@ -98,7 +98,7 @@ const AddDocuments = () => {
                 }}
               >
                 <ExternalLink className="h-4 w-4 mr-2 shrink-0" />
-                Verify {formatDocType(docType)}{providerLabel(methodsFor(routes, docType)) ? ` via ${providerLabel(methodsFor(routes, docType))}` : ""}
+                Verify {formatDocType(docType)}{providerLabel(methodsFor(routes, docType), docType) ? ` via ${providerLabel(methodsFor(routes, docType), docType)}` : ""}
               </Button>
             </div>
           ))}

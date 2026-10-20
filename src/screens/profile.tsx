@@ -124,7 +124,7 @@ export default function ProfilePage() {
                 <div className="flex items-center gap-2 text-sm font-semibold">
                   <BadgeCheck className="h-4 w-4 text-emerald-500" />
                   {docLabel(d.document_type)}
-                  {verifiedViaLabel(d.verified_via) && <span className="text-xs font-normal text-muted-foreground">via {verifiedViaLabel(d.verified_via)}</span>}
+                  {verifiedViaLabel(d.verified_via, d.document_type) && <span className="text-xs font-normal text-muted-foreground">via {verifiedViaLabel(d.verified_via, d.document_type)}</span>}
                 </div>
                 <PhotoCheckChip decision={d.photo_check} userAnswer={d.photo_user_answer} />
               </li>

@@ -99,7 +99,7 @@ export default function TermsPage() {
             </h3>
             <div className="bg-purple-50 dark:bg-purple-950/20 border-2 border-purple-200 dark:border-purple-800 rounded-xl p-3 sm:p-4 my-3 sm:my-4">
               <p className="text-sm sm:text-base text-muted-foreground mb-2">
-                <strong>iVerifi uses Kwik ID</strong> as our certified KYC verification technology
+                <strong>iVerifi uses a certified identity verification partner</strong> as our KYC verification technology
                 partner to authenticate your identity documents with government databases.
               </p>
 
@@ -108,11 +108,11 @@ export default function TermsPage() {
               </p>
               <ol className="list-decimal list-inside text-xs sm:text-sm text-purple-800 dark:text-purple-200 space-y-1 ml-2">
                 <li>You initiate verification at a hotel or institution</li>
-                <li>iVerifi sends your verification request to Kwik ID</li>
-                <li>Kwik ID securely connects to government portals (DigiLocker, Parivahan, e-Filing)</li>
+                <li>iVerifi sends your verification request to our verification partner</li>
+                <li>Our verification partner securely connects to government portals (DigiLocker, Parivahan, e-Filing)</li>
                 <li>Government portal authenticates your document</li>
-                <li>Kwik ID receives the result (verified or not verified)</li>
-                <li>Kwik ID sends result back to iVerifi</li>
+                <li>Our verification partner receives the result (verified or not verified)</li>
+                <li>Our verification partner sends the result back to iVerifi</li>
                 <li>iVerifi shares result with the requesting hotel/institution</li>
               </ol>
 
@@ -120,18 +120,18 @@ export default function TermsPage() {
                 Data Protection:
               </p>
               <ul className="list-disc list-inside text-xs sm:text-sm text-purple-800 dark:text-purple-200 space-y-1 ml-2">
-                <li>Kwik ID operates under a strict Data Processing Agreement with iVerifi</li>
-                <li>Kwik ID is ISO 27001 certified for information security</li>
-                <li>Kwik ID complies with DPDP Act 2023 and IT Act 2000</li>
-                <li>Kwik ID does NOT store your identity documents</li>
-                <li>Kwik ID deletes verification data immediately after processing</li>
+                <li>Our verification partner operates under a strict Data Processing Agreement with iVerifi</li>
+                <li>Our verification partner is ISO 27001 certified for information security</li>
+                <li>Our verification partner complies with DPDP Act 2023 and IT Act 2000</li>
+                <li>Our verification partner does NOT store your identity documents</li>
+                <li>Our verification partner deletes verification data immediately after processing</li>
               </ul>
 
               <p className="text-xs sm:text-sm font-bold text-purple-900 dark:text-purple-100 mt-3 mb-1">
                 Your Consent:
               </p>
               <p className="text-xs sm:text-sm text-purple-800 dark:text-purple-200">
-                By using iVerifi, you consent to Kwik ID processing your verification request as our
+                By using iVerifi, you consent to our verification partner processing your verification request as our
                 authorized service provider under strict data protection standards.
               </p>
             </div>
@@ -170,21 +170,21 @@ export default function TermsPage() {
             <ol className="list-decimal list-inside text-sm sm:text-base text-muted-foreground space-y-1 mb-3 sm:mb-4 ml-2 sm:ml-4">
               <li>You initiate verification at a partner location (hotel, institution)</li>
               <li>You provide consent to verify your identity</li>
-              <li>iVerifi sends request to Kwik ID verification platform</li>
-              <li>Kwik ID redirects you to official government portal (DigiLocker, etc.)</li>
+              <li>iVerifi sends request to our verification platform</li>
+              <li>Our verification partner redirects you to official government portal (DigiLocker, etc.)</li>
               <li>You authenticate with your government credentials (OTP, Aadhaar, etc.)</li>
               <li>Government portal verifies your document authenticity</li>
-              <li>Kwik ID receives verification result from government portal</li>
+              <li>Our verification partner receives verification result from government portal</li>
               <li>Verification result (verified/not verified) is returned to iVerifi</li>
               <li>iVerifi shares result with the requester (hotel/institution)</li>
-              <li>Your document data is NOT stored by iVerifi or Kwik ID</li>
+              <li>Your document data is NOT stored by iVerifi or our verification partner</li>
             </ol>
 
             <h3 className="text-lg sm:text-xl font-bold text-foreground mt-4 sm:mt-6 mb-2 sm:mb-3">
               5.2 Zero-Knowledge Architecture
             </h3>
             <p className="text-sm sm:text-base text-muted-foreground mb-2">
-              iVerifi and Kwik ID operate on a zero-knowledge architecture:
+              iVerifi and our verification partner operate on a zero-knowledge architecture:
             </p>
             <ul className="list-disc list-inside text-sm sm:text-base text-muted-foreground space-y-1 mb-3 sm:mb-4 ml-2 sm:ml-4">
               <li>We do NOT store your identity documents</li>
@@ -267,14 +267,14 @@ export default function TermsPage() {
             </h3>
             <div className="bg-blue-50 dark:bg-blue-950/20 border-l-4 border-blue-500 p-3 sm:p-4 my-3 sm:my-4 rounded">
               <p className="text-xs sm:text-sm font-bold text-blue-900 dark:text-blue-100 mb-2">
-                Kwik ID - Identity Verification Partner
+                Our Identity Verification Partner
               </p>
               <p className="text-xs sm:text-sm text-blue-800 dark:text-blue-200 mb-2">
-                We share limited data with Kwik ID to perform identity verification:
+                We share limited data with our verification partner to perform identity verification:
               </p>
 
               <p className="text-xs sm:text-sm font-bold text-blue-900 dark:text-blue-100 mb-1">
-                Data Shared with Kwik ID:
+                Data shared with our verification partner:
               </p>
               <ul className="list-disc list-inside text-xs sm:text-sm text-blue-800 dark:text-blue-200 space-y-1 ml-2">
                 <li>Verification request metadata (document type, timestamp)</li>
@@ -283,7 +283,7 @@ export default function TermsPage() {
               </ul>
 
               <p className="text-xs sm:text-sm font-bold text-blue-900 dark:text-blue-100 mt-2 mb-1">
-                Data NOT Shared with Kwik ID:
+                Data NOT shared with our verification partner:
               </p>
               <ul className="list-disc list-inside text-xs sm:text-sm text-blue-800 dark:text-blue-200 space-y-1 ml-2">
                 <li>Your actual identity documents</li>
@@ -292,7 +292,7 @@ export default function TermsPage() {
               </ul>
 
               <p className="text-xs sm:text-sm font-bold text-blue-900 dark:text-blue-100 mt-2 mb-1">
-                Kwik ID's Obligations:
+                Our verification partner's obligations:
               </p>
               <ul className="list-disc list-inside text-xs sm:text-sm text-blue-800 dark:text-blue-200 space-y-1 ml-2">
                 <li>Bound by Data Processing Agreement (DPA) with iVerifi</li>
@@ -401,7 +401,7 @@ export default function TermsPage() {
               </li>
               <li>
                 <strong>Secure APIs:</strong> Direct, encrypted connections to government portals
-                via Kwik ID
+                via our verification partner
               </li>
               <li>
                 <strong>Access Controls:</strong> Role-based access, multi-factor authentication
@@ -542,7 +542,7 @@ export default function TermsPage() {
             <ul className="list-disc list-inside text-sm sm:text-base text-muted-foreground space-y-1 mb-3 sm:mb-4 ml-2 sm:ml-4">
               <li>
                 <strong>Third-Party Services:</strong> Downtime or errors from government portals
-                (DigiLocker, Parivahan, etc.) or Kwik ID platform
+                (DigiLocker, Parivahan, etc.) or our verification platform
               </li>
               <li>
                 <strong>Data Accuracy:</strong> Incorrect data provided by government sources
@@ -571,7 +571,7 @@ export default function TermsPage() {
               15. Indemnification
             </h2>
             <p className="text-sm sm:text-base text-muted-foreground mb-2">
-              You agree to indemnify and hold harmless iVerifi, Kwik ID, and our respective
+              You agree to indemnify and hold harmless iVerifi, our verification partner, and our respective
               officers, directors, employees, and partners from any claims, damages, losses, or
               expenses arising from:
             </p>
@@ -595,7 +595,7 @@ export default function TermsPage() {
               <li>Government actions, regulations, or orders</li>
               <li>Internet, telecommunications, or network outages</li>
               <li>Government portal downtime (DigiLocker, Parivahan, e-Filing, etc.)</li>
-              <li>Kwik ID platform unavailability</li>
+              <li>Verification platform unavailability</li>
               <li>War, terrorism, riots, or civil unrest</li>
               <li>Acts of God or other unforeseeable events</li>
             </ul>

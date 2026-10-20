@@ -23,7 +23,7 @@ import {
 import { ForeignPassportDialog } from "@/components/foreign-passport-dialog";
 import { DocumentPhotoQuestions } from "@/components/document-photo-question";
 import { PhotoCheckChip } from "@/components/photo-check-chip";
-import { methodsFor, providerLabel, verifiedViaLabel, METHOD_LABEL } from "@/utils/verificationSource";
+import { methodsFor, providerLabel, verifiedViaLabel, labelForMethod } from "@/utils/verificationSource";
 import type { VerifyMethod } from "@/utils/verificationSource";
 import { digilockerErrorMessage, alsoSavedMessage } from "@/utils/digilockerErrors";
 import type { ForeignPassportPhotos } from "@/components/foreign-passport-dialog";
@@ -503,7 +503,7 @@ const Connections = () => {
       if (err) {
         const other = methodsFor(routes, docType).find((m) => m !== "digilocker");
         toast.error(digilockerErrorMessage(err, label), other
-          ? { action: { label: `Use ${METHOD_LABEL[other]}`, onClick: () => verifyWith(other, docType as DocumentType) } }
+          ? { action: { label: `Use ${labelForMethod(other, docType)}`, onClick: () => verifyWith(other, docType as DocumentType) } }
           : undefined);
         handled = true;
       }
@@ -1840,8 +1840,8 @@ const Connections = () => {
                       <div className="flex flex-wrap items-center gap-1.5">
                         <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/20 border border-emerald-400/30 px-2 py-0.5 text-[10px] font-bold text-emerald-300">
                           <CheckCircle className="h-3 w-3" />
-                          {verifiedViaLabel(verifiedCredentialsMap[docType]?.verified_via)
-                            ? `Verified via ${verifiedViaLabel(verifiedCredentialsMap[docType]?.verified_via)}`
+                          {verifiedViaLabel(verifiedCredentialsMap[docType]?.verified_via, docType)
+                            ? `Verified via ${verifiedViaLabel(verifiedCredentialsMap[docType]?.verified_via, docType)}`
                             : "Verified"}
                         </span>
                         <PhotoCheckChip decision={verifiedCredentialsMap[docType]?.photo_check} userAnswer={verifiedCredentialsMap[docType]?.photo_user_answer} />
@@ -1865,7 +1865,7 @@ const Connections = () => {
                       </span>
                       <span className="inline-flex items-center gap-1 rounded-full bg-teal-500/10 border border-teal-500/20 px-2 py-0.5 text-[9px] font-bold text-teal-700 dark:text-cyan-400">
                         <Zap className="h-2.5 w-2.5" />{" "}
-                        {providerLabel(methodsFor(routes, docType)) ? `via ${providerLabel(methodsFor(routes, docType))}` : "Not available now"}
+                        {providerLabel(methodsFor(routes, docType), docType) ? `via ${providerLabel(methodsFor(routes, docType), docType)}` : "Not available now"}
                       </span>
                     </div>
 
@@ -2145,7 +2145,7 @@ const Connections = () => {
                   {selectedDocTitle}
                 </div>
                 <div style={{ marginTop: 5 }}>
-                  <VerifierBadge verifiedVia={verifiedCredentialsMap[selectedDocType]?.verified_via} />
+                  <VerifierBadge verifiedVia={verifiedCredentialsMap[selectedDocType]?.verified_via} documentType={selectedDocType} />
                 </div>
               </div>
             </div>
@@ -2578,7 +2578,7 @@ const Connections = () => {
                       {nickname}
                     </div>
                     <div style={{ marginTop: 5 }}>
-                      <VerifierBadge verifiedVia={selectedFamilyMember?.verified_via} />
+                      <VerifierBadge verifiedVia={selectedFamilyMember?.verified_via} documentType={selectedFamilyMember?.document_type} />
                     </div>
                   </div>
                 </div>
@@ -2939,7 +2939,7 @@ const Connections = () => {
               className="w-full rounded-xl"
               onClick={() => { setDlDigilockerModalOpen(false); handleVerifyDocumentKwik("DRIVING_LICENSE"); }}
             >
-              No — Scan with camera (Kwik)
+              No — Scan with camera
             </Button>
           </div>
         </DialogContent>

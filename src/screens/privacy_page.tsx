@@ -96,7 +96,7 @@ export default function PrivacyPage() {
                   <strong>Security First:</strong> Military-grade encryption and security standards
                 </li>
                 <li>
-                  <strong>Third-Party Partners:</strong> Kwik ID processes verifications under
+                  <strong>Third-Party Partners:</strong> Our verification technology partner processes verifications under
                   strict data protection
                 </li>
               </ul>
@@ -126,7 +126,7 @@ export default function PrivacyPage() {
               </li>
               <li>
                 <strong>Verification Source:</strong> Which service verified the document
-                (DigiLocker or our verification partner Kwik)
+                (DigiLocker or our verification partner)
               </li>
               <li>
                 <strong>Verification ID:</strong> Unique reference number for the verification
@@ -215,16 +215,16 @@ export default function PrivacyPage() {
             </h2>
 
             <h3 className="text-lg sm:text-xl font-bold text-foreground mt-4 sm:mt-6 mb-2 sm:mb-3">
-              3.1 Kwik ID - Identity Verification Technology Partner
+              3.1 Our Identity Verification Technology Partner
             </h3>
             <div className="bg-purple-50 dark:bg-purple-950/20 border-2 border-purple-300 dark:border-purple-800 rounded-xl p-4 sm:p-5 my-3 sm:my-4">
               <p className="text-sm sm:text-base text-muted-foreground mb-3">
-                <strong>iVerifi uses Kwik ID</strong> as our certified KYC verification technology
+                <strong>iVerifi uses a certified identity verification partner</strong> as our KYC verification technology
                 partner to authenticate your identity documents with government databases.
               </p>
 
               <p className="text-xs sm:text-sm font-bold text-purple-900 dark:text-purple-100 mb-2">
-                What Kwik ID Does:
+                What our verification partner does:
               </p>
               <ul className="list-disc list-inside text-xs sm:text-sm text-purple-800 dark:text-purple-200 space-y-1 ml-2">
                 <li>Processes verification requests on our behalf</li>
@@ -234,7 +234,7 @@ export default function PrivacyPage() {
               </ul>
 
               <p className="text-xs sm:text-sm font-bold text-purple-900 dark:text-purple-100 mt-3 mb-2">
-                What Data Kwik ID Receives from iVerifi:
+                What data our verification partner receives from iVerifi:
               </p>
               <ul className="list-disc list-inside text-xs sm:text-sm text-purple-800 dark:text-purple-200 space-y-1 ml-2">
                 <li>Verification request metadata (document type, timestamp)</li>
@@ -243,7 +243,7 @@ export default function PrivacyPage() {
               </ul>
 
               <p className="text-xs sm:text-sm font-bold text-purple-900 dark:text-purple-100 mt-3 mb-2">
-                What Kwik ID Does NOT Receive:
+                What our verification partner does NOT receive:
               </p>
               <ul className="list-disc list-inside text-xs sm:text-sm text-purple-800 dark:text-purple-200 space-y-1 ml-2">
                 <li>Your actual identity documents (Aadhaar, PAN, etc.)</li>
@@ -254,7 +254,7 @@ export default function PrivacyPage() {
               </ul>
 
               <p className="text-xs sm:text-sm font-bold text-purple-900 dark:text-purple-100 mt-3 mb-2">
-                Kwik ID's Data Protection Measures:
+                Our verification partner's data protection measures:
               </p>
               <ul className="list-disc list-inside text-xs sm:text-sm text-purple-800 dark:text-purple-200 space-y-1 ml-2">
                 <li>ISO 27001 certified for information security management</li>
@@ -271,9 +271,9 @@ export default function PrivacyPage() {
                 Your Consent:
               </p>
               <p className="text-xs sm:text-sm text-purple-800 dark:text-purple-200">
-                By using iVerifi, you consent to Kwik ID processing your verification request
+                By using iVerifi, you consent to our verification partner processing your verification request
                 metadata as our authorized service provider under strict data protection standards.
-                Kwik ID acts solely as our data processor and never as an independent data
+                Our verification partner acts solely as our data processor and never as an independent data
                 controller.
               </p>
             </div>
@@ -320,7 +320,7 @@ export default function PrivacyPage() {
             <ul className="list-disc list-inside text-sm sm:text-base text-muted-foreground space-y-1 mb-3 sm:mb-4 ml-2 sm:ml-4">
               <li>
                 <strong>Identity Verification:</strong> Facilitate verification with government
-                portals via Kwik ID
+                portals via our verification partner
               </li>
               <li>
                 <strong>Service Delivery:</strong> Enable hotels/institutions to verify guest/student
@@ -425,7 +425,7 @@ export default function PrivacyPage() {
               6.2 With Third-Party Technology Partners
             </h3>
             <p className="text-sm sm:text-base text-muted-foreground mb-3 sm:mb-4">
-              As described in Section 3, we share limited metadata with Kwik ID and other service
+              As described in Section 3, we share limited metadata with our verification partner and other service
               providers under strict data protection agreements.
             </p>
 
@@ -518,7 +518,7 @@ export default function PrivacyPage() {
                 After Retention Period:
               </p>
               <p className="text-xs sm:text-sm text-purple-800 dark:text-purple-200">
-                All records are permanently and securely deleted from our systems and Kwik ID's
+                All records are permanently and securely deleted from our systems and our verification partner's
                 systems using industry-standard data wiping methods.
               </p>
             </div>
@@ -618,11 +618,11 @@ export default function PrivacyPage() {
               </li>
               <li>
                 <strong>Zero-Knowledge Architecture:</strong> Documents never touch our servers or
-                Kwik ID's servers
+                our verification partner's servers
               </li>
               <li>
                 <strong>Secure APIs:</strong> Direct, encrypted connections to government portals
-                via Kwik ID
+                via our verification partner
               </li>
               <li>
                 <strong>Database Encryption:</strong> All stored metadata is encrypted at rest
@@ -665,7 +665,7 @@ export default function PrivacyPage() {
             <ul className="list-disc list-inside text-sm sm:text-base text-muted-foreground space-y-1 mb-3 sm:mb-4 ml-2 sm:ml-4">
               <li>
                 <strong>ISO 27001:</strong> Information Security Management compliance (iVerifi &
-                Kwik ID)
+                our verification partner)
               </li>
               <li>
                 <strong>Regular Audits:</strong> Quarterly security audits by third-party firms
@@ -710,7 +710,7 @@ export default function PrivacyPage() {
             </ul>
             <p className="text-sm sm:text-base text-muted-foreground mb-3 sm:mb-4">
               All international transfers comply with Indian data protection laws and include
-              appropriate safeguards. Kwik ID processes all data within India.
+              appropriate safeguards. Our verification partner processes all data within India.
             </p>
 
             <h2 className="text-xl sm:text-2xl font-bold text-foreground mt-6 sm:mt-8 mb-2 sm:mb-4">

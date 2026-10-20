@@ -214,6 +214,13 @@
   * {
     @apply border-border outline-ring/50;
   }
+  /* A text field has a natural width of about 20 characters and, as a flex item, refuses to shrink below it, so a field beside a
+     country-code box could push out of its card on a narrow phone. Letting it shrink is always what is wanted. */
+  input,
+  select,
+  textarea {
+    min-width: 0;
+  }
   html {
     font-size: 18px;
     -webkit-text-size-adjust: 100%; /* iPhone: do not enlarge text when the phone is turned sideways */

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { auth } from "@/firebase/firebase_setup";
 import { useGetCredentialsQuery, useGetVerificationRoutesQuery, useSaveForeignPassportMutation, useUpdateCheckInStatusMutation, useMarkKycStartedMutation } from "@/redux/api";
-import { methodsFor, providerLabel, METHOD_LABEL } from "@/utils/verificationSource";
+import { methodsFor, providerLabel, labelForMethod } from "@/utils/verificationSource";
 import type { VerifyMethod } from "@/utils/verificationSource";
 import { digilockerErrorMessage, alsoSavedMessage } from "@/utils/digilockerErrors";
 import { Button } from "@/components/ui/button";
@@ -298,7 +298,7 @@ export default function GuestDocSelect({
       } else if (err) {
         const other = methodsFor(routes, docType).find((m) => m !== "digilocker");
         toast.error(digilockerErrorMessage(err, label), other
-          ? { action: { label: `Use ${METHOD_LABEL[other]}`, onClick: () => verifyWith(other, docType, code) } }
+          ? { action: { label: `Use ${labelForMethod(other, docType)}`, onClick: () => verifyWith(other, docType, code) } }
           : undefined);
       }
       break;
@@ -575,7 +575,7 @@ export default function GuestDocSelect({
                       </div>
                       <p className="text-[11px] text-muted-foreground truncate">
                         Issued by {issuer}
-                        {!verified && (providerLabel(methodsFor(routes, type)) ? ` · verified via ${providerLabel(methodsFor(routes, type))}` : " · not available now")}
+                        {!verified && (providerLabel(methodsFor(routes, type), type) ? ` · verified via ${providerLabel(methodsFor(routes, type), type)}` : " · not available now")}
                       </p>
                     </div>
 
@@ -675,7 +675,7 @@ export default function GuestDocSelect({
             className="w-full rounded-xl"
             onClick={() => { setDlChoiceOpen(false); handleVerifyDLKwik(); }}
           >
-            No — Scan with camera (Kwik)
+            No — Scan with camera
           </Button>
         </div>
       </DialogContent>

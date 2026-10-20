@@ -14,7 +14,7 @@ export type VerifyMethod = "digilocker" | "kwik";
 
 export const METHOD_LABEL: Record<VerifyMethod, string> = {
   digilocker: "DigiLocker",
-  kwik: "Kwik",
+  kwik: "iVerifi", // the camera scan is shown as iVerifi's own check; the scan partner is never named in the app
 };
 
 const ISSUER: Record<string, string> = {
@@ -54,12 +54,25 @@ export function methodsFor(routes: VerificationRoutes, documentType: string): Ve
   return Array.isArray(list) ? list : routes ? [] : ["kwik"];
 }
 
-/** "DigiLocker" / "Kwik" for the method a tap will use, or null when none is available */
-export function providerLabel(methods: VerifyMethod[]): string | null {
-  return methods.length ? METHOD_LABEL[methods[0]] : null;
+const isAadhaar = (documentType?: string | null) => /aadhaar/i.test(documentType ?? "");
+
+/**
+ * What to call a way of verifying, for this kind of document. Aadhaar is always checked through DigiLocker (the camera partner's
+ * Aadhaar flow runs through it), so for Aadhaar the answer is "DigiLocker" whichever way it was started.
+ */
+export function labelForMethod(method: VerifyMethod, documentType?: string | null): string {
+  return method === "kwik" && isAadhaar(documentType) ? "DigiLocker" : METHOD_LABEL[method];
+}
+
+/** "DigiLocker" / "iVerifi" for the method a tap will use, or null when none is available */
+export function providerLabel(methods: VerifyMethod[], documentType?: string | null): string | null {
+  return methods.length ? labelForMethod(methods[0], documentType) : null;
 }
 
 /** `verified_via` from the credential, as shown to people; null when the server does not know */
-export function verifiedViaLabel(verifiedVia: string | null | undefined): string | null {
-  return verifiedVia && ["DigiLocker", "Kwik", "iVerifi"].includes(verifiedVia) ? verifiedVia : null;
+export function verifiedViaLabel(verifiedVia: string | null | undefined, documentType?: string | null): string | null {
+  if (!verifiedVia) return null;
+  // the stored value names the camera-scan vendor; people are shown DigiLocker for Aadhaar (it runs through it) and iVerifi otherwise
+  if (verifiedVia === "Kwik") return isAadhaar(documentType) ? "DigiLocker" : "iVerifi";
+  return ["DigiLocker", "iVerifi"].includes(verifiedVia) ? verifiedVia : null;
 }

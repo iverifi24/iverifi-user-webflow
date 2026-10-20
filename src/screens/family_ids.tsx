@@ -253,7 +253,7 @@ const FamilyIds = () => {
                     <span className="text-base font-semibold text-[var(--iverifi-text-primary)]">
                       Aadhaar Card
                     </span>
-                    <VerifierBadge verifiedVia={myAadhaar?.verified_via} className="shrink-0" />
+                    <VerifierBadge verifiedVia={myAadhaar?.verified_via} documentType="AADHAAR_CARD" className="shrink-0" />
                   </div>
                   {getPreviewImageUrl(myAadhaar) && (
                     <Button
@@ -319,7 +319,7 @@ const FamilyIds = () => {
                           {isPending ? (
                             <span className="text-xs text-amber-500 font-medium shrink-0">Pending</span>
                           ) : (
-                            <VerifierBadge verifiedVia={member.verified_via} className="shrink-0" />
+                            <VerifierBadge verifiedVia={member.verified_via} documentType="FAMILY_AADHAAR" className="shrink-0" />
                           )}
                         </div>
                         <p className="text-xs text-[var(--iverifi-text-muted)] mb-3">Aadhaar Card</p>

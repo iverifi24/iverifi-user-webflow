@@ -498,7 +498,7 @@ export function PinLockScreen({ mode, onUnlocked }: Props) {
                   value={forgotPhone}
                   onChange={(e) => setForgotPhone(e.target.value.replace(/\D/g, "").slice(0, 15))}
                   disabled={isLoading}
-                  className="h-9 flex-1 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 text-xs text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-hidden focus:border-teal-500"
+                  className="h-9 min-w-0 flex-1 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 text-xs text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-hidden focus:border-teal-500"
                 />
               </div>
             </div>
