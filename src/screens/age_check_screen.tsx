@@ -85,7 +85,7 @@ export default function AgeCheckScreen() {
             Age Verification
           </h1>
           <p className="text-xs text-muted-foreground mt-1 max-w-xs mx-auto">
-            Instant privacy-first age credential for hotel check-ins, venues, and transit
+            Instant privacy-first age credential for hotels, offices, venues, and transit
           </p>
         </div>
 

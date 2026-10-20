@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { getVenueCopy } from "@/utils/venueCopy";
 import {
   ShieldCheck,
   Clock,
@@ -513,7 +514,7 @@ export function VenueRecognitionModal({
               </div>
               <p className="text-xs text-muted-foreground mt-1 max-w-xs mx-auto">
                 Verify your Aadhaar or Driving Licence via DigiLocker in 30
-                seconds to complete this check-in.
+                seconds to complete this {getVenueCopy(businessType).actionNoun}.
               </p>
             </div>
             {onVerifyNewDoc ? (

@@ -17,7 +17,25 @@ export interface VenueCopy {
   actionNoun: string;
   /** Whether to offer the "visiting with companions" step */
   allowsCompanions: boolean;
+  /** Lodging (hotel, co-living) or a venue with no type (older hotel accounts): stays, rooms, check-in and check-out */
+  isLodging: boolean;
+  /** What a connection shows while the person is inside / after they have left */
+  inLabel: string;
+  outLabel: string;
+  /** Empty state of a connection's history */
+  noHistoryText: string;
+  /** After the person shares: the request was sent / could not be sent */
+  requestSentText: string;
+  requestFailedText: string;
+  /** The screen shown when the person is already registered at the venue */
+  alreadyTitle: string;
 }
+
+/** Every status wording that can appear, so code that decides colours from the text keeps working for any venue type. */
+export const IN_LABELS = ["Checked in", "Visiting"];
+export const OUT_LABELS = ["Checked out", "Visit ended"];
+export const isInLabel = (s: string) => IN_LABELS.includes(s);
+export const isOutLabel = (s: string) => OUT_LABELS.includes(s);
 
 // Venue types where visitors typically arrive as one person with their own pass
 const SOLO_VISIT_TYPES = new Set(["company", "coworking", "education", "government", "retail"]);
@@ -30,6 +48,13 @@ export function getVenueCopy(businessType?: string | null): VenueCopy {
       staffTerm: "the reception desk",
       actionNoun: "check-in",
       allowsCompanions: true,
+      isLodging: true,
+      inLabel: "Checked in",
+      outLabel: "Checked out",
+      noHistoryText: "No stays or check-ins yet.",
+      requestSentText: "Check-in request sent to the venue.",
+      requestFailedText: "Could not share or request check-in. Please try again.",
+      alreadyTitle: "Already checked in",
     };
   }
 
@@ -49,6 +74,13 @@ export function getVenueCopy(businessType?: string | null): VenueCopy {
             : "the reception desk",
     actionNoun: isLodging ? "check-in" : "visit",
     allowsCompanions: !SOLO_VISIT_TYPES.has(key),
+    isLodging,
+    inLabel: isLodging ? "Checked in" : "Visiting",
+    outLabel: isLodging ? "Checked out" : "Visit ended",
+    noHistoryText: isLodging ? "No stays or check-ins yet." : "No visits yet.",
+    requestSentText: isLodging ? "Check-in request sent to the venue." : "Visit request sent to the venue.",
+    requestFailedText: isLodging ? "Could not share or request check-in. Please try again." : "Could not share or request the visit. Please try again.",
+    alreadyTitle: isLodging ? "Already checked in" : "Already registered",
   };
 }
 

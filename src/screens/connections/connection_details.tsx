@@ -1,4 +1,5 @@
 import { useParams } from "react-router-dom";
+import { getVenueCopy } from "@/utils/venueCopy";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
@@ -78,6 +79,7 @@ const ConnectionDetails = () => {
   const [sharePeriod, setSharePeriod] = useState<string>("");
 
   const connection = connectionData?.data?.requests?.[0];
+  const venue = getVenueCopy(connection?.recipients?.businessType); // stays and check-ins for a hotel, visits for everyone else
   const externalIntegration = connection?.recipients?.externalIntegration === true;
   const isCompany = connection?.type === "Company";
   const bMeta = getBusinessTypeMeta(connection?.recipients?.businessType, isCompany);
@@ -428,7 +430,7 @@ const ConnectionDetails = () => {
             {activityOpen && (
               <div className="space-y-3 px-4 py-4">
                 {activities.length === 0 ? (
-                  <p className="text-sm text-[var(--iverifi-label)]">No stays or check-ins yet.</p>
+                  <p className="text-sm text-[var(--iverifi-label)]">{venue.noHistoryText}</p>
                 ) : (
                   activities.map((act: any, index: number) => {
                     const checkInTs = act.check_in_time
@@ -750,20 +752,20 @@ const ConnectionDetails = () => {
             {activityOpen && (
             <div className="space-y-3 px-4 py-4">
               {activities.length === 0 ? (
-                <p className="text-sm text-[var(--iverifi-label)]">No stays or check-ins yet.</p>
+                <p className="text-sm text-[var(--iverifi-label)]">{venue.noHistoryText}</p>
               ) : (
                 activities.map((act: any, index: number) => {
                   const checkInTs = act.check_in_time ? (typeof act.check_in_time === "number" ? act.check_in_time : new Date(act.check_in_time).getTime()) : null;
                   const checkOutTs = act.check_out_time ? (typeof act.check_out_time === "number" ? act.check_out_time : new Date(act.check_out_time).getTime()) : null;
                   const status = checkOutTs
-                    ? "Checked out"
+                    ? venue.outLabel
                     : checkInTs
-                      ? "Checked in"
+                      ? venue.inLabel
                       : "—";
                   const statusCls =
-                    status === "Checked out"
+                    status === venue.outLabel
                       ? "text-[var(--iverifi-text-muted)]"
-                      : status === "Checked in"
+                      : status === venue.inLabel
                         ? "text-teal-600 dark:text-[#5eead4]"
                         : "text-[var(--iverifi-label)]";
                   return (

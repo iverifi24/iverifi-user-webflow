@@ -39,7 +39,7 @@ export function AuthHeroHeader({ className }: { className?: string }) {
             </h1>
             <p className="text-xs text-muted-foreground max-w-sm flex items-center justify-center gap-1">
               <ShieldCheck className="w-3.5 h-3.5 text-teal-600 shrink-0" />
-              <span>Fast, secure, and paperless check-in under 30 seconds</span>
+              <span>Fast, secure, and paperless verification in under 30 seconds</span>
             </p>
           </div>
         ) : (

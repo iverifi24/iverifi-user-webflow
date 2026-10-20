@@ -187,7 +187,7 @@ const MyActivity = () => {
             No activity recorded
           </p>
           <p className="text-xs text-muted-foreground mt-1 max-w-xs mx-auto">
-            Your document verifications and check-in events will appear here in chronological order.
+            Your document verifications and visits will appear here in chronological order.
           </p>
         </div>
       ) : (

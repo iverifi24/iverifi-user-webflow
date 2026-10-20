@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { getVenueCopy, isInLabel, isOutLabel } from "@/utils/venueCopy";
 import { useNavigate } from "react-router-dom";
 import { useGetConnectionsQuery } from "@/redux/api";
 import { format } from "date-fns";
@@ -53,8 +54,9 @@ export default function ConnectionRequestsPage() {
 
   // Helper to get normalized status
   const getStatus = (req: any): { key: "active" | "pending" | "past"; label: string } => {
-    if (req.check_out_time) return { key: "past", label: "Checked out" };
-    if (req.check_in_time) return { key: "active", label: "Checked in" };
+    const venue = getVenueCopy(req?.recipients?.businessType);
+    if (req.check_out_time) return { key: "past", label: venue.outLabel };
+    if (req.check_in_time) return { key: "active", label: venue.inLabel };
     if (req.check_in_status === "pending") return { key: "pending", label: "Pending approval" };
     return { key: "active", label: "Connected" };
   };
@@ -177,9 +179,9 @@ export default function ConnectionRequestsPage() {
   };
 
   const statusBadgeClass = (status: string) => {
-    if (status === "Checked out")
+    if (isOutLabel(status))
       return "border-slate-500/30 bg-slate-500/10 text-slate-300";
-    if (status === "Checked in")
+    if (isInLabel(status))
       return "border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-[rgba(0,200,150,0.35)] dark:bg-[rgba(0,200,150,0.12)] dark:text-[#5eead4]";
     if (status === "Pending approval")
       return "border-amber-300 bg-amber-50 text-amber-700 dark:border-[rgba(245,166,35,0.35)] dark:bg-[rgba(245,166,35,0.12)] dark:text-amber-200";

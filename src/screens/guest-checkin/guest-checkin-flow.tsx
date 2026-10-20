@@ -389,10 +389,13 @@ export default function GuestCheckinFlow() {
                 <Building2 className="w-9 h-9" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-foreground mb-1">Already checked in</h1>
+                <h1 className="text-2xl font-bold text-foreground mb-1">{copy.alreadyTitle}</h1>
                 <p className="text-sm text-muted-foreground leading-relaxed max-w-xs">
-                  You're already checked in at <strong className="text-foreground">{venueName}</strong>.
-                  Please check out with {copy.staffTerm} before checking in again.
+                  {copy.isLodging ? "You're already checked in at " : "You're already registered at "}
+                  <strong className="text-foreground">{venueName}</strong>.{" "}
+                  {copy.isLodging
+                    ? `Please check out with ${copy.staffTerm} before checking in again.`
+                    : `Please let ${copy.staffTerm} know when you leave before registering again.`}
                 </p>
               </div>
               <Button

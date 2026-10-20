@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { getVenueCopy } from "@/utils/venueCopy";
 import { LoadingScreen } from "@/components/loading-screen";
 import { auth } from "@/firebase/firebase_setup";
 import {
@@ -964,6 +965,9 @@ const Connections = () => {
     );
   }, [recipientData]);
 
+  // wording for this venue's type (a visit for an office or hospital, a check-in for a hotel)
+  const venueCopy = useMemo(() => getVenueCopy(connectedRequestorType), [connectedRequestorType]);
+
   const connectedRequestorAddress = useMemo(() => {
     const r = recipientData?.data?.requests?.[0]?.recipients;
     if (!r) return null;
@@ -1188,7 +1192,7 @@ const Connections = () => {
       clearPendingRecipientId();
       processedCodeRef.current = null;
       navigate(location.pathname, { replace: true });
-      toast.success("C-Form submitted. Check-in request sent to the venue.");
+      toast.success(`C-Form submitted. ${venueCopy.requestSentText}`);
       await refetchCredentials();
       setFeedbackRequestId(derivedConnectionId);
       setFeedbackOpen(true);
@@ -1232,7 +1236,7 @@ const Connections = () => {
       processedCodeRef.current = null;
       navigate(location.pathname, { replace: true });
       toast.success(
-        "Foreign Passport submitted. Check-in request sent to the venue.",
+        `Foreign Passport submitted. ${venueCopy.requestSentText}`,
       );
       await refetchCredentials();
       setFeedbackRequestId(derivedConnectionId);
@@ -1347,7 +1351,7 @@ const Connections = () => {
       processedCodeRef.current = null;
       navigate(location.pathname, { replace: true });
 
-      toast.success("Document shared. Check-in request sent to the venue.");
+      toast.success(`Document shared. ${venueCopy.requestSentText}`);
 
       await refetchCredentials();
       setFeedbackRequestId(derivedConnectionId);
@@ -1356,7 +1360,7 @@ const Connections = () => {
       toast.error(
         error?.data?.message
           ? String(error.data.message)
-          : "Could not share or request check-in. Please try again.",
+          : venueCopy.requestFailedText,
       );
       throw error;
     } finally {

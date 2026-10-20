@@ -267,8 +267,8 @@ export function HeaderProfileMenu() {
               <ul className="list-disc list-outside space-y-1 pl-4 text-left">
                 <li>Your profile and personal information</li>
                 <li>All verified documents and credentials</li>
-                <li>Your connections and shared access with properties</li>
-                <li>Your activity and check-in history</li>
+                <li>Your connections and shared access with businesses</li>
+                <li>Your activity and visit history</li>
                 <li>Your Firebase authentication account (you will not be able to sign in with this email or phone again)</li>
               </ul>
               <p>If you have shared credentials with any organization, they will no longer have access to your documents.</p>
