@@ -1,5 +1,5 @@
 import { getToken } from "firebase/messaging";
-import { messaging } from "@/firebase/firebase_setup";
+import { getMessagingIfSupported } from "@/firebase/firebase_setup";
 import { doc, setDoc, getDoc } from "firebase/firestore";
 import { db } from "@/firebase/firebase_setup";
 import type { User } from "firebase/auth";
@@ -37,6 +37,8 @@ export const getFCMToken = async (): Promise<string> => {
     if (typeof Notification !== "undefined" && Notification.permission === "denied") {
       return "";
     }
+    const messaging = await getMessagingIfSupported();
+    if (!messaging) return ""; // this browser has no push (for example iPhone Safari outside the Home Screen app)
     const token = await getToken(messaging, {
       vapidKey: "YOUR_VAPID_KEY", // Replace with your actual VAPID key from Firebase Console
     });

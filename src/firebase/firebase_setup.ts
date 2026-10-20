@@ -2,7 +2,7 @@
 import { initializeApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider, setPersistence, browserLocalPersistence } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
-import { getMessaging } from "firebase/messaging";
+import { getMessaging, isSupported, type Messaging } from "firebase/messaging";
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -23,6 +23,20 @@ export const authPersistenceReady = setPersistence(auth, browserLocalPersistence
 });
 export const googleProvider = new GoogleAuthProvider();
 export const db = getFirestore(app);
-export const messaging = getMessaging(app);
+
+/**
+ * Push messaging, only where the browser can do it. Safari on iPhone supports push only for an app added to the Home Screen, and
+ * in-app browsers and some private modes have none; asking Firebase for it there throws an unhandled error on every page load.
+ * Resolves to null when push is not available, so callers simply skip it.
+ */
+let messagingPromise: Promise<Messaging | null> | null = null;
+export const getMessagingIfSupported = (): Promise<Messaging | null> => {
+  if (!messagingPromise) {
+    messagingPromise = isSupported()
+      .then((ok) => (ok ? getMessaging(app) : null))
+      .catch(() => null);
+  }
+  return messagingPromise;
+};
 
 export default app;

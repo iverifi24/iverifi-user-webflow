@@ -61,12 +61,13 @@ export default function GuestLanding({ hotelCode, onHotelInfo, onStart }: Props)
           </div>
 
           {/* Micro-Stepper Flow — same steps as the progress bar inside the flow */}
+          {/* Two cards per row on a phone (four narrow cards cut words such as "Companions" into their neighbour), one row from sm up */}
           <div
-            className="grid gap-2 py-1 text-left"
-            style={{ gridTemplateColumns: `repeat(${stepLabels.length}, minmax(0, 1fr))` }}
+            className="grid grid-cols-2 gap-2 py-1 text-left sm:[grid-template-columns:var(--step-columns)]"
+            style={{ "--step-columns": `repeat(${stepLabels.length}, minmax(0, 1fr))` } as React.CSSProperties}
           >
             {stepLabels.map((label, i) => (
-              <div key={label} className="flex flex-col gap-1 rounded-2xl bg-muted/50 dark:bg-slate-800/40 border border-border/50 p-2.5">
+              <div key={label} className="flex min-w-0 flex-col gap-1 break-words rounded-2xl bg-muted/50 dark:bg-slate-800/40 border border-border/50 p-2.5">
                 <span className="text-[10px] font-bold text-[var(--iverifi-accent)] uppercase tracking-wider">Step {i + 1}</span>
                 <span className="text-xs font-semibold text-foreground leading-tight">{label}</span>
                 <span className="text-[10px] text-muted-foreground">{stepHints[label]}</span>

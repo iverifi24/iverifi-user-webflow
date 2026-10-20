@@ -216,9 +216,34 @@
   }
   html {
     font-size: 18px;
+    -webkit-text-size-adjust: 100%; /* iPhone: do not enlarge text when the phone is turned sideways */
+    text-size-adjust: 100%;
   }
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+/* ---- Safari / iPhone ----------------------------------------------------------------------------------------------------------
+   Full-screen layouts use `min-h-screen` (100vh). On iPhone, 100vh is taller than the visible area (the address bar and toolbar
+   are counted), so the bottom of the page is hidden behind them. 100dvh is the visible height. This sits outside the Tailwind
+   layers on purpose so it wins over the utility. Browsers without dvh keep the 100vh behaviour. */
+@supports (height: 100dvh) {
+  .min-h-screen {
+    min-height: 100dvh;
+  }
+  .h-screen {
+    height: 100dvh;
+  }
+}
+
+/* iPhone Safari zooms the whole page when a field with text smaller than 16px is tapped, and does not zoom back. -webkit-touch-callout
+   exists only on iOS, so this changes nothing on desktop or Android. */
+@supports (-webkit-touch-callout: none) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  select,
+  textarea {
+    font-size: 16px !important;
   }
 }
 
