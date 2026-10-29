@@ -395,10 +395,31 @@ export const api = createApi({
       }),
     }),
     getVerificationRoutes: builder.query<
-      { status: number; data: { routes: Record<string, ("digilocker" | "kwik")[]> }; hasError: boolean; message: string },
+      { status: number; data: { routes: Record<string, ("digilocker" | "kwik" | "vsign")[]> }; hasError: boolean; message: string },
       void
     >({
       query: () => ({ url: "/users/verification/routes", method: "GET" }),
+    }),
+    // ---- typed-number checks (PAN, passport, voter ID, mobile OTP) ----
+    vsignVerify: builder.mutation<
+      { status: number; data: { document_id: string; document_type: string; masked_id: string | null }; hasError: boolean; message: string },
+      { document_type: string; id_number: string; dob?: string }
+    >({
+      query: (body) => ({ url: "/users/vsign/verify", method: "POST", body }),
+      invalidatesTags: ["credentials", "activity", "connections"],
+    }),
+    vsignMobileSend: builder.mutation<
+      { status: number; data: { request_id: string; expires_in: number }; hasError: boolean; message: string },
+      { mobile: string }
+    >({
+      query: (body) => ({ url: "/users/vsign/mobile/send", method: "POST", body }),
+    }),
+    vsignMobileVerify: builder.mutation<
+      { status: number; data: { document_id: string }; hasError: boolean; message: string },
+      { request_id: string; otp: string }
+    >({
+      query: (body) => ({ url: "/users/vsign/mobile/verify", method: "POST", body }),
+      invalidatesTags: ["credentials", "activity", "connections"],
     }),
     // ---- live photo (a current picture of the person, taken after a document is verified) ----
     getLivePhotoStatus: builder.query<
@@ -473,6 +494,9 @@ export const api = createApi({
 export const {
   useGetCredentialsQuery,
   useGetVerificationRoutesQuery,
+  useVsignVerifyMutation,
+  useVsignMobileSendMutation,
+  useVsignMobileVerifyMutation,
   useGetLivePhotoStatusQuery,
   useCreateLivePhotoChallengeMutation,
   useSubmitLivePhotoMutation,

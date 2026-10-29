@@ -1,4 +1,4 @@
-import { Car, CreditCard, FileBadge, FileText, Plane } from "lucide-react";
+import { Car, CreditCard, FileBadge, FileText, Plane, Smartphone, Vote } from "lucide-react";
 
 interface DocumentTypeIconProps {
   /** document_type (e.g. AADHAAR_CARD, DRIVING_LICENSE, PAN_CARD, PASSPORT, FAMILY_DL). */
@@ -20,5 +20,7 @@ export function DocumentTypeIcon({ documentType, className = "" }: DocumentTypeI
   if (t.includes("DRIVING") || t === "DL") return <Car className={cls} />;
   if (t.includes("PAN")) return <FileBadge className={cls} />;
   if (t.includes("PASSPORT")) return <Plane className={cls} />;
+  if (t.includes("VOTER")) return <Vote className={cls} />;
+  if (t.includes("MOBILE")) return <Smartphone className={cls} />;
   return <FileText className={cls} />;
 }
