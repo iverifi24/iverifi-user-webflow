@@ -25,6 +25,7 @@ import { DocumentPhotoQuestions } from "@/components/document-photo-question";
 import { PhotoCheckChip } from "@/components/photo-check-chip";
 import { methodsFor, providerLabel, verifiedViaLabel, labelForMethod } from "@/utils/verificationSource";
 import type { VerifyMethod } from "@/utils/verificationSource";
+import { TypedIdDialog } from "@/components/typed-id-dialog";
 import { digilockerErrorMessage, alsoSavedMessage } from "@/utils/digilockerErrors";
 import type { ForeignPassportPhotos } from "@/components/foreign-passport-dialog";
 import { determineConnectionType, isValidQRCode } from "@/utils/qr-code-utils";
@@ -455,6 +456,7 @@ const Connections = () => {
 
   // DL choice modal
   const [dlDigilockerModalOpen, setDlDigilockerModalOpen] = useState(false);
+  const [typedIdDoc, setTypedIdDoc] = useState<string | null>(null);
 
   // helper to robustly pick connection id from addConnection response
   const pickConnectionId = (res: any): string | null => {
@@ -1526,6 +1528,10 @@ const Connections = () => {
   // run one specific method (used for the first choice and for "try another way")
   const verifyWith = (method: VerifyMethod, documentType: DocumentType) => {
     if (method === "digilocker") return startDigilocker(documentType as string);
+    if (method === "vsign") {
+      setTypedIdDoc(documentType as string);
+      return;
+    }
     return handleVerifyDocumentKwik(documentType);
   };
 
@@ -2918,6 +2924,7 @@ const Connections = () => {
       />
 
       {/* DL: DigiLocker vs Camera Scan choice modal */}
+      <TypedIdDialog documentType={typedIdDoc} onClose={() => setTypedIdDoc(null)} />
       <Dialog open={dlDigilockerModalOpen} onOpenChange={setDlDigilockerModalOpen}>
         <DialogContent className="max-w-sm rounded-2xl">
           <DialogHeader>

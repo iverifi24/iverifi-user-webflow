@@ -1,4 +1,6 @@
+import { useState } from "react";
 import { LoadingScreen } from "@/components/loading-screen";
+import { TypedIdDialog } from "@/components/typed-id-dialog";
 import { Button } from "@/components/ui/button";
 import { useGetCredentialsQuery, useGetVerificationRoutesQuery } from "@/redux/api";
 import { startDigilockerFlow } from "@/utils/digilockerStart";
@@ -15,6 +17,8 @@ const formatDocType = (type: string): string => {
 };
 
 const DOC_TYPES = ["AADHAAR_CARD", "PAN_CARD", "DRIVING_LICENSE", "PASSPORT"] as const;
+/** listed only while the server offers a way to verify them */
+const OPTIONAL_DOC_TYPES = ["VOTER_ID", "MOBILE_NUMBER"] as const;
 
 const cardClass =
   "rounded-2xl border border-[color:var(--iverifi-card-border)] bg-[var(--iverifi-card)]";
@@ -24,11 +28,16 @@ const AddDocuments = () => {
   const { data: credData, isLoading: isLoadingCreds } = useGetCredentialsQuery();
   const { data: routesData } = useGetVerificationRoutesQuery();
   const routes = routesData?.data?.routes;
+  const [typedDoc, setTypedDoc] = useState<string | null>(null);
 
   // the server decides how each document is verified; this screen follows it
   const openVerify = async (docType: string) => {
     const methods = methodsFor(routes, docType);
     if (!methods.length) return toast.error("This document cannot be verified right now. Please try again later.");
+    if (methods[0] === "vsign") {
+      setTypedDoc(docType);
+      return;
+    }
     if (methods[0] === "digilocker") {
       const ticketDoc = docType === "AADHAAR_CARD" ? "AADHAAR_APP" : docType === "PAN_CARD" ? "PAN_APP" : docType === "DRIVING_LICENSE" ? "DL" : null;
       if (ticketDoc) {
@@ -47,7 +56,8 @@ const AddDocuments = () => {
 
   const verifiedDocs = credData?.data?.credential || [];
   const verifiedTypes = verifiedDocs.map((doc: any) => doc.document_type);
-  const unverifiedTypes = DOC_TYPES.filter((type) => !verifiedTypes.includes(type));
+  const listedTypes: string[] = [...DOC_TYPES, ...OPTIONAL_DOC_TYPES.filter((type) => routes?.[type]?.length)];
+  const unverifiedTypes = listedTypes.filter((type) => !verifiedTypes.includes(type));
 
   return (
     <div className="min-h-0 flex-1 w-full max-w-2xl mx-auto space-y-6 text-[var(--iverifi-text-primary)]">
@@ -104,6 +114,7 @@ const AddDocuments = () => {
           ))}
         </div>
       )}
+      <TypedIdDialog documentType={typedDoc} onClose={() => setTypedDoc(null)} />
     </div>
   );
 };

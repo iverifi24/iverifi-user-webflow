@@ -10,11 +10,12 @@
  * Never name a government system (Parivahan, e-Filing, Passport Seva…) as the verifier unless it is the one in use.
  */
 
-export type VerifyMethod = "digilocker" | "kwik";
+export type VerifyMethod = "digilocker" | "kwik" | "vsign";
 
 export const METHOD_LABEL: Record<VerifyMethod, string> = {
   digilocker: "DigiLocker",
   kwik: "iVerifi", // the camera scan is shown as iVerifi's own check; the scan partner is never named in the app
+  vsign: "iVerifi", // a typed-number check is shown the same way
 };
 
 const ISSUER: Record<string, string> = {
@@ -22,6 +23,7 @@ const ISSUER: Record<string, string> = {
   DRIVING_LICENSE: "State Transport Department (MoRTH)",
   PAN_CARD: "Income Tax Department",
   PASSPORT: "Ministry of External Affairs",
+  VOTER_ID: "Election Commission of India",
   FAMILY_AADHAAR: "UIDAI",
   FAMILY_DL: "State Transport Department (MoRTH)",
   FAMILY_PAN: "Income Tax Department",
@@ -73,6 +75,7 @@ export function providerLabel(methods: VerifyMethod[], documentType?: string | n
 export function verifiedViaLabel(verifiedVia: string | null | undefined, documentType?: string | null): string | null {
   if (!verifiedVia) return null;
   // the stored value names the camera-scan vendor; people are shown DigiLocker for Aadhaar (it runs through it) and iVerifi otherwise
+  if (verifiedVia === "VSign") return "iVerifi";
   if (verifiedVia === "Kwik") return isAadhaar(documentType) ? "DigiLocker" : "iVerifi";
   return ["DigiLocker", "iVerifi"].includes(verifiedVia) ? verifiedVia : null;
 }
