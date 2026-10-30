@@ -25,7 +25,7 @@ import AddConnectionModal from "./add_connection";
 
 type StatusFilter = "all" | "active" | "pending" | "past";
 type CategoryFilter = "all" | "hotel" | "corporate" | "healthcare" | "coliving" | "other";
-type DocFilter = "all" | "AADHAAR_CARD" | "DRIVING_LICENSE" | "PAN_CARD" | "PASSPORT";
+type DocFilter = "all" | "AADHAAR_CARD" | "DRIVING_LICENSE" | "PAN_CARD" | "PASSPORT" | "VOTER_ID";
 type SortOption = "newest" | "oldest" | "alphabetical";
 
 const ConnectionsRouter = () => {
@@ -324,6 +324,7 @@ const ConnectionsRouter = () => {
               { key: "DRIVING_LICENSE", label: "Driving Licence" },
               { key: "PAN_CARD", label: "PAN Card" },
               { key: "PASSPORT", label: "Passport" },
+              { key: "VOTER_ID", label: "Voter ID" },
             ].map((d) => (
               <button
                 key={d.key}

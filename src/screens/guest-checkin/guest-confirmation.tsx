@@ -14,6 +14,7 @@ const DOC_LABELS: Record<string, string> = {
   DRIVING_LICENSE: "Driving Licence",
   PAN_CARD: "PAN Card",
   PASSPORT: "Passport",
+  VOTER_ID: "Voter ID",
   FOREIGN_PASSPORT: "Foreign Passport",
 };
 

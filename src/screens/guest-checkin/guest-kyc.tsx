@@ -385,7 +385,7 @@ export default function GuestDocSelect({
   const failedDocType = verifyingType ?? localCreds[0]?.document_type ?? "AADHAAR_CARD";
   const DOC_LABELS_MAP: Record<string, string> = {
     AADHAAR_CARD: "Aadhaar Card", DRIVING_LICENSE: "Driving Licence",
-    PAN_CARD: "PAN Card", PASSPORT: "Passport",
+    PAN_CARD: "PAN Card", PASSPORT: "Passport", VOTER_ID: "Voter ID",
   };
   const failedDocLabel = DOC_LABELS_MAP[failedDocType] ?? "ID Document";
 

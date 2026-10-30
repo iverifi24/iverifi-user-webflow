@@ -6,6 +6,7 @@ const AGE_DOC_PRIORITY = [
   "PAN_CARD",
   "PASSPORT",
   "DRIVING_LICENSE",
+  "VOTER_ID",
   "C-Form (Foreign Guest)",
 ] as const;
 

@@ -28,6 +28,7 @@ export type DocumentType =
   | "AADHAAR_CARD"
   | "PAN_CARD"
   | "PASSPORT"
+  | "VOTER_ID"
   | "C-Form (Foreign Guest)"
   | "Foreign Passport";
 

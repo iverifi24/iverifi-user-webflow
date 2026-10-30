@@ -25,7 +25,7 @@ const cardClass =
 
 type StatusFilter = "all" | "active" | "pending" | "past";
 type CategoryFilter = "all" | "hotel" | "corporate" | "healthcare" | "coliving" | "other";
-type DocFilter = "all" | "AADHAAR_CARD" | "DRIVING_LICENSE" | "PAN_CARD" | "PASSPORT";
+type DocFilter = "all" | "AADHAAR_CARD" | "DRIVING_LICENSE" | "PAN_CARD" | "PASSPORT" | "VOTER_ID";
 type SortOption = "newest" | "oldest" | "name";
 
 export default function ConnectionRequestsPage() {
@@ -365,6 +365,7 @@ export default function ConnectionRequestsPage() {
                     { id: "DRIVING_LICENSE", label: "Driving Licence" },
                     { id: "PAN_CARD", label: "PAN Card" },
                     { id: "PASSPORT", label: "Passport" },
+                    { id: "VOTER_ID", label: "Voter ID" },
                   ].map((doc) => (
                     <button
                       key={doc.id}
