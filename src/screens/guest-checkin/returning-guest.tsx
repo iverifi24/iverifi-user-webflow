@@ -7,6 +7,7 @@ import {
   Car,
   FileBadge,
   Plane,
+  Vote,
   FileText,
   Sparkles,
   Camera,
@@ -32,6 +33,7 @@ const ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   DRIVING_LICENSE: Car,
   PAN_CARD: CreditCard,
   PASSPORT: Plane,
+  VOTER_ID: Vote,
 };
 
 const LABELS: Record<string, string> = {
@@ -39,6 +41,7 @@ const LABELS: Record<string, string> = {
   DRIVING_LICENSE: "Driving Licence",
   PAN_CARD: "PAN Card",
   PASSPORT: "Passport",
+  VOTER_ID: "Voter ID",
 };
 
 const SHARED_CHIPS: Record<string, ChipDef[]> = {
@@ -64,6 +67,10 @@ const SHARED_CHIPS: Record<string, ChipDef[]> = {
     { label: "Photo", icon: Camera },
     { label: "Full Name", icon: User },
     { label: "Passport (masked)", icon: Plane },
+  ],
+  VOTER_ID: [
+    { label: "Full Name", icon: User },
+    { label: "Voter ID (masked)", icon: Vote },
   ],
 };
 

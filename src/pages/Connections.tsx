@@ -75,6 +75,7 @@ const DOCUMENT_TYPES = [
   "AADHAAR_CARD",
   "PAN_CARD",
   "PASSPORT",
+  "VOTER_ID",
   "C-Form (Foreign Guest)",
 ] as const;
 type DocumentType = (typeof DOCUMENT_TYPES)[number];
@@ -110,6 +111,7 @@ const PRODUCT_CODE_MAP: Record<DocumentType, string> = {
   PASSPORT: "PP",
   PAN_CARD: "PC",
   DRIVING_LICENSE: "DL",
+  VOTER_ID: "KYC", // not a camera-scan document; verified by typing the number, so this code is never sent
   // C-Form is filled from passport upload in iVerifi flow, so reuse passport productCode.
   "C-Form (Foreign Guest)": "PP",
 };
@@ -152,6 +154,10 @@ const SMART_CARD_META: Record<
   PASSPORT: {
     issuer: "Ministry of External Affairs",
     gradient: "from-slate-900/90 via-slate-800 to-amber-950/60",
+  },
+  VOTER_ID: {
+    issuer: "Election Commission of India",
+    gradient: "from-slate-900/90 via-slate-800 to-violet-950/60",
   },
 };
 
@@ -556,6 +562,12 @@ const Connections = () => {
     return map;
   }, [credentialsData]);
 
+  // The four core documents, plus voter ID when the server offers a way to verify it or the user already has one
+  const homeDocTypes = useMemo<DocumentType[]>(
+    () => [...HOME_DOCUMENT_TYPES, ...(routes?.VOTER_ID?.length || verifiedCredentialsMap.VOTER_ID ? (["VOTER_ID"] as const) : [])],
+    [routes, verifiedCredentialsMap],
+  );
+
   // Keep latestCredentialsRef in sync so onMessage always reads current data
   useEffect(() => { latestCredentialsRef.current = credentialsData; }, [credentialsData]);
 
@@ -930,13 +942,13 @@ const Connections = () => {
     (recipientData?.data?.requests?.[0] as any)?.type === "Company";
 
   const verifiedDocTypesForShare = useMemo(() => {
-    return [...HOME_DOCUMENT_TYPES].filter((docType) => {
+    return [...homeDocTypes].filter((docType) => {
       if (!verifiedCredentialsMap[docType]) return false;
       // Hotels (Company) don't accept PAN as valid ID proof
       if (isCompanyRecipient && docType === "PAN_CARD") return false;
       return true;
     });
-  }, [verifiedCredentialsMap, isCompanyRecipient]);
+  }, [homeDocTypes, verifiedCredentialsMap, isCompanyRecipient]);
 
   const firstShareableDocType = verifiedDocTypesForShare[0] ?? null;
 
@@ -1725,11 +1737,11 @@ const Connections = () => {
             >
               <div className="text-xl sm:text-2xl font-black text-teal-600 dark:text-cyan-400 transition-transform group-hover:scale-105">
                 {
-                  HOME_DOCUMENT_TYPES.filter(
+                  homeDocTypes.filter(
                     (t) => !!verifiedCredentialsMap[t],
                   ).length
                 }
-                <span className="text-xs font-normal text-muted-foreground ml-0.5">/{HOME_DOCUMENT_TYPES.length}</span>
+                <span className="text-xs font-normal text-muted-foreground ml-0.5">/{homeDocTypes.length}</span>
               </div>
               <div className="mt-1 text-[10px] sm:text-[11px] font-bold tracking-wider uppercase text-muted-foreground group-hover:text-foreground">
                 Verified IDs
@@ -1792,7 +1804,7 @@ const Connections = () => {
             <DocumentPhotoQuestions />
 
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              {HOME_DOCUMENT_TYPES.map((docType) => {
+              {homeDocTypes.map((docType) => {
                 const isVerified = !!verifiedCredentialsMap[docType];
                 const meta = SMART_CARD_META[docType] || {
                   issuer: "Govt of India",
@@ -2259,6 +2271,7 @@ const Connections = () => {
                           selectedDocType === "DRIVING_LICENSE" ? "DL No."
                           : selectedDocType === "PAN_CARD" ? "PAN"
                           : selectedDocType === "PASSPORT" ? "Passport"
+                          : selectedDocType === "VOTER_ID" ? "Voter ID"
                           : "ID",
                         value: `******${selectedIdentityInfo.last4}`,
                       },
