@@ -21,6 +21,7 @@ import AadhaarDigiLockerTest from "./screens/documents/aadhaar_digilocker_test";
 import FamilyIds from "./screens/family_ids";
 import GuestCheckinFlow from "./screens/guest-checkin/guest-checkin-flow";
 import HrRequestEntry from "./screens/hr-request/hr_request_entry";
+import MobileReturn from "./screens/mobile_return";
 
 const App = () => {
   return (
@@ -30,6 +31,8 @@ const App = () => {
           {/* Guest check-in funnel — no auth required, manages its own auth internally */}
           <Route path="/checkin" element={<GuestCheckinFlow />} />
           <Route path="/aadhaar-test" element={<AadhaarDigiLockerTest />} />
+          {/* DigiLocker return address used by the iVerifi mobile app: hands the result back to the app */}
+          <Route path="/mobile-return" element={<MobileReturn />} />
 
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
