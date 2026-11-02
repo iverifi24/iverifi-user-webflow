@@ -109,7 +109,9 @@ export function TypedIdDialog({ documentType, onClose, onVerified }: Props) {
               ? requestId
                 ? "Enter the OTP sent to your mobile number."
                 : "We will send an OTP to this number."
-              : "Enter the number exactly as printed. The name on it must match the name on your account."}
+              : documentType === "VOTER_ID"
+                ? "Enter the number exactly as printed. We check it against your verified Aadhaar, driving licence or PAN, so one of them must be verified first."
+                : "Enter the number exactly as printed. The name on it must match the name on your account."}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={submit} className="space-y-4">
