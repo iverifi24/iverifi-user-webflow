@@ -13,6 +13,8 @@ interface Props {
   onClose: () => void;
   /** called after the credential is saved, so the screen can refresh */
   onVerified?: () => void;
+  /** set when the number belongs to a family member: it is saved under this nickname, not as the account holder's own */
+  familyNickname?: string;
 }
 
 const TITLE: Record<string, string> = {
@@ -45,7 +47,7 @@ const messageOf = (e: unknown): string => {
  * server checks it, matches the name to the account and saves the credential. Nothing is checked here beyond "not empty": the
  * server owns the rules, so they cannot drift.
  */
-export function TypedIdDialog({ documentType, onClose, onVerified }: Props) {
+export function TypedIdDialog({ documentType, onClose, onVerified, familyNickname }: Props) {
   const [idNumber, setIdNumber] = useState("");
   const [dob, setDob] = useState("");
   const [otp, setOtp] = useState("");
@@ -86,7 +88,12 @@ export function TypedIdDialog({ documentType, onClose, onVerified }: Props) {
         await verifyOtp({ request_id: requestId, otp }).unwrap();
         return done();
       }
-      await verify({ document_type: documentType, id_number: idNumber, ...(documentType === "PASSPORT" ? { dob } : {}) }).unwrap();
+      await verify({
+        document_type: documentType,
+        id_number: idNumber,
+        ...(documentType === "PASSPORT" ? { dob } : {}),
+        ...(familyNickname ? { family_nickname: familyNickname } : {}),
+      }).unwrap();
       done();
     } catch (err) {
       setError(messageOf(err));
@@ -109,7 +116,9 @@ export function TypedIdDialog({ documentType, onClose, onVerified }: Props) {
               ? requestId
                 ? "Enter the OTP sent to your mobile number."
                 : "We will send an OTP to this number."
-              : documentType === "VOTER_ID"
+              : familyNickname
+                ? `Enter the voter ID number of ${familyNickname}, exactly as printed. Your own verified document must be on your account first.`
+                : documentType === "VOTER_ID" || documentType === "PASSPORT"
                 ? "Enter the number exactly as printed. We check it against your verified Aadhaar, driving licence or PAN, so one of them must be verified first."
                 : "Enter the number exactly as printed. The name on it must match the name on your account."}
           </DialogDescription>
