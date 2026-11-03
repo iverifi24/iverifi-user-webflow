@@ -114,7 +114,27 @@ const AddDocuments = () => {
           ))}
         </div>
       )}
-      <TypedIdDialog documentType={typedDoc} onClose={() => setTypedDoc(null)} />
+      <TypedIdDialog
+        documentType={typedDoc}
+        onClose={() => setTypedDoc(null)}
+        alternate={(() => {
+          const other = typedDoc ? methodsFor(routes, typedDoc).find((m) => m !== "vsign") : undefined;
+          if (!typedDoc || !other) return undefined;
+          return {
+            label: other === "digilocker" ? "Use DigiLocker instead" : "Use the camera scan instead",
+            run: () => {
+              const doc = typedDoc;
+              setTypedDoc(null);
+              if (other === "digilocker") {
+                const ticketDoc = doc === "AADHAAR_CARD" ? "AADHAAR_APP" : doc === "PAN_CARD" ? "PAN_APP" : doc === "DRIVING_LICENSE" ? "DL" : null;
+                if (ticketDoc) startDigilockerFlow({ docType: ticketDoc }).catch((e: Error) => toast.error(e?.message || "Could not start DigiLocker verification"));
+                return;
+              }
+              navigate("/"); // the camera scan lives on the home screen, where the document cards are
+            },
+          };
+        })()}
+      />
     </div>
   );
 };

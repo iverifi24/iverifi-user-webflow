@@ -2951,6 +2951,19 @@ const Connections = () => {
       <TypedIdDialog
         documentType={typedIdDoc}
         familyNickname={typedFamilyNickname}
+        alternate={(() => {
+          // another way to verify the same document, when the server offers one (PAN: DigiLocker or scan; passport: scan)
+          const other = typedIdDoc && !typedFamilyNickname ? methodsFor(routes, typedIdDoc).find((m) => m !== "vsign") : undefined;
+          if (!typedIdDoc || !other) return undefined;
+          return {
+            label: other === "digilocker" ? "Use DigiLocker instead" : "Use the camera scan instead",
+            run: () => {
+              const doc = typedIdDoc;
+              setTypedIdDoc(null);
+              verifyWith(other, doc as DocumentType);
+            },
+          };
+        })()}
         onClose={() => {
           setTypedIdDoc(null);
           setTypedFamilyNickname(undefined);
