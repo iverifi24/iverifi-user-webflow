@@ -564,6 +564,9 @@ const Connections = () => {
     return map;
   }, [credentialsData]);
 
+  // Aadhaar is the root: every other document is checked against it, so none can be added until it is verified
+  const aadhaarVerified = !!verifiedCredentialsMap["AADHAAR_CARD"];
+
   // The four core documents, plus voter ID when the server offers a way to verify it or the user already has one
   const homeDocTypes = useMemo<DocumentType[]>(
     () => [...HOME_DOCUMENT_TYPES, ...(routes?.VOTER_ID?.length || verifiedCredentialsMap.VOTER_ID ? (["VOTER_ID"] as const) : [])],
@@ -1551,6 +1554,7 @@ const Connections = () => {
 
   // Which way a document is verified is decided by the server (DigiLocker first where it works, Kwik as the fallback)
   const handleVerifyDocument = async (documentType: DocumentType) => {
+    if (documentType !== "AADHAAR_CARD" && !aadhaarVerified) return toast.error("Verify your Aadhaar first. Your other documents are checked against it.");
     const methods = methodsFor(routes, documentType as string);
     if (!methods.length) return toast.error("This document cannot be verified right now. Please try again later.");
     // a driving licence offered both ways: let the user say which they have
@@ -1816,6 +1820,7 @@ const Connections = () => {
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               {homeDocTypes.map((docType) => {
                 const isVerified = !!verifiedCredentialsMap[docType];
+                const locked = !isVerified && docType !== "AADHAAR_CARD" && !aadhaarVerified;
                 const meta = SMART_CARD_META[docType] || {
                   issuer: "Govt of India",
                   gradient: "from-slate-900/90 via-slate-800 to-slate-900/80",
@@ -1883,8 +1888,11 @@ const Connections = () => {
                   /* ── Unverified "Add to Vault" Slot ── */
                   <div
                     key={docType}
-                    className="group relative flex flex-col justify-between rounded-2xl border-2 border-dashed border-border/80 bg-card/40 p-4 sm:p-5 hover:border-teal-500/50 hover:bg-muted/30 transition-all duration-200 cursor-pointer shadow-xs"
+                    className={`group relative flex flex-col justify-between rounded-2xl border-2 border-dashed border-border/80 bg-card/40 p-4 sm:p-5 transition-all duration-200 shadow-xs ${
+                      locked ? "opacity-60 cursor-not-allowed" : "hover:border-teal-500/50 hover:bg-muted/30 cursor-pointer"
+                    }`}
                     role="button"
+                    aria-disabled={locked}
                     onClick={() => handleVerifyDocument(docType)}
                   >
                     <div className="flex items-center justify-between gap-2">
@@ -1893,7 +1901,7 @@ const Connections = () => {
                       </span>
                       <span className="inline-flex items-center gap-1 rounded-full bg-teal-500/10 border border-teal-500/20 px-2 py-0.5 text-[9px] font-bold text-teal-700 dark:text-cyan-400">
                         <Zap className="h-2.5 w-2.5" />{" "}
-                        {providerLabel(methodsFor(routes, docType), docType) ? `via ${providerLabel(methodsFor(routes, docType), docType)}` : "Not available now"}
+                        {locked ? "Aadhaar first" : providerLabel(methodsFor(routes, docType), docType) ? `via ${providerLabel(methodsFor(routes, docType), docType)}` : "Not available now"}
                       </span>
                     </div>
 
@@ -1916,12 +1924,13 @@ const Connections = () => {
 
                     <div className="flex items-center justify-between pt-2.5 border-t border-border/50 text-xs">
                       <span className="text-[10px] text-muted-foreground">
-                        Requires 1-time verification
+                        {locked ? "Verify your Aadhaar to unlock" : "Requires 1-time verification"}
                       </span>
                       <Button
                         type="button"
                         size="sm"
-                        className="h-7 rounded-lg bg-teal-600 hover:bg-teal-700 text-white text-[11px] font-bold px-3 shadow-xs cursor-pointer"
+                        disabled={locked}
+                        className="h-7 rounded-lg bg-teal-600 hover:bg-teal-700 text-white text-[11px] font-bold px-3 shadow-xs cursor-pointer disabled:cursor-not-allowed"
                         onClick={(e) => {
                           e.stopPropagation();
                           handleVerifyDocument(docType);

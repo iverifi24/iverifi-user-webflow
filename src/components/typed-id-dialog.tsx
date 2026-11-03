@@ -119,9 +119,9 @@ export function TypedIdDialog({ documentType, onClose, onVerified, familyNicknam
                 ? "Enter the OTP sent to your mobile number."
                 : "We will send an OTP to this number."
               : familyNickname
-                ? `Enter the voter ID number of ${familyNickname}, exactly as printed. Your own verified document must be on your account first.`
-                : documentType === "VOTER_ID" || documentType === "PASSPORT"
-                ? "Enter the number exactly as printed. We check it against your verified Aadhaar, driving licence or PAN, so one of them must be verified first."
+                ? `Enter the voter ID number of ${familyNickname}, exactly as printed. Your own Aadhaar must be verified on your account first.`
+                : documentType === "VOTER_ID" || documentType === "PASSPORT" || documentType === "PAN_CARD"
+                ? "Enter the number exactly as printed. We check it against your verified Aadhaar, so your Aadhaar must be verified first."
                 : "Enter the number exactly as printed. The name on it must match the name on your account."}
           </DialogDescription>
         </DialogHeader>
