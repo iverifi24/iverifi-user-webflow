@@ -124,6 +124,7 @@ const FAMILY_DOC_OPTIONS = [
   { type: "FAMILY_PASSPORT",  label: "Passport",        subtitle: "Issued by MEA",             productCode: "PP",  iconType: "PASSPORT"          },
   { type: "FAMILY_DL",        label: "Driving License", subtitle: "Issued by State RTO",       productCode: "DL",  iconType: "DRIVING_LICENSE"   },
   { type: "FAMILY_PAN",       label: "PAN Card",        subtitle: "Issued by Income Tax Dept",    productCode: "PC",  iconType: "PAN_CARD"          },
+  { type: "FAMILY_VOTER_ID",  label: "Voter ID",        subtitle: "Issued by Election Commission", productCode: "KYC", iconType: "VOTER_ID"        },
 ] as const;
 const FAMILY_DOC_UNKNOWN = { type: "UNKNOWN", label: "ID Document", subtitle: "Verified", productCode: "KYC", iconType: "AADHAAR_CARD" } as const;
 type FamilyDocType = (typeof FAMILY_DOC_OPTIONS)[number]["type"];
@@ -463,6 +464,7 @@ const Connections = () => {
   // DL choice modal
   const [dlDigilockerModalOpen, setDlDigilockerModalOpen] = useState(false);
   const [typedIdDoc, setTypedIdDoc] = useState<string | null>(null);
+  const [typedFamilyNickname, setTypedFamilyNickname] = useState<string | undefined>(undefined);
 
   // helper to robustly pick connection id from addConnection response
   const pickConnectionId = (res: any): string | null => {
@@ -1610,6 +1612,14 @@ const Connections = () => {
       setFamilyNicknameError("This document cannot be verified right now. Please try again later.");
       return;
     }
+    if (familyMethods[0] === "vsign") {
+      // a typed number, saved on this account under the family member's nickname
+      setFamilyDialogOpen(false);
+      setFamilyNickname("");
+      setTypedFamilyNickname(trimmed);
+      setTypedIdDoc("VOTER_ID");
+      return;
+    }
     if (familyMethods[0] === "digilocker") {
       setFamilyDialogOpen(false);
       setFamilyNickname("");
@@ -2495,6 +2505,7 @@ const Connections = () => {
             docType === "FAMILY_DL" ? "DL Number"
             : docType === "FAMILY_PASSPORT" ? "Passport No."
             : docType === "FAMILY_PAN" ? "PAN No."
+            : docType === "FAMILY_VOTER_ID" ? "Voter ID No."
             : "Aadhaar";
           const privacyNote = isAadhaarFamily
             ? "Full Aadhaar number never stored. DPDP Act 2023."
@@ -2937,7 +2948,17 @@ const Connections = () => {
       />
 
       {/* DL: DigiLocker vs Camera Scan choice modal */}
-      <TypedIdDialog documentType={typedIdDoc} onClose={() => setTypedIdDoc(null)} />
+      <TypedIdDialog
+        documentType={typedIdDoc}
+        familyNickname={typedFamilyNickname}
+        onClose={() => {
+          setTypedIdDoc(null);
+          setTypedFamilyNickname(undefined);
+        }}
+        onVerified={() => {
+          if (typedFamilyNickname) refetchFamily();
+        }}
+      />
       <Dialog open={dlDigilockerModalOpen} onOpenChange={setDlDigilockerModalOpen}>
         <DialogContent className="max-w-sm rounded-2xl">
           <DialogHeader>
@@ -3002,7 +3023,7 @@ const Connections = () => {
 
           {/* Doc type picker */}
           <div className="grid grid-cols-2 gap-2 pt-1">
-            {FAMILY_DOC_OPTIONS.map((opt) => {
+            {FAMILY_DOC_OPTIONS.filter((opt) => opt.type !== "FAMILY_VOTER_ID" || methodsFor(routes, opt.type)[0] === "vsign").map((opt) => {
               const isSelected = familyDocType === opt.type;
               return (
                 <button

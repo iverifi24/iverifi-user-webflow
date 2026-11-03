@@ -28,6 +28,7 @@ const ISSUER: Record<string, string> = {
   FAMILY_DL: "State Transport Department (MoRTH)",
   FAMILY_PAN: "Income Tax Department",
   FAMILY_PASSPORT: "Ministry of External Affairs",
+  FAMILY_VOTER_ID: "Election Commission of India",
 };
 
 /** the authority that issues this kind of document, or null when unknown */
@@ -44,6 +45,7 @@ const ROUTE_KEY: Record<string, string> = {
   FAMILY_DL: "DRIVING_LICENSE",
   FAMILY_PAN: "PAN_CARD",
   FAMILY_PASSPORT: "PASSPORT",
+  FAMILY_VOTER_ID: "VOTER_ID",
 };
 
 /**

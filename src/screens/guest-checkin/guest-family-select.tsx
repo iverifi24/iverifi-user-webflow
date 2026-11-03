@@ -3,7 +3,10 @@ import { useAuth } from "@/context/auth_context";
 import {
   useGetFamilyCredentialsQuery,
   useCreateCredentialMutation,
+  useGetVerificationRoutesQuery,
 } from "@/redux/api";
+import { methodsFor } from "@/utils/verificationSource";
+import { TypedIdDialog } from "@/components/typed-id-dialog";
 import { toast } from "sonner";
 import { startDigilockerFlow } from "@/utils/digilockerStart";
 import { X, Check, UserPlus } from "lucide-react";
@@ -21,6 +24,7 @@ const FAMILY_DOC_OPTIONS = [
   { type: "FAMILY_PASSPORT", label: "Passport", productCode: "PP" },
   { type: "FAMILY_DL", label: "Driving Licence", productCode: "DL" },
   { type: "FAMILY_PAN", label: "PAN Card", productCode: "PC" },
+  { type: "FAMILY_VOTER_ID", label: "Voter ID", productCode: "KYC" }, // typed number, not a scan: the code is never sent
 ] as const;
 type FamilyDocType = (typeof FAMILY_DOC_OPTIONS)[number]["type"];
 
@@ -93,6 +97,12 @@ export default function GuestFamilySelect({ hotelName, hotelLogoUrl, onContinue,
   const [nicknameError, setNicknameError] = useState("");
   const [isStarting, setIsStarting] = useState(false);
   const [createCredential] = useCreateCredentialMutation();
+
+  // Voter ID is offered only while the server has a way to verify it; the number is typed, so it has its own dialog
+  const { data: routesData } = useGetVerificationRoutesQuery();
+  const routes = routesData?.data?.routes;
+  const docOptions = FAMILY_DOC_OPTIONS.filter((o) => o.type !== "FAMILY_VOTER_ID" || methodsFor(routes, "FAMILY_VOTER_ID")[0] === "vsign");
+  const [typedFamilyNickname, setTypedFamilyNickname] = useState<string | null>(null);
 
   // DL choice modal state
   const [dlChoiceOpen, setDlChoiceOpen] = useState(false);
@@ -170,6 +180,13 @@ export default function GuestFamilySelect({ hotelName, hotelLogoUrl, onContinue,
       // Show DL choice modal (DigiLocker vs Camera Scan)
       setAddDialogOpen(false);
       setDlChoiceOpen(true);
+      return;
+    }
+
+    if (docType === "FAMILY_VOTER_ID") {
+      setAddDialogOpen(false);
+      setNickname("");
+      setTypedFamilyNickname(trimmed);
       return;
     }
 
@@ -314,7 +331,7 @@ export default function GuestFamilySelect({ hotelName, hotelLogoUrl, onContinue,
 
             {/* Document type picker */}
             <div className="grid grid-cols-2 gap-2">
-              {FAMILY_DOC_OPTIONS.map((opt) => (
+              {docOptions.map((opt) => (
                 <button
                   key={opt.type}
                   type="button"
@@ -357,6 +374,18 @@ export default function GuestFamilySelect({ hotelName, hotelLogoUrl, onContinue,
           </div>
         </div>
       )}
+
+      {/* Voter ID of a companion: typed number; once saved it shows up in the list and is selected like the others */}
+      <TypedIdDialog
+        documentType={typedFamilyNickname ? "VOTER_ID" : null}
+        familyNickname={typedFamilyNickname ?? undefined}
+        onClose={() => setTypedFamilyNickname(null)}
+        onVerified={() => {
+          pendingNicknameRef.current = typedFamilyNickname;
+          setPollInterval(POLL_INTERVAL_MS);
+          refetchFamily();
+        }}
+      />
 
       {/* DL choice modal */}
       {dlChoiceOpen && (

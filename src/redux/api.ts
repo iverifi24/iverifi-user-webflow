@@ -403,7 +403,7 @@ export const api = createApi({
     // ---- typed-number checks (PAN, passport, voter ID, mobile OTP) ----
     vsignVerify: builder.mutation<
       { status: number; data: { document_id: string; document_type: string; masked_id: string | null }; hasError: boolean; message: string },
-      { document_type: string; id_number: string; dob?: string }
+      { document_type: string; id_number: string; dob?: string; family_nickname?: string }
     >({
       query: (body) => ({ url: "/users/vsign/verify", method: "POST", body }),
       invalidatesTags: ["credentials", "activity", "connections"],
