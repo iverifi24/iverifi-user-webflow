@@ -80,6 +80,9 @@ const DOCUMENT_TYPES = [
 ] as const;
 type DocumentType = (typeof DOCUMENT_TYPES)[number];
 
+// Aadhaar is the root the other typed documents are checked against; Aadhaar itself and PAN (DigiLocker) can be added first
+const OPEN_WITHOUT_AADHAAR = new Set<string>(["AADHAAR_CARD", "PAN_CARD"]);
+
 const HOME_DOCUMENT_TYPES = [
   "DRIVING_LICENSE",
   "AADHAAR_CARD",
@@ -1554,7 +1557,7 @@ const Connections = () => {
 
   // Which way a document is verified is decided by the server (DigiLocker first where it works, Kwik as the fallback)
   const handleVerifyDocument = async (documentType: DocumentType) => {
-    if (documentType !== "AADHAAR_CARD" && !aadhaarVerified) return toast.error("Verify your Aadhaar first. Your other documents are checked against it.");
+    if (!OPEN_WITHOUT_AADHAAR.has(documentType as string) && !aadhaarVerified) return toast.error("Verify your Aadhaar first. Your other documents are checked against it.");
     const methods = methodsFor(routes, documentType as string);
     if (!methods.length) return toast.error("This document cannot be verified right now. Please try again later.");
     // a driving licence offered both ways: let the user say which they have
@@ -1820,7 +1823,7 @@ const Connections = () => {
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               {homeDocTypes.map((docType) => {
                 const isVerified = !!verifiedCredentialsMap[docType];
-                const locked = !isVerified && docType !== "AADHAAR_CARD" && !aadhaarVerified;
+                const locked = !isVerified && !OPEN_WITHOUT_AADHAAR.has(docType) && !aadhaarVerified;
                 const meta = SMART_CARD_META[docType] || {
                   issuer: "Govt of India",
                   gradient: "from-slate-900/90 via-slate-800 to-slate-900/80",
