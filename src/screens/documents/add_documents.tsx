@@ -32,6 +32,7 @@ const AddDocuments = () => {
 
   // the server decides how each document is verified; this screen follows it
   const openVerify = async (docType: string) => {
+    if (docType !== "AADHAAR_CARD" && !aadhaarVerified) return toast.error("Verify your Aadhaar first. Your other documents are checked against it.");
     const methods = methodsFor(routes, docType);
     if (!methods.length) return toast.error("This document cannot be verified right now. Please try again later.");
     if (methods[0] === "vsign") {
@@ -58,6 +59,8 @@ const AddDocuments = () => {
   const verifiedTypes = verifiedDocs.map((doc: any) => doc.document_type);
   const listedTypes: string[] = [...DOC_TYPES, ...OPTIONAL_DOC_TYPES.filter((type) => routes?.[type]?.length)];
   const unverifiedTypes = listedTypes.filter((type) => !verifiedTypes.includes(type));
+  // Aadhaar is the root: every other document is checked against it, so none can be added until it is verified
+  const aadhaarVerified = verifiedTypes.includes("AADHAAR_CARD") || verifiedTypes.includes("DIGILOCKER");
 
   return (
     <div className="min-h-0 flex-1 w-full max-w-2xl mx-auto space-y-6 text-[var(--iverifi-text-primary)]">
@@ -89,32 +92,59 @@ const AddDocuments = () => {
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {unverifiedTypes.map((docType) => (
-            <div
-              key={docType}
-              className={`${cardClass} p-4 transition-all duration-200 hover:bg-[var(--iverifi-card-hover)] cursor-pointer`}
-              onClick={() => openVerify(docType)}
-            >
-              <p className="text-base font-semibold text-[var(--iverifi-text-primary)] mb-3">
-                {formatDocType(docType)}
-              </p>
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full rounded-xl border border-[color:var(--iverifi-card-border)] bg-[var(--iverifi-muted-surface)] text-[var(--iverifi-text-primary)] hover:bg-[var(--iverifi-card-hover)] font-medium justify-start"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  openVerify(docType);
-                }}
+          {unverifiedTypes.map((docType) => {
+            const locked = docType !== "AADHAAR_CARD" && !aadhaarVerified;
+            return (
+              <div
+                key={docType}
+                className={`${cardClass} p-4 transition-all duration-200 ${locked ? "opacity-60 cursor-not-allowed" : "hover:bg-[var(--iverifi-card-hover)] cursor-pointer"}`}
+                aria-disabled={locked}
+                onClick={() => openVerify(docType)}
               >
-                <ExternalLink className="h-4 w-4 mr-2 shrink-0" />
-                Verify {formatDocType(docType)}{providerLabel(methodsFor(routes, docType), docType) ? ` via ${providerLabel(methodsFor(routes, docType), docType)}` : ""}
-              </Button>
-            </div>
-          ))}
+                <p className="text-base font-semibold text-[var(--iverifi-text-primary)] mb-3">
+                  {formatDocType(docType)}
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={locked}
+                  className="w-full rounded-xl border border-[color:var(--iverifi-card-border)] bg-[var(--iverifi-muted-surface)] text-[var(--iverifi-text-primary)] hover:bg-[var(--iverifi-card-hover)] font-medium justify-start disabled:cursor-not-allowed"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openVerify(docType);
+                  }}
+                >
+                  <ExternalLink className="h-4 w-4 mr-2 shrink-0" />
+                  {locked
+                    ? "Verify your Aadhaar first"
+                    : `Verify ${formatDocType(docType)}${providerLabel(methodsFor(routes, docType), docType) ? ` via ${providerLabel(methodsFor(routes, docType), docType)}` : ""}`}
+                </Button>
+              </div>
+            );
+          })}
         </div>
       )}
-      <TypedIdDialog documentType={typedDoc} onClose={() => setTypedDoc(null)} />
+      <TypedIdDialog
+        documentType={typedDoc}
+        onClose={() => setTypedDoc(null)}
+        alternate={(() => {
+          const other = typedDoc ? methodsFor(routes, typedDoc).find((m) => m !== "vsign") : undefined;
+          if (!typedDoc || !other) return undefined;
+          return {
+            label: other === "digilocker" ? "Use DigiLocker instead" : "Use the camera scan instead",
+            run: () => {
+              const doc = typedDoc;
+              setTypedDoc(null);
+              if (other === "digilocker") {
+                const ticketDoc = doc === "AADHAAR_CARD" ? "AADHAAR_APP" : doc === "PAN_CARD" ? "PAN_APP" : doc === "DRIVING_LICENSE" ? "DL" : null;
+                if (ticketDoc) startDigilockerFlow({ docType: ticketDoc }).catch((e: Error) => toast.error(e?.message || "Could not start DigiLocker verification"));
+                return;
+              }
+              navigate("/"); // the camera scan lives on the home screen, where the document cards are
+            },
+          };
+        })()}
+      />
     </div>
   );
 };

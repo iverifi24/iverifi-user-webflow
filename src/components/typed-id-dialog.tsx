@@ -15,6 +15,8 @@ interface Props {
   onVerified?: () => void;
   /** set when the number belongs to a family member: it is saved under this nickname, not as the account holder's own */
   familyNickname?: string;
+  /** another way to verify the same document (DigiLocker or the camera scan), for a person this check cannot confirm */
+  alternate?: { label: string; run: () => void };
 }
 
 const TITLE: Record<string, string> = {
@@ -47,7 +49,7 @@ const messageOf = (e: unknown): string => {
  * server checks it, matches the name to the account and saves the credential. Nothing is checked here beyond "not empty": the
  * server owns the rules, so they cannot drift.
  */
-export function TypedIdDialog({ documentType, onClose, onVerified, familyNickname }: Props) {
+export function TypedIdDialog({ documentType, onClose, onVerified, familyNickname, alternate }: Props) {
   const [idNumber, setIdNumber] = useState("");
   const [dob, setDob] = useState("");
   const [otp, setOtp] = useState("");
@@ -121,6 +123,10 @@ export function TypedIdDialog({ documentType, onClose, onVerified, familyNicknam
                 : documentType === "VOTER_ID" || documentType === "PASSPORT"
                   ? "Enter the number exactly as printed. We check it against your verified Aadhaar, driving licence or PAN, so one of them must be verified first."
                   : "Enter the number exactly as printed. The name on it must match the name on your account."}
+            ? `Enter the voter ID number of ${familyNickname}, exactly as printed. Your own Aadhaar must be verified on your account first.`
+            : documentType === "VOTER_ID" || documentType === "PASSPORT" || documentType === "PAN_CARD"
+            ? "Enter the number exactly as printed. We check it against your verified Aadhaar, so your Aadhaar must be verified first."
+                : "Enter the number exactly as printed. The name on it must match the name on your account."}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={submit} className="space-y-4">
@@ -158,6 +164,11 @@ export function TypedIdDialog({ documentType, onClose, onVerified, familyNicknam
             {busy && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
             {isMobile && !requestId ? "Send OTP" : "Verify"}
           </Button>
+          {alternate && !requestId && (
+            <button type="button" className="w-full text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground disabled:opacity-50" disabled={busy} onClick={alternate.run}>
+              {alternate.label}
+            </button>
+          )}
         </form>
       </DialogContent>
     </Dialog>
