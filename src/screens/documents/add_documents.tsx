@@ -18,8 +18,8 @@ const formatDocType = (type: string): string => {
 
 const DOC_TYPES = ["AADHAAR_CARD", "PAN_CARD", "DRIVING_LICENSE", "PASSPORT"] as const;
 /** listed only while the server offers a way to verify them */
-// Aadhaar is the root the other typed documents are checked against; Aadhaar itself and PAN (DigiLocker) can be added first
-const OPEN_WITHOUT_AADHAAR = new Set<string>(["AADHAAR_CARD", "PAN_CARD"]);
+// Aadhaar is the root the typed documents (passport, voter ID) are checked against; Aadhaar, PAN and driving licence can be added first
+const OPEN_WITHOUT_AADHAAR = new Set<string>(["AADHAAR_CARD", "PAN_CARD", "DRIVING_LICENSE"]);
 const OPTIONAL_DOC_TYPES =["VOTER_ID", "MOBILE_NUMBER"] as const;
 
 const cardClass =
