@@ -18,7 +18,9 @@ const formatDocType = (type: string): string => {
 
 const DOC_TYPES = ["AADHAAR_CARD", "PAN_CARD", "DRIVING_LICENSE", "PASSPORT"] as const;
 /** listed only while the server offers a way to verify them */
-const OPTIONAL_DOC_TYPES = ["VOTER_ID", "MOBILE_NUMBER"] as const;
+// Aadhaar is the root the typed documents (passport, voter ID) are checked against; Aadhaar, PAN and driving licence can be added first
+const OPEN_WITHOUT_AADHAAR = new Set<string>(["AADHAAR_CARD", "PAN_CARD", "DRIVING_LICENSE"]);
+const OPTIONAL_DOC_TYPES =["VOTER_ID", "MOBILE_NUMBER"] as const;
 
 const cardClass =
   "rounded-2xl border border-[color:var(--iverifi-card-border)] bg-[var(--iverifi-card)]";
@@ -32,7 +34,7 @@ const AddDocuments = () => {
 
   // the server decides how each document is verified; this screen follows it
   const openVerify = async (docType: string) => {
-    if (docType !== "AADHAAR_CARD" && !aadhaarVerified) return toast.error("Verify your Aadhaar first. Your other documents are checked against it.");
+    if (!OPEN_WITHOUT_AADHAAR.has(docType) && !aadhaarVerified) return toast.error("Verify your Aadhaar first. Your other documents are checked against it.");
     const methods = methodsFor(routes, docType);
     if (!methods.length) return toast.error("This document cannot be verified right now. Please try again later.");
     if (methods[0] === "vsign") {
@@ -93,7 +95,7 @@ const AddDocuments = () => {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {unverifiedTypes.map((docType) => {
-            const locked = docType !== "AADHAAR_CARD" && !aadhaarVerified;
+            const locked = !OPEN_WITHOUT_AADHAAR.has(docType) && !aadhaarVerified;
             return (
               <div
                 key={docType}
