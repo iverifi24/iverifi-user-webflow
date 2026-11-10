@@ -72,5 +72,26 @@ export const getPostConnectPath = (code: string | null) => {
   const isHrRequest = localStorage.getItem("pendingIsHrRequest") === "1";
   localStorage.removeItem("pendingIsHrRequest");
   if (!code) return "/";
-  return isHrRequest ? `/hr-request?code=${code}` : `/?code=${code}`;
+  if (!isHrRequest) return `/?code=${code}`;
+  const ref = peekVerifyRef(); // a verification request link carries its request id; keep it through sign-in
+  return ref ? `/hr-request?code=${code}&ref=${ref}` : `/hr-request?code=${code}`;
+};
+
+// ── A business's verification request (Aadhaar / driving licence asked for through the iVerifi Verify API) ──
+// The link is /hr-request?code=<business>&ref=<request id>. The request id says WHICH document is being asked for; like the code, it is
+// kept in storage so it survives the sign-in / sign-up hops, and is cleared once the person has shared.
+
+const VERIFY_REF = /^vr_[a-f0-9]{16}$/;
+
+export const saveVerifyRefForLater = (ref: string) => {
+  if (VERIFY_REF.test(ref)) localStorage.setItem("pendingVerifyRef", ref);
+};
+
+export const peekVerifyRef = (): string | null => {
+  const ref = localStorage.getItem("pendingVerifyRef");
+  return ref && VERIFY_REF.test(ref) ? ref : null;
+};
+
+export const clearVerifyRef = () => {
+  localStorage.removeItem("pendingVerifyRef");
 };
