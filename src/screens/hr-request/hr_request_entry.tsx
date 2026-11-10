@@ -8,6 +8,7 @@ import {
   useGetCredentialsQuery,
   useUpdateCredentialsRequestMutation,
   useGetVerifyRequestInfoQuery,
+  useClaimVerifyRequestMutation,
 } from "@/redux/api";
 import { clearVerifyRef, peekVerifyRef } from "@/utils/connectionFlow";
 import { LoadingScreen } from "@/components/loading-screen";
@@ -57,6 +58,7 @@ export default function HrRequestEntry() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [addConnection, { isLoading: isConnecting }] = useAddConnectionMutation();
+  const [claimRequest] = useClaimVerifyRequestMutation();
   const [updateCredentials, { isLoading: isSharing }] = useUpdateCredentialsRequestMutation();
   const [error, setError] = useState<string | null>(null);
   const [connectionId, setConnectionId] = useState<string | null>(null);
@@ -162,6 +164,8 @@ export default function HrRequestEntry() {
         credential_request_id: connection.id,
         credentials: payload,
       }).unwrap();
+      // tell iVerifi this request is theirs, so the business sees it complete; sharing itself already worked, so a failure here is not shown
+      if (ref) await claimRequest(ref).unwrap().catch(() => undefined);
       setShared(true);
       clearVerifyRef();
       setSelectedDocs([]);
