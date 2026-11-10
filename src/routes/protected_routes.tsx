@@ -4,6 +4,7 @@ import {
   peekRecipientIdFromStorage,
   saveRecipientIdForLater,
   saveIsHrRequestForLater,
+  saveVerifyRefForLater,
 } from "@/utils/connectionFlow";
 import type { JSX } from "react";
 import { Navigate, useLocation, useSearchParams } from "react-router-dom";
@@ -67,7 +68,11 @@ const ProtectedRoute = ({ children }: { children: JSX.Element }) => {
       // this so the post-login/signup flow (getPostConnectPath) knows to
       // land the candidate back on /hr-request, not "/" (which
       // QRCodeHandler would otherwise sweep into /checkin).
-      if (location.pathname === "/hr-request") saveIsHrRequestForLater();
+      if (location.pathname === "/hr-request") {
+        saveIsHrRequestForLater();
+        const ref = searchParams.get("ref"); // which document a business's verification request asks for
+        if (ref) saveVerifyRefForLater(ref);
+      }
     }
     const loginUrl = code ? `/login?code=${code}` : "/login";
     return <Navigate to={loginUrl} />;

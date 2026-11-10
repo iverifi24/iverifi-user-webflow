@@ -400,6 +400,13 @@ export const api = createApi({
     >({
       query: () => ({ url: "/users/verification/routes", method: "GET" }),
     }),
+    // ---- a business's verification request: who is asking, and for which document (public: only a name and a document type) ----
+    getVerifyRequestInfo: builder.query<
+      { status: number; data: { business_name: string | null; document: "aadhaar" | "driving_licence"; status: "pending" | "completed" | "expired" | "cancelled" }; hasError: boolean; message: string },
+      string
+    >({
+      query: (ref) => ({ url: `/verify-public/request/${encodeURIComponent(ref)}`, method: "GET" }),
+    }),
     // ---- typed-number checks (PAN, passport, voter ID, mobile OTP) ----
     vsignVerify: builder.mutation<
       { status: number; data: { document_id: string; document_type: string; masked_id: string | null }; hasError: boolean; message: string },
@@ -497,6 +504,7 @@ export const {
   useVsignVerifyMutation,
   useVsignMobileSendMutation,
   useVsignMobileVerifyMutation,
+  useGetVerifyRequestInfoQuery,
   useGetLivePhotoStatusQuery,
   useCreateLivePhotoChallengeMutation,
   useSubmitLivePhotoMutation,
