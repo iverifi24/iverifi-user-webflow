@@ -7,7 +7,9 @@ import {
   useGetRecipientCredentialsQuery,
   useGetCredentialsQuery,
   useUpdateCredentialsRequestMutation,
+  useGetVerifyRequestInfoQuery,
 } from "@/redux/api";
+import { clearVerifyRef, peekVerifyRef } from "@/utils/connectionFlow";
 import { LoadingScreen } from "@/components/loading-screen";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -28,6 +30,12 @@ const selectTriggerThemed =
 
 const formatDocType = (type: string) =>
   type ? type.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase()) : "Document";
+
+/** a business's verification request asks for ONE document: which of the person's verified documents answers it, and what to call it */
+const REQUESTED = {
+  aadhaar: { types: ["AADHAAR_CARD", "DIGILOCKER"], label: "Aadhaar" },
+  driving_licence: { types: ["DRIVING_LICENSE"], label: "driving licence" },
+} as const;
 
 /**
  * Entry point for a non-hotel business (e.g. an employer's HR system)
@@ -56,6 +64,11 @@ export default function HrRequestEntry() {
   const startedRef = useRef(false);
 
   const code = searchParams.get("code");
+  // A request made through the iVerifi Verify API carries its id (kept through sign-in): it says who asks and for which document.
+  const ref = searchParams.get("ref") || peekVerifyRef();
+  const { data: requestInfo } = useGetVerifyRequestInfoQuery(ref ?? "", { skip: !ref });
+  const asked = requestInfo?.data ?? null;
+  const requested = asked ? REQUESTED[asked.document] : null;
 
   useEffect(() => {
     if (!code) {
@@ -95,11 +108,14 @@ export default function HrRequestEntry() {
 
   const connection = connectionData?.data?.requests?.[0];
   const requesterName =
+    asked?.business_name ||
     connection?.recipients?.name ||
     connection?.recipients?.firstName ||
     connection?.recipients?.businessName ||
     "This company";
-  const verifiedDocs = credsData?.data?.credential || [];
+  const allVerifiedDocs = credsData?.data?.credential || [];
+  // for a verification request only the document that was asked for is offered, never the rest of the person's vault
+  const verifiedDocs = requested ? allVerifiedDocs.filter((doc: any) => (requested.types as readonly string[]).includes(doc.document_type)) : allVerifiedDocs;
 
   const activeSharedCredentialIds = useMemo(
     () =>
@@ -147,6 +163,7 @@ export default function HrRequestEntry() {
         credentials: payload,
       }).unwrap();
       setShared(true);
+      clearVerifyRef();
       setSelectedDocs([]);
       setSharePeriod("");
       await refetchConnection();
@@ -190,6 +207,27 @@ export default function HrRequestEntry() {
   const alreadyFullyShared =
     alreadySharedCount > 0 && verifiedDocs.length > 0 && docsAvailableToShare.length === 0;
 
+  // a request that is over cannot be answered any more
+  if (asked && !shared && (asked.status === "expired" || asked.status === "cancelled" || asked.status === "completed")) {
+    return (
+      <div className="min-h-0 flex-1 flex items-center justify-center px-4">
+        <div className="w-full max-w-sm text-center space-y-4">
+          <h2 className="text-lg font-bold text-[var(--iverifi-text-primary)]">
+            {asked.status === "completed" ? "This request is already done" : "This request is no longer open"}
+          </h2>
+          <p className="text-sm text-[var(--iverifi-text-muted)]">
+            {asked.status === "completed"
+              ? `${requesterName} already has what they asked for.`
+              : `Ask ${requesterName} to send you a new link.`}
+          </p>
+          <Button type="button" onClick={() => { clearVerifyRef(); navigate("/", { replace: true }); }}>
+            Go to your vault
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   if (shared || alreadyFullyShared) {
     return (
       <div className="min-h-0 flex-1 flex items-center justify-center px-4">
@@ -220,7 +258,7 @@ export default function HrRequestEntry() {
         <div className="text-center space-y-2">
           <ShieldCheck className="mx-auto h-10 w-10 text-[#7B5CF5]" />
           <h2 className="text-lg font-bold text-[var(--iverifi-text-primary)]">
-            {requesterName} is requesting your verified documents
+            {requested ? `${requesterName} asks you to share your ${requested.label}` : `${requesterName} is requesting your verified documents`}
           </h2>
           <p className="text-sm text-[var(--iverifi-text-muted)]">
             Choose exactly what to share and for how long. Nothing is sent until you tap Share.
@@ -230,7 +268,8 @@ export default function HrRequestEntry() {
         <div className="rounded-xl border border-[color:var(--iverifi-card-border)] bg-[var(--iverifi-card)]/60 px-4 py-3 text-xs text-[var(--iverifi-text-muted)] space-y-1">
           <p>
             <span className="font-semibold text-[var(--iverifi-text-secondary)]">Why {requesterName} is asking: </span>
-            to verify your identity as part of employment onboarding. Only the documents and duration you choose below are shared - {requesterName} never gets your full iVerifi profile.
+            {requested ? "to verify your identity. " : "to verify your identity as part of employment onboarding. "}
+            Only the {requested ? "document" : "documents"} and duration you choose below are shared - {requesterName} never gets your full iVerifi profile.
           </p>
           <p>
             You can revoke this access any time from your Connections page, and it expires automatically at the end of the share period you pick.
@@ -243,7 +282,9 @@ export default function HrRequestEntry() {
           ) : docsAvailableToShare.length === 0 ? (
             <p className="text-sm text-[var(--iverifi-text-muted)]">
               {verifiedDocs.length === 0
-                ? "You don't have any verified documents yet. Verify a document first, then come back to this link."
+                ? requested
+                  ? `You don't have a verified ${requested.label} yet. Verify it from your vault first, then open this link again.`
+                  : "You don't have any verified documents yet. Verify a document first, then come back to this link."
                 : `You've already shared all your verified documents with ${requesterName}.`}
             </p>
           ) : (
