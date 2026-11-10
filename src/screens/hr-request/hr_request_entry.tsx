@@ -104,6 +104,14 @@ export default function HrRequestEntry() {
     })();
   }, [code, addConnection]);
 
+  // opening the link while signed in is enough to tell iVerifi the request is yours: a document shared earlier with this business then completes it too
+  const claimedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!ref || !connectionId || claimedRef.current === ref) return;
+    claimedRef.current = ref;
+    claimRequest(ref).unwrap().catch(() => undefined);
+  }, [ref, connectionId, claimRequest]);
+
   const {
     data: connectionData,
     isLoading: isLoadingConnection,
