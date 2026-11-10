@@ -407,6 +407,10 @@ export const api = createApi({
     >({
       query: (ref) => ({ url: `/verify-public/request/${encodeURIComponent(ref)}`, method: "GET" }),
     }),
+    // the signed-in person says a business's request is theirs (so it completes even if they signed up with an email, not a phone)
+    claimVerifyRequest: builder.mutation<{ status: number }, string>({
+      query: (ref) => ({ url: `/verify-public/request/${encodeURIComponent(ref)}/claim`, method: "POST" }),
+    }),
     // ---- typed-number checks (PAN, passport, voter ID, mobile OTP) ----
     vsignVerify: builder.mutation<
       { status: number; data: { document_id: string; document_type: string; masked_id: string | null }; hasError: boolean; message: string },
@@ -505,6 +509,7 @@ export const {
   useVsignMobileSendMutation,
   useVsignMobileVerifyMutation,
   useGetVerifyRequestInfoQuery,
+  useClaimVerifyRequestMutation,
   useGetLivePhotoStatusQuery,
   useCreateLivePhotoChallengeMutation,
   useSubmitLivePhotoMutation,
