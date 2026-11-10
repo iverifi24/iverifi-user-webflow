@@ -9,8 +9,12 @@ import {
   useUpdateCredentialsRequestMutation,
   useGetVerifyRequestInfoQuery,
   useClaimVerifyRequestMutation,
+  useGetVerificationRoutesQuery,
 } from "@/redux/api";
 import { clearVerifyRef, peekVerifyRef } from "@/utils/connectionFlow";
+import { TypedIdDialog } from "@/components/typed-id-dialog";
+import { startDigilockerFlow } from "@/utils/digilockerStart";
+import { methodsFor } from "@/utils/verificationSource";
 import { LoadingScreen } from "@/components/loading-screen";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -68,9 +72,13 @@ export default function HrRequestEntry() {
   const code = searchParams.get("code");
   // A request made through the iVerifi Verify API carries its id (kept through sign-in): it says who asks and for which document.
   const ref = searchParams.get("ref") || peekVerifyRef();
-  const { data: requestInfo } = useGetVerifyRequestInfoQuery(ref ?? "", { skip: !ref });
+  const { data: requestInfo, isError: isAskedError } = useGetVerifyRequestInfoQuery(ref ?? "", { skip: !ref });
   const asked = requestInfo?.data ?? null;
   const requested = asked ? REQUESTED[asked.document] : null;
+  // while the request is still being read, nothing is offered: a request for one document must never show the rest of the vault
+  const askedLoading = !!ref && !asked && !isAskedError;
+  const { data: routesData } = useGetVerificationRoutesQuery();
+  const [typedDoc, setTypedDoc] = useState<string | null>(null);
 
   useEffect(() => {
     if (!code) {
@@ -143,6 +151,24 @@ export default function HrRequestEntry() {
     );
   };
 
+  // the person has not verified the document that was asked for: verify it here, the way the vault does, then come back to this link
+  const verifyAsked = async () => {
+    if (!asked) return;
+    const docType = asked.document === "aadhaar" ? "AADHAAR_CARD" : "DRIVING_LICENSE";
+    const methods = methodsFor(routesData?.data?.routes, docType);
+    if (!methods.length) return toast.error("This document cannot be verified right now. Please try again later.");
+    if (methods[0] === "vsign") return setTypedDoc(docType);
+    if (methods[0] === "digilocker") {
+      try {
+        await startDigilockerFlow({ docType: asked.document === "aadhaar" ? "AADHAAR_APP" : "DL" });
+      } catch (e) {
+        toast.error((e as Error)?.message || "Could not start DigiLocker verification");
+      }
+      return;
+    }
+    navigate("/"); // the camera scan lives on the home screen; the link is kept, so opening it again continues this request
+  };
+
   const handleShare = async () => {
     if (!connection?.id) return;
     if (!selectedDocs.length || !sharePeriod) {
@@ -189,7 +215,7 @@ export default function HrRequestEntry() {
     );
   }
 
-  if (isConnecting || !connectionId || isLoadingConnection) {
+  if (isConnecting || !connectionId || isLoadingConnection || askedLoading) {
     return <LoadingScreen variant="fullPage" />;
   }
 
@@ -284,13 +310,20 @@ export default function HrRequestEntry() {
           {isCredsLoading ? (
             <p className="text-sm text-[var(--iverifi-text-muted)]">Loading your verified documents…</p>
           ) : docsAvailableToShare.length === 0 ? (
-            <p className="text-sm text-[var(--iverifi-text-muted)]">
-              {verifiedDocs.length === 0
-                ? requested
-                  ? `You don't have a verified ${requested.label} yet. Verify it from your vault first, then open this link again.`
-                  : "You don't have any verified documents yet. Verify a document first, then come back to this link."
-                : `You've already shared all your verified documents with ${requesterName}.`}
-            </p>
+            <div className="space-y-3">
+              <p className="text-sm text-[var(--iverifi-text-muted)]">
+                {verifiedDocs.length === 0
+                  ? requested
+                    ? `You haven't verified your ${requested.label} yet. Verify it now, then share it with ${requesterName}.`
+                    : "You don't have any verified documents yet. Verify a document first, then come back to this link."
+                  : `You've already shared all your verified documents with ${requesterName}.`}
+              </p>
+              {requested && verifiedDocs.length === 0 && (
+                <Button type="button" className={shareBtnClass} onClick={verifyAsked}>
+                  Verify my {requested.label}
+                </Button>
+              )}
+            </div>
           ) : (
             <div className="space-y-3">
               {docsAvailableToShare.map((doc: any) => (
@@ -330,6 +363,7 @@ export default function HrRequestEntry() {
           </Button>
         )}
       </div>
+      <TypedIdDialog documentType={typedDoc} onClose={() => setTypedDoc(null)} />
     </div>
   );
 }
