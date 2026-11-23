@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { BadgeCheck, CalendarDays, History, Lock, Mail, Phone, ShieldCheck, Users } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { LinkPhoneCard } from "@/components/link-phone-card";
 import { LivePhotoCard } from "@/components/live-photo-card";
 import { PhotoCheckChip } from "@/components/photo-check-chip";
 import { auth } from "@/firebase/firebase_setup";
@@ -61,6 +62,8 @@ export default function ProfilePage() {
   const { data: creds } = useGetCredentialsQuery();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [googlePhoto, setGooglePhoto] = useState("");
+  // the number on the sign-in itself (proved by SMS), not one only typed into the profile
+  const [verifiedPhone, setVerifiedPhone] = useState(auth.currentUser?.phoneNumber || "");
 
   useEffect(() => {
     let cancelled = false;
@@ -106,6 +109,15 @@ export default function ProfilePage() {
           <Detail icon={Phone} label="Mobile" value={profile?.phone ?? ""} />
           <Detail icon={CalendarDays} label="Date of birth" value={profile?.dob ?? ""} hint={profile?.dobSource ? `From your verified ${profile.dobSource}` : undefined} />
         </div>
+        {/* signed in with Google / e-mail and no verified number yet: phone sign-in in the app would open a NEW account */}
+        {!verifiedPhone && (
+          <LinkPhoneCard
+            onLinked={(phone) => {
+              setVerifiedPhone(phone);
+              setProfile((p) => (p ? { ...p, phone } : p));
+            }}
+          />
+        )}
       </section>
 
       <section className="space-y-2">
