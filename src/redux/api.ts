@@ -1,6 +1,31 @@
 import { createApi } from "@reduxjs/toolkit/query/react";
 import { baseQueryWithReauth } from "./base_query_with_reauth";
 
+export interface JourneyField {
+  name: string;
+  label: string;
+  placeholder?: string;
+  hint?: string;
+  upper?: boolean;
+  inputMode?: "text" | "numeric" | "tel" | "email";
+  maxLength?: number;
+}
+
+/** what the hosted journey page is told (never any personal data from an earlier step) */
+export interface JourneyView {
+  journey_id: string;
+  status: "created" | "in_progress" | "completed" | "declined" | "expired" | "cancelled";
+  business: string;
+  purpose: string;
+  subject_name: string | null;
+  consent: { status: string; notice: { version: string; title: string; text: string; hash: string } };
+  steps: { check: string; label: string; status: "pending" | "done"; outcome: "verified" | "not_verified" | null }[];
+  current_step: { index: number; check: string; label: string; kind: "form" | "app"; fields: JourneyField[]; waiting_for_app: boolean; link: string | null } | null;
+  expires_at: string | null;
+  redirect?: string | null;
+  mode?: "test";
+}
+
 export const api = createApi({
   reducerPath: "api",
   baseQuery: baseQueryWithReauth,
@@ -411,6 +436,45 @@ export const api = createApi({
     claimVerifyRequest: builder.mutation<{ status: number }, string>({
       query: (ref) => ({ url: `/verify-public/request/${encodeURIComponent(ref)}/claim`, method: "POST" }),
     }),
+    // ---- a business asks for consent (iVerifi Connect): the person opens a link, reads the notice and agrees, declines or takes it back (no sign-in: the token is the credential) ----
+    getConsentInfo: builder.query<
+      {
+        status: number;
+        hasError: boolean;
+        message: string;
+        data: {
+          consent_id: string;
+          status: "pending" | "granted" | "declined" | "withdrawn" | "expired";
+          business: string;
+          purpose: string;
+          checks: string[];
+          subject_name: string | null;
+          notice: { version: string; title: string; text: string; hash: string };
+          link_expires_at: string | null;
+          valid_until: string | null;
+          mode?: "test";
+        };
+      },
+      string
+    >({
+      query: (token) => ({ url: `/connect-public/consents/${encodeURIComponent(token)}`, method: "GET" }),
+    }),
+    answerConsent: builder.mutation<{ status: number; message: string; data: { status: string } }, { token: string; action: "grant" | "decline" | "withdraw" }>({
+      query: ({ token, action }) => ({ url: `/connect-public/consents/${encodeURIComponent(token)}/${action}`, method: "POST" }),
+    }),
+    // ---- a hosted journey (iVerifi Suite): the person agrees to the notice and does each step on this page (no sign-in: the token is the credential) ----
+    getJourney: builder.query<{ status: number; hasError: boolean; message: string; data: JourneyView }, string>({
+      query: (token) => ({ url: `/journey-public/${encodeURIComponent(token)}`, method: "GET" }),
+    }),
+    answerJourney: builder.mutation<{ status: number; message: string; data: { status: string } }, { token: string; action: "grant" | "decline" }>({
+      query: ({ token, action }) => ({ url: `/journey-public/${encodeURIComponent(token)}/answer`, method: "POST", body: { action } }),
+    }),
+    submitJourneyStep: builder.mutation<
+      { status: number; message: string; data: { progress: "next" | "completed" | "waiting_for_app"; link?: string; redirect?: string | null; journey: JourneyView } },
+      { token: string; fields: Record<string, string> }
+    >({
+      query: ({ token, fields }) => ({ url: `/journey-public/${encodeURIComponent(token)}/step`, method: "POST", body: { fields } }),
+    }),
     // ---- typed-number checks (PAN, passport, voter ID, mobile OTP) ----
     vsignVerify: builder.mutation<
       { status: number; data: { document_id: string; document_type: string; masked_id: string | null }; hasError: boolean; message: string },
@@ -510,6 +574,11 @@ export const {
   useVsignMobileVerifyMutation,
   useGetVerifyRequestInfoQuery,
   useClaimVerifyRequestMutation,
+  useGetConsentInfoQuery,
+  useGetJourneyQuery,
+  useAnswerJourneyMutation,
+  useSubmitJourneyStepMutation,
+  useAnswerConsentMutation,
   useGetLivePhotoStatusQuery,
   useCreateLivePhotoChallengeMutation,
   useSubmitLivePhotoMutation,
