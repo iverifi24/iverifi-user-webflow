@@ -3,13 +3,20 @@ import { CheckCircle2, Loader2, Smartphone } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { LiveCapture } from "@/components/live-capture";
 import { useDispatch } from "react-redux";
 import { api, useOvseStartMutation, useLazyOvseStatusQuery } from "@/redux/api";
 import { AADHAAR_APP_EVENT, type AadhaarAppRequest } from "@/utils/aadhaarApp";
 
-type Phase = "starting" | "waiting" | "done" | "failed";
+type Phase = "starting" | "photo" | "waiting" | "done" | "failed";
 
 const POLL_MS = 2500;
+
+/** the server wants the live photo first (it checks the Aadhaar photo against it) */
+const needsPhoto = (e: unknown): boolean => {
+  const code = (e as { data?: { data?: { code?: string } } })?.data?.data?.code;
+  return code === "NO_LIVE_PHOTO" || code === "LIVE_PHOTO_EXPIRED";
+};
 
 const messageOf = (e: unknown): string => (e as { data?: { message?: string } })?.data?.message || "We could not start the Aadhaar App check. Please try again.";
 
@@ -82,6 +89,7 @@ export function AadhaarAppDialog() {
         poll(r.data.session_id, mine, req);
       } catch (e) {
         if (run.current !== mine) return;
+        if (needsPhoto(e)) return setPhase("photo");
         setMessage(messageOf(e));
         setPhase("failed");
       }
@@ -118,6 +126,14 @@ export function AadhaarAppDialog() {
         {phase === "starting" && (
           <div className="flex items-center justify-center gap-2 py-8 text-sm text-muted-foreground">
             <Loader2 className="h-5 w-5 animate-spin" /> Getting ready…
+          </div>
+        )}
+
+        {phase === "photo" && (
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">First, a quick live photo. It lets us check that the Aadhaar you share is yours.</p>
+            {/* saving the photo continues straight to the Aadhaar App */}
+            <LiveCapture onDone={() => request && void begin(request)} onLater={close} />
           </div>
         )}
 
