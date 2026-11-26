@@ -483,6 +483,25 @@ export const api = createApi({
       query: (body) => ({ url: "/users/vsign/verify", method: "POST", body }),
       invalidatesTags: ["credentials", "activity", "connections"],
     }),
+    // ---- a business's hosted Aadhaar request (/a/<token>): no sign-in, the token is the credential ----
+    getAadhaarRequest: builder.query<
+      { status: number; data: { business_name: string | null; document: "aadhaar"; state: "pending" | "shared" | "failed" | "expired" | "cancelled"; notice: string }; hasError: boolean; message: string },
+      string
+    >({
+      query: (token) => ({ url: `/aadhaar-public/${encodeURIComponent(token)}`, method: "GET" }),
+    }),
+    startAadhaarRequest: builder.mutation<
+      { status: number; data: { session_id: string; qr_url: string; qr_image: string | null; expires_in: number }; hasError: boolean; message: string },
+      string
+    >({
+      query: (token) => ({ url: `/aadhaar-public/${encodeURIComponent(token)}/start`, method: "POST", body: {} }),
+    }),
+    aadhaarRequestStatus: builder.query<
+      { status: number; data: { state: "pending" | "shared" | "failed" | "expired" | "cancelled"; reason?: string; message?: string }; hasError: boolean; message: string },
+      string
+    >({
+      query: (token) => ({ url: `/aadhaar-public/${encodeURIComponent(token)}/status`, method: "GET" }),
+    }),
     // ---- Aadhaar through the Aadhaar App (offline verification) ----
     ovseStart: builder.mutation<
       { status: number; data: { session_id: string; qr_url: string; qr_image: string | null; expires_in: number }; hasError: boolean; message: string },
@@ -586,6 +605,9 @@ export const {
   useVsignVerifyMutation,
   useVsignMobileSendMutation,
   useOvseStartMutation,
+  useGetAadhaarRequestQuery,
+  useStartAadhaarRequestMutation,
+  useLazyAadhaarRequestStatusQuery,
   useLazyOvseStatusQuery,
   useVsignMobileVerifyMutation,
   useGetVerifyRequestInfoQuery,

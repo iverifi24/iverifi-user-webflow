@@ -25,6 +25,7 @@ import MobileReturn from "./screens/mobile_return";
 import ConsentPage from "./screens/connect/consent_page";
 import JourneyPage from "./screens/connect/journey_page";
 import { AadhaarAppDialog } from "./components/aadhaar-app-dialog";
+import AadhaarRequestPage from "./screens/connect/aadhaar_request_page";
 
 const App = () => {
   return (
@@ -41,6 +42,8 @@ const App = () => {
           <Route path="/c/:token" element={<ConsentPage />} />
           {/* a business sent this person a hosted journey (iVerifi Suite): consent and every step on this page, no sign-in */}
           <Route path="/j/:token" element={<JourneyPage />} />
+          {/* a business sent this person an Aadhaar request (Verify API): they share from the Aadhaar App on this page, no sign-in and no iVerifi app */}
+          <Route path="/a/:token" element={<AadhaarRequestPage />} />
 
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
