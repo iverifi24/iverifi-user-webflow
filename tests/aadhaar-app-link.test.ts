@@ -24,3 +24,11 @@ test("off Android, or for an address that is not https, there is no link: the QR
   assert.equal(aadhaarAppLink("not a url"), null);
   assert.equal(aadhaarAppLink(null), null);
 });
+
+import { aadhaarAppLaunchLink } from "../src/utils/aadhaarApp.ts";
+test("the plain launch link opens the Aadhaar app by its package on Android only", () => {
+  asBrowser(ANDROID);
+  assert.match(aadhaarAppLaunchLink()!, /^intent:#Intent;action=android\.intent\.action\.MAIN;category=android\.intent\.category\.LAUNCHER;package=in\.gov\.uidai\.pehchaan;/);
+  asBrowser(IPHONE);
+  assert.equal(aadhaarAppLaunchLink(), null);
+});

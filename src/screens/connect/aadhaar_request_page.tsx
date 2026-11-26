@@ -3,7 +3,7 @@ import { useParams } from "react-router-dom";
 import { CheckCircle2, Loader2, ShieldCheck, Smartphone, XCircle } from "lucide-react";
 import { useGetAadhaarRequestQuery, useLazyAadhaarRequestStatusQuery, useStartAadhaarRequestMutation } from "@/redux/api";
 import { LoadingScreen } from "@/components/loading-screen";
-import { aadhaarAppLink } from "@/utils/aadhaarApp";
+import { aadhaarAppLaunchLink, aadhaarAppLink } from "@/utils/aadhaarApp";
 import { Button } from "@/components/ui/button";
 
 const shell = "min-h-screen flex items-start sm:items-center justify-center px-4 py-8";
@@ -135,7 +135,7 @@ const AadhaarRequestPage = () => {
                           <Smartphone className="mr-2 h-4 w-4" /> Open the Aadhaar App
                         </a>
                       </Button>
-                      <p className="text-center text-xs text-muted-foreground">Agree to share in the Aadhaar App, then come back to this page. If the app does not open, scan the code below from another screen.</p>
+                      <p className="text-center text-xs text-muted-foreground">Agree to share in the Aadhaar App, then come back to this page. If it opens but does not show the request, <a className="underline" href={aadhaarAppLaunchLink() || '#'}>open the app on its own</a>, tap Scan QR and scan the code below from another screen.</p>
                     </>
                   ) : (
                     <ol className="list-decimal space-y-1 pl-5 text-sm text-muted-foreground">

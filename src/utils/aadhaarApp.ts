@@ -40,3 +40,10 @@ export function aadhaarAppLink(qrUrl: string | null | undefined): string | null 
     return null;
   }
 }
+
+/** just opens the Aadhaar App (its home screen) on this Android phone, no request attached: for when the app does not take the request address, the person then taps Scan QR */
+export function aadhaarAppLaunchLink(): string | null {
+  if (!isAndroidBrowser()) return null;
+  const fallback = encodeURIComponent(`https://play.google.com/store/apps/details?id=${APP_PACKAGE}`);
+  return `intent:#Intent;action=android.intent.action.MAIN;category=android.intent.category.LAUNCHER;package=${APP_PACKAGE};S.browser_fallback_url=${fallback};end`;
+}
