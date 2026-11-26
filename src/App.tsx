@@ -24,11 +24,13 @@ import HrRequestEntry from "./screens/hr-request/hr_request_entry";
 import MobileReturn from "./screens/mobile_return";
 import ConsentPage from "./screens/connect/consent_page";
 import JourneyPage from "./screens/connect/journey_page";
+import { AadhaarAppDialog } from "./components/aadhaar-app-dialog";
 
 const App = () => {
   return (
     <Router>
       <QRCodeHandler>
+        <AadhaarAppDialog />
         <Routes>
           {/* Guest check-in funnel — no auth required, manages its own auth internally */}
           <Route path="/checkin" element={<GuestCheckinFlow />} />

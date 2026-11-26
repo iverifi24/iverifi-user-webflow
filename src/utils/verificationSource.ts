@@ -10,12 +10,13 @@
  * Never name a government system (Parivahan, e-Filing, Passport Seva…) as the verifier unless it is the one in use.
  */
 
-export type VerifyMethod = "digilocker" | "kwik" | "vsign";
+export type VerifyMethod = "digilocker" | "kwik" | "vsign" | "ovse";
 
 export const METHOD_LABEL: Record<VerifyMethod, string> = {
   digilocker: "DigiLocker",
   kwik: "iVerifi", // the camera scan is shown as iVerifi's own check; the scan partner is never named in the app
   vsign: "iVerifi", // a typed-number check is shown the same way
+  ovse: "Aadhaar App", // Aadhaar shared from the Aadhaar App (offline verification)
 };
 
 const ISSUER: Record<string, string> = {
@@ -55,6 +56,8 @@ const ROUTE_KEY: Record<string, string> = {
 export function methodsFor(routes: VerificationRoutes, documentType: string): VerifyMethod[] {
   const key = ROUTE_KEY[documentType] ?? documentType;
   const list = routes?.[key];
+  // the Aadhaar App shares the account holder's own Aadhaar (checked against their live photo), so a family member's document never uses it
+  if (Array.isArray(list) && ROUTE_KEY[documentType]) return list.filter((m) => m !== "ovse");
   return Array.isArray(list) ? list : routes ? [] : ["kwik"];
 }
 
@@ -79,5 +82,6 @@ export function verifiedViaLabel(verifiedVia: string | null | undefined, documen
   // the stored value names the camera-scan vendor; people are shown DigiLocker for Aadhaar (it runs through it) and iVerifi otherwise
   if (verifiedVia === "VSign") return "iVerifi";
   if (verifiedVia === "Kwik") return isAadhaar(documentType) ? "DigiLocker" : "iVerifi";
+  if (verifiedVia === "Aadhaar App") return "Aadhaar App";
   return ["DigiLocker", "iVerifi"].includes(verifiedVia) ? verifiedVia : null;
 }

@@ -420,7 +420,7 @@ export const api = createApi({
       }),
     }),
     getVerificationRoutes: builder.query<
-      { status: number; data: { routes: Record<string, ("digilocker" | "kwik" | "vsign")[]> }; hasError: boolean; message: string },
+      { status: number; data: { routes: Record<string, ("digilocker" | "kwik" | "vsign" | "ovse")[]> }; hasError: boolean; message: string },
       void
     >({
       query: () => ({ url: "/users/verification/routes", method: "GET" }),
@@ -482,6 +482,20 @@ export const api = createApi({
     >({
       query: (body) => ({ url: "/users/vsign/verify", method: "POST", body }),
       invalidatesTags: ["credentials", "activity", "connections"],
+    }),
+    // ---- Aadhaar through the Aadhaar App (offline verification) ----
+    ovseStart: builder.mutation<
+      { status: number; data: { session_id: string; qr_url: string; qr_image: string | null; expires_in: number }; hasError: boolean; message: string },
+      void
+    >({
+      query: () => ({ url: "/users/ovse/start", method: "POST", body: {} }),
+    }),
+    ovseStatus: builder.query<
+      { status: number; data: { session_id: string; status: "pending" | "processing" | "completed" | "failed" | "expired" | "replaced"; reason?: string; message?: string; document_id?: string }; hasError: boolean; message: string },
+      string
+    >({
+      query: (id) => ({ url: `/users/ovse/${encodeURIComponent(id)}/status`, method: "GET" }),
+      providesTags: ["credentials"],
     }),
     vsignMobileSend: builder.mutation<
       { status: number; data: { request_id: string; expires_in: number }; hasError: boolean; message: string },
@@ -571,6 +585,8 @@ export const {
   useGetVerificationRoutesQuery,
   useVsignVerifyMutation,
   useVsignMobileSendMutation,
+  useOvseStartMutation,
+  useLazyOvseStatusQuery,
   useVsignMobileVerifyMutation,
   useGetVerifyRequestInfoQuery,
   useClaimVerifyRequestMutation,

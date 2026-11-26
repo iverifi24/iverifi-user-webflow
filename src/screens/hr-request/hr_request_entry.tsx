@@ -1,3 +1,4 @@
+import { openAadhaarApp } from "@/utils/aadhaarApp";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { format, addDays, isAfter, parseISO } from "date-fns";
@@ -165,6 +166,7 @@ export default function HrRequestEntry() {
     const docType = asked.document === "aadhaar" ? "AADHAAR_CARD" : "DRIVING_LICENSE";
     const methods = methodsFor(routesData?.data?.routes, docType);
     if (!methods.length) return toast.error("This document cannot be verified right now. Please try again later.");
+    if (methods[0] === "ovse") return openAadhaarApp({ alternate: methods.includes("kwik") ? { label: "Use the camera scan instead", run: () => navigate("/") } : undefined });
     if (methods[0] === "vsign") return setTypedDoc(docType);
     if (methods[0] === "digilocker") {
       try {

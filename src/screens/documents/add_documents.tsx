@@ -4,6 +4,7 @@ import { TypedIdDialog } from "@/components/typed-id-dialog";
 import { Button } from "@/components/ui/button";
 import { useGetCredentialsQuery, useGetVerificationRoutesQuery } from "@/redux/api";
 import { startDigilockerFlow } from "@/utils/digilockerStart";
+import { openAadhaarApp } from "@/utils/aadhaarApp";
 import { methodsFor, providerLabel } from "@/utils/verificationSource";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -37,6 +38,10 @@ const AddDocuments = () => {
     if (!OPEN_WITHOUT_AADHAAR.has(docType) && !aadhaarVerified) return toast.error("Verify your Aadhaar first. Your other documents are checked against it.");
     const methods = methodsFor(routes, docType);
     if (!methods.length) return toast.error("This document cannot be verified right now. Please try again later.");
+    if (methods[0] === "ovse") {
+      openAadhaarApp({ alternate: methods.includes("kwik") ? { label: "Use the camera scan instead", run: () => navigate("/") } : undefined, onVerified: () => navigate("/") });
+      return;
+    }
     if (methods[0] === "vsign") {
       setTypedDoc(docType);
       return;
