@@ -63,7 +63,7 @@ const FamilyIds = () => {
   } = useGetFamilyCredentialsQuery();
   const [deleteFamilyCredential, { isLoading: isDeleting }] = useDeleteFamilyCredentialMutation();
   const { data: routesData } = useGetVerificationRoutesQuery();
-  const aadhaarMethods = methodsFor(routesData?.data?.routes, "AADHAAR_CARD");
+  const aadhaarMethods = methodsFor(routesData?.data?.routes, "AADHAAR_CARD").filter((m) => m !== "ovse"); // a family member's Aadhaar is not shared from the holder's own Aadhaar App
 
   // back from DigiLocker (?aadhaar_verified=1&family=1 or ?aadhaar_error=...)
   useEffect(() => {

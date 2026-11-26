@@ -22,17 +22,28 @@ import FamilyIds from "./screens/family_ids";
 import GuestCheckinFlow from "./screens/guest-checkin/guest-checkin-flow";
 import HrRequestEntry from "./screens/hr-request/hr_request_entry";
 import MobileReturn from "./screens/mobile_return";
+import ConsentPage from "./screens/connect/consent_page";
+import JourneyPage from "./screens/connect/journey_page";
+import { AadhaarAppDialog } from "./components/aadhaar-app-dialog";
+import AadhaarRequestPage from "./screens/connect/aadhaar_request_page";
 
 const App = () => {
   return (
     <Router>
       <QRCodeHandler>
+        <AadhaarAppDialog />
         <Routes>
           {/* Guest check-in funnel — no auth required, manages its own auth internally */}
           <Route path="/checkin" element={<GuestCheckinFlow />} />
           <Route path="/aadhaar-test" element={<AadhaarDigiLockerTest />} />
           {/* DigiLocker return address used by the iVerifi mobile app: hands the result back to the app */}
           <Route path="/mobile-return" element={<MobileReturn />} />
+          {/* a business asked this person for consent (iVerifi Connect): the link carries a random token, no sign-in */}
+          <Route path="/c/:token" element={<ConsentPage />} />
+          {/* a business sent this person a hosted journey (iVerifi Suite): consent and every step on this page, no sign-in */}
+          <Route path="/j/:token" element={<JourneyPage />} />
+          {/* a business sent this person an Aadhaar request (Verify API): they share from the Aadhaar App on this page, no sign-in and no iVerifi app */}
+          <Route path="/a/:token" element={<AadhaarRequestPage />} />
 
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />

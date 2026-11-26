@@ -1,3 +1,4 @@
+import { openAadhaarApp } from "@/utils/aadhaarApp";
 import { Button } from "@/components/ui/button";
 import { getVenueCopy } from "@/utils/venueCopy";
 import { LoadingScreen } from "@/components/loading-screen";
@@ -1547,6 +1548,7 @@ const Connections = () => {
 
   // run one specific method (used for the first choice and for "try another way")
   const verifyWith = (method: VerifyMethod, documentType: DocumentType) => {
+    if (method === "ovse") return openAadhaarApp({ alternate: { label: "Use the camera scan instead", run: () => void handleVerifyDocumentKwik(documentType) } });
     if (method === "digilocker") return startDigilocker(documentType as string);
     if (method === "vsign") {
       setTypedIdDoc(documentType as string);

@@ -1,3 +1,4 @@
+import { openAadhaarApp } from "@/utils/aadhaarApp";
 import { useState, useEffect, useRef } from "react";
 import { auth } from "@/firebase/firebase_setup";
 import { useGetCredentialsQuery, useGetVerificationRoutesQuery, useSaveForeignPassportMutation, useUpdateCheckInStatusMutation, useMarkKycStartedMutation } from "@/redux/api";
@@ -264,6 +265,7 @@ export default function GuestDocSelect({
   };
 
   const verifyWith = (method: VerifyMethod, docType: string, productCode: string) => {
+    if (method === "ovse") return openAadhaarApp({ alternate: { label: "Use the camera scan instead", run: () => openKwikIframe(docType, productCode) }, onVerified: () => void refetchCreds() });
     if (method === "digilocker") return startDigilocker(docType);
     openKwikIframe(docType, productCode);
   };
