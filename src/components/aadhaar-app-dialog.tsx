@@ -18,6 +18,9 @@ const needsPhoto = (e: unknown): boolean => {
   return code === "NO_LIVE_PHOTO" || code === "LIVE_PHOTO_EXPIRED";
 };
 
+/** the account has no name yet, so there is nothing to check the Aadhaar against */
+const needsName = (e: unknown): boolean => (e as { data?: { data?: { code?: string } } })?.data?.data?.code === "NAME_REQUIRED";
+
 const messageOf = (e: unknown): string => (e as { data?: { message?: string } })?.data?.message || "We could not start the Aadhaar App check. Please try again.";
 
 /**
@@ -31,6 +34,7 @@ export function AadhaarAppDialog() {
   const [image, setImage] = useState<string | null>(null);
   const [link, setLink] = useState<string | null>(null); // opens the Aadhaar App on this Android phone (never VSign's own address: see utils/aadhaarApp.ts)
   const [message, setMessage] = useState<string | null>(null);
+  const [nameMissing, setNameMissing] = useState(false);
   const dispatch = useDispatch();
   const [start] = useOvseStartMutation();
   const [readStatus] = useLazyOvseStatusQuery();
@@ -78,6 +82,7 @@ export function AadhaarAppDialog() {
       const mine = run.current;
       setPhase("starting");
       setMessage(null);
+      setNameMissing(false);
       setImage(null);
       setLink(null);
       try {
@@ -90,6 +95,7 @@ export function AadhaarAppDialog() {
       } catch (e) {
         if (run.current !== mine) return;
         if (needsPhoto(e)) return setPhase("photo");
+        setNameMissing(needsName(e));
         setMessage(messageOf(e));
         setPhase("failed");
       }
@@ -180,9 +186,15 @@ export function AadhaarAppDialog() {
         {phase === "failed" && (
           <div className="space-y-3">
             <p className="text-sm text-red-600">{message}</p>
-            <Button className="w-full" onClick={() => request && void begin(request)}>
-              Try again
-            </Button>
+            {nameMissing ? (
+              <Button className="w-full" onClick={() => window.location.assign("/profile")}>
+                Add my name
+              </Button>
+            ) : (
+              <Button className="w-full" onClick={() => request && void begin(request)}>
+                Try again
+              </Button>
+            )}
             {request?.alternate && (
               <Button
                 variant="outline"
