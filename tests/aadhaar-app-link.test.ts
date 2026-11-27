@@ -8,11 +8,14 @@ const ANDROID = "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 Chr
 const IPHONE = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148 Safari/604.1";
 const QR = "https://maadhaar.com/getIntent?value=123456789";
 
-test("on Android the link names the Aadhaar app itself and falls back to its Play Store page, never to VSign's own address", () => {
+test("on Android the link names the Aadhaar app itself and falls back to the page, never to VSign's own address or the Play Store", () => {
   asBrowser(ANDROID);
   const link = aadhaarAppLink(QR)!;
   assert.match(link, /^intent:\/\/maadhaar\.com\/getIntent\?value=123456789#Intent;scheme=https;package=in\.gov\.uidai\.pehchaan;/);
-  assert.ok(link.includes("S.browser_fallback_url=" + encodeURIComponent("https://play.google.com/store/apps/details?id=in.gov.uidai.pehchaan")));
+  assert.ok(!link.includes("play.google.com"), "a request the app does not take does not send the person to the Play Store");
+  Object.defineProperty(globalThis, "window", { value: { location: { href: "https://usertest.iverifi.io/a/atk_x" } }, configurable: true });
+  assert.ok(aadhaarAppLink(QR)!.includes("S.browser_fallback_url=" + encodeURIComponent("https://usertest.iverifi.io/a/atk_x")), "it comes back to the page, which shows the QR");
+  Object.defineProperty(globalThis, "window", { value: undefined, configurable: true });
   assert.ok(!link.startsWith("https://"), "the parked domain is never navigated to");
 });
 

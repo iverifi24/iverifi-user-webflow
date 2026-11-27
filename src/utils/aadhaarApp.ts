@@ -20,8 +20,9 @@ export function openAadhaarApp(request: AadhaarAppRequest = {}): void {
 /**
  * Opening the Aadhaar App from the same phone. VSign's own link (https://maadhaar.com/getIntent?value=...) is NEVER used as a link: maadhaar.com is not UIDAI's
  * domain (it is parked and for sale), so a browser that follows it ends on a "buy this domain" page. On Android a browser link may instead name the app itself
- * (an `intent://` link with the app's package), which does not depend on that domain: the app is opened with the same address, and if it is not installed the browser
- * goes to the app's Play Store page. iOS has no such link, so there the person scans the code from another screen. The package is UIDAI's Aadhaar app; it can be
+ * (an `intent://` link with the app's package), which does not depend on that domain: the app is opened with the same address, and if the phone finds nothing in the app
+ * that takes it, the browser comes back to the page. (Found on a real Android phone, 27-11-2026: with VSign's UAT address the phone did not find a match and went to the fallback,
+ * so the address VSign gives in UAT may be only a placeholder; the format the app really takes is in the technical spec UIDAI gives registered OVSEs, not in the public Playbook.) iOS has no such link, so there the person scans the code from another screen. The package is UIDAI's Aadhaar app; it can be
  * changed with VITE_AADHAAR_APP_PACKAGE if UIDAI or VSign name another one.
  */
 const APP_PACKAGE = (import.meta as unknown as { env?: Record<string, string> }).env?.VITE_AADHAAR_APP_PACKAGE || "in.gov.uidai.pehchaan";
@@ -34,8 +35,10 @@ export function aadhaarAppLink(qrUrl: string | null | undefined): string | null 
   try {
     const u = new URL(qrUrl);
     if (u.protocol !== "https:") return null;
-    const fallback = encodeURIComponent(`https://play.google.com/store/apps/details?id=${APP_PACKAGE}`);
-    return `intent://${u.host}${u.pathname}${u.search}#Intent;scheme=https;package=${APP_PACKAGE};S.browser_fallback_url=${fallback};end`;
+    // if the phone finds nothing in the app that takes this request (or the app is not there) the browser comes back to THIS page, which shows the QR and the steps
+    // (it does not go to the Play Store: the app is usually installed, and that page only confused people)
+    const back = typeof window !== "undefined" && window.location ? `;S.browser_fallback_url=${encodeURIComponent(window.location.href)}` : "";
+    return `intent://${u.host}${u.pathname}${u.search}#Intent;scheme=https;package=${APP_PACKAGE}${back};end`;
   } catch {
     return null;
   }
