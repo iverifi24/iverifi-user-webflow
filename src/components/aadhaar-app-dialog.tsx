@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { CheckCircle2, Loader2, Smartphone } from "lucide-react";
+import { CheckCircle2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { LiveCapture } from "@/components/live-capture";
 import { useDispatch } from "react-redux";
 import { api, useOvseStartMutation, useLazyOvseStatusQuery } from "@/redux/api";
-import { AADHAAR_APP_EVENT, aadhaarAppLaunchLink, aadhaarAppLink, type AadhaarAppRequest } from "@/utils/aadhaarApp";
+import { AADHAAR_APP_EVENT, type AadhaarAppRequest } from "@/utils/aadhaarApp";
+import { AadhaarQrSteps } from "@/components/aadhaar-qr-steps";
 
 type Phase = "starting" | "photo" | "waiting" | "done" | "failed";
 
@@ -32,7 +33,6 @@ export function AadhaarAppDialog() {
   const [request, setRequest] = useState<AadhaarAppRequest | null>(null);
   const [phase, setPhase] = useState<Phase>("starting");
   const [image, setImage] = useState<string | null>(null);
-  const [link, setLink] = useState<string | null>(null); // opens the Aadhaar App on this Android phone (never VSign's own address: see utils/aadhaarApp.ts)
   const [message, setMessage] = useState<string | null>(null);
   const [nameMissing, setNameMissing] = useState(false);
   const dispatch = useDispatch();
@@ -84,11 +84,9 @@ export function AadhaarAppDialog() {
       setMessage(null);
       setNameMissing(false);
       setImage(null);
-      setLink(null);
       try {
         const r = await start().unwrap();
         if (run.current !== mine) return;
-        setLink(aadhaarAppLink(r.data.qr_url));
         setImage(r.data.qr_image ? `data:image/png;base64,${r.data.qr_image}` : null);
         setPhase("waiting");
         poll(r.data.session_id, mine, req);
@@ -143,35 +141,7 @@ export function AadhaarAppDialog() {
           </div>
         )}
 
-        {phase === "waiting" && (
-          <div className="space-y-4">
-            {/* VSign's own address (maadhaar.com/getIntent) is never used as a link: that domain is parked for sale. On Android the button opens the app by its package; elsewhere the QR is the way in. */}
-            {link ? (
-              <>
-                <Button asChild className="w-full">
-                  <a href={link}>
-                    <Smartphone className="mr-2 h-4 w-4" /> Open the Aadhaar App
-                  </a>
-                </Button>
-                <p className="text-center text-xs text-muted-foreground">Agree to share in the Aadhaar App, then come back to this page. If it opens but does not show the request, <a className="underline" href={aadhaarAppLaunchLink() || '#'}>open the app on its own</a>, tap Scan QR and scan the code below from another screen.</p>
-              </>
-            ) : (
-              <ol className="list-decimal space-y-1 pl-5 text-sm text-muted-foreground">
-                <li>Open the Aadhaar App and tap Scan QR.</li>
-                <li>Scan the code below, then agree to share.</li>
-              </ol>
-            )}
-            {image ? (
-              <img src={image} alt="QR code for the Aadhaar App" className="mx-auto h-52 w-52 rounded-lg border bg-white p-1" />
-            ) : (
-              <p className="text-sm text-red-600">The code could not be shown. Please try again.</p>
-            )}
-            {!link && <p className="text-center text-xs text-muted-foreground">Using this phone? Open this page on a computer or another phone to scan the code.</p>}
-            <p className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
-              <Loader2 className="h-3.5 w-3.5 animate-spin" /> Waiting for you to share. This stays open for 10 minutes.
-            </p>
-          </div>
-        )}
+        {phase === "waiting" && <AadhaarQrSteps image={image} />}
 
         {phase === "done" && (
           <div className="space-y-4 py-4 text-center">
